@@ -2,139 +2,173 @@
 
 Read any QR code on your screen with a keypress. No phone, no screenshots.
 
-Press **Win+Shift+Q** and UniQR decodes every QR code visible anywhere on your
-screen - a webpage, a PDF, a Zoom call, a paused video, a photo of a flyer.
-One code gets copied straight to your clipboard. Several, and you get a picker
-showing you where each one is so you choose.
+![UniQR picking between several codes](demo_colors.gif)
 
-## Running it
+Press **Win+Shift+Q**. UniQR finds every QR code on your screen and decodes it.
+Works in a browser, a PDF, a Zoom call, a paused video, a photo of a flyer.
 
-Needs Python 3.11 or newer.
+- One code found: it goes straight to your clipboard.
+- Several found: you get a picker so you choose which one.
+
+## Install
+
+You need Python 3.11 or newer.
 
 ```
 pip install -r requirements.txt
+```
+
+```
 python app.py
 ```
 
-It lives in the system tray. Right-click the tray icon to exit.
+UniQR sits in the system tray. Right-click the tray icon to quit.
 
-On Windows the hotkey is `Win+Shift+Q`, falling back to `Ctrl+Alt+Q` then
-`Ctrl+Shift+9` if another app already owns it. On macOS and Linux it is
-`Ctrl+Alt+Q`. UniQR prints which one it got on startup.
+The hotkey on Windows is `Win+Shift+Q`. If another app already owns it, UniQR
+tries `Ctrl+Alt+Q`, then `Ctrl+Shift+9`. On macOS and Linux it uses
+`Ctrl+Alt+Q`. It prints the one it got when it starts.
+
+To pick your own hotkey, set `UNIQR_HOTKEY`. Useful inside a virtual machine,
+where the hypervisor often steals `Ctrl+Alt`:
+
+```
+UNIQR_HOTKEY='<cmd>+<shift>+8' python app.py
+```
+
+## What happens when you press it
+
+| You see | UniQR does this |
+|---|---|
+| One code | Copies it. Shows a small card with an **Open** button. |
+| Several codes | Dims the screen, numbers each code. Hover, click, or press 1 to 9. |
+| No code | Shows a short "nothing found" card by your mouse. |
+| Not a web link | Copies only. No Open button. See [Safety](#safety). |
+
+The card and the picker are normal windows, not system notifications. So they
+still appear when Do Not Disturb is on.
+
+## Scan an image file instead
+
+```
+python scan.py photo.png
+```
+
+Two extra options:
+
+```
+python scan.py photo.png --exhaustive
+```
+
+```
+python scan.py --selftest
+```
+
+`--exhaustive` is slower but tries much harder. `--selftest` checks the engine
+without needing a screen.
+
+## Safety
+
+A QR code is untrusted input. It is a stranger's writing, and you are pointing
+your computer at it.
+
+So UniQR only **opens** plain `http://` and `https://` links. Everything else
+is copy-only, and you decide what to do with it:
+
+- Wi-Fi passwords
+- Contact cards
+- `file://` paths
+- App links like `ms-settings:`
+
+Nothing is captured until you press the hotkey. No background scanning, no
+polling, no history file. Nothing leaves your machine.
+
+## What it can read
+
+Plain codes are easy. These are the harder ones it also handles:
+
+- Dark mode codes, light on a dark background
+- Codes at any angle, including a photo taken from the side
+- Several codes in one picture, at different sizes
+- Fancy advert codes with dotted or rounded blocks and a logo in the middle
+- Coloured codes on coloured backgrounds
+- Small codes, down to about 45 pixels
+
+Checked against real photos:
+
+```
+python tests/test_real_photos.py
+```
 
 ## Platform support
 
-Detection is plain OpenCV and identical everywhere. Only the four things that
-touch the OS differ, and they live behind one interface in `uniqr/backends/`.
+The detection code is plain OpenCV and runs the same everywhere. Only four
+things touch the operating system, and they all sit behind one interface in
+`uniqr/backends/`.
 
 | | Windows | macOS | Linux |
 |---|---|---|---|
 | Detection | ✅ | ✅ | ✅ |
 | Scan an image file | ✅ | ✅ | ✅ |
-| Live screen capture | ✅ GDI BitBlt | ⚠️ mss, needs permission | ⚠️ mss, X11 |
-| Global hotkey | ✅ `RegisterHotKey` | ⚠️ pynput, needs permission | ⚠️ pynput |
-| Tray icon | ✅ | ❌ see below | ⚠️ pystray |
-| Picker + result card | ✅ | ⚠️ untested | ⚠️ untested |
+| Live screen capture | ✅ | ⚠️ needs permission | ⚠️ X11 only |
+| Global hotkey | ✅ | ⚠️ needs permission | ⚠️ |
+| Tray icon | ✅ | ❌ see below | ⚠️ |
+| Picker and card | ✅ | ⚠️ untested | ⚠️ untested |
 
-✅ tested · ⚠️ implemented, not yet run on that OS · ❌ known limitation
+✅ tested · ⚠️ written, not yet run on that system · ❌ known limit
 
-**Honest status:** the Windows path is tested. The macOS and Linux path is
-written and its machinery is exercised on Windows via
-`UNIQR_BACKEND=portable`, which runs the same mss / pynput / pystray / tkinter
-code - but it has not been run on an actual Mac or Linux box yet. Expect to
-fix things.
+Windows is tested. The macOS and Linux code is written, and its machinery runs
+on Windows through `UNIQR_BACKEND=portable`, but it has not been run on a real
+Mac or Linux box yet. Expect to fix things.
 
-### macOS notes
+### macOS
 
-Two permissions must be granted by hand in **System Settings → Privacy &
-Security**, and neither failure raises an error - they just silently do
-nothing:
+Grant two permissions by hand in **System Settings → Privacy & Security**:
 
-- **Screen Recording** - without it capture returns uniformly black frames.
-  UniQR checks for this on startup and says so rather than reporting "no codes
-  found".
-- **Input Monitoring** - without it the hotkey never fires.
+1. **Screen Recording.** Without it, capture returns black frames.
+2. **Input Monitoring.** Without it, the hotkey never fires.
 
-The tray icon is expected **not** to work: pystray needs the main thread on
-macOS, and Tk already owns it (Tk has the same requirement). The hotkey is the
-primary interface, so UniQR reports the missing tray and carries on. A proper
-fix means a native menu-bar item via `rumps`/pyobjc.
+Neither one raises an error when missing. They just quietly do nothing, so
+UniQR checks the capture on startup and tells you instead of saying "no codes
+found".
 
-Also note `pynput` observes keys rather than reserving them, so unlike Win32 it
-cannot detect that a shortcut is already taken - if another app owns it, both
-will fire.
+Grant them to your **terminal app**, not to Python. macOS credits the app that
+launched the process. Then quit the terminal fully and reopen it, because the
+permission only applies on relaunch.
 
-### Linux notes
+The tray icon is expected to fail. pystray needs the main thread on macOS and
+Tk already has it. The hotkey is the real interface, so UniQR reports the
+missing tray and keeps going.
 
-Works under X11. Pure Wayland blocks both screen capture and global key
-grabbing by design; that needs a portal-based capture path, which is not
-written yet.
+One more difference: pynput watches keys instead of reserving them. Unlike
+Windows, it cannot tell that another app already owns a shortcut, so both will
+fire.
+
+### Linux
+
+Works on X11. Wayland blocks screen capture and global hotkeys by design, and
+that needs a portal based capture path which is not written yet.
 
 ### Forcing a backend
 
 ```
-UNIQR_BACKEND=portable python app.py    # macOS/Linux path, on any OS
-UNIQR_BACKEND=windows  python app.py    # native path
+UNIQR_BACKEND=portable python app.py
 ```
 
-## Using it
-
-| Situation | What happens |
-|---|---|
-| One code on screen | Copied to clipboard, small card appears with an **Open** button |
-| Several codes | Screen dims, each code lit up and numbered - hover, click, or press 1-9 |
-| No code found | Brief "nothing found" card near the cursor |
-| Not a web link | Copy only, no Open button (see Safety) |
-
-The card and the picker are ordinary windows, not system notifications, so
-they show up even with Do Not Disturb on.
-
-## Scanning an image file instead
-
 ```
-python scan.py photo.png
-python scan.py photo.png --exhaustive   # slower, tries much harder
-python scan.py --selftest
-```
-
-## Safety
-
-A QR code is untrusted input - it is a stranger's writing that you are
-pointing your computer at. UniQR will only **Open** plain `http://` and
-`https://` links. Everything else (Wi-Fi credentials, contact cards,
-`file://`, app schemes like `ms-settings:`) is copy-only, so you read it and
-decide yourself.
-
-Nothing is captured until you press the hotkey. There is no background
-scanning, no polling, no history file, and nothing leaves your machine.
-
-## What it can read
-
-Beyond ordinary codes, the scanner handles the awkward real-world cases:
-
-- Inverted / dark-mode codes (light modules on a dark background)
-- Rotation at any angle, and perspective from a photographed page
-- Several codes in one frame, at different sizes
-- Stylised marketing codes - rounded or dotted modules, centre logos
-- Colour codes on colour backgrounds, where grey-scale contrast nearly vanishes
-- Small codes, down to roughly 45 px
-
-Tested against real photographs in `tests/`:
-
-```
-python tests\test_real_photos.py
+UNIQR_BACKEND=windows python app.py
 ```
 
 ## How it works
 
 ```
 Win+Shift+Q
-    -> capture every monitor (GDI BitBlt, DPI-aware)
-    -> locate and decode (OpenCV, both detectors, both polarities)
-    -> retry harder: tiles, upscaling, CLAHE contrast, channel separation
-    -> one code: copy + card   |   several: picker overlay
+    -> capture every monitor
+    -> locate and decode with OpenCV, both detectors, both polarities
+    -> if that fails, try harder: tiles, upscaling, contrast, colour channels
+    -> one code: copy and show a card
+       several: show the picker
 ```
 
-Detection is deliberately layered cheapest-first. A plain code on a clean
-screen resolves in about 140 ms; the full fallback ladder only runs when the
-cheap passes come back empty, and costs about 900 ms.
+The steps run cheapest first. A plain code on a clean screen takes about
+140 ms. The full retry ladder only runs when the cheap passes find nothing, and
+costs about 900 ms.

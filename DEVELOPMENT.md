@@ -1,100 +1,122 @@
-# UniQR — development notes
+# UniQR development notes
 
-Press a hotkey, decode every QR code on screen, act on it. Windows works and is
-tested. macOS and Linux are written but barely exercised — that is the current
-work.
+My working notes. The constraints and dead ends that are not obvious from
+reading the code, written down so I do not rediscover them.
 
-These are my working notes: the constraints and dead ends that are not obvious
-from reading the code, kept so I do not rediscover them.
+Windows works and is tested. macOS and Linux are written but barely run. That
+is the current job.
 
 ## Ground rules
 
-**Do not break Windows.** It is the only fully tested platform and my daily
-driver. Before touching anything shared, run the three suites below; they must
-stay green on both platforms.
+**1. Do not break Windows.** It is the only fully tested system and my daily
+driver. Run the three test suites before and after any shared change.
 
-**Platform code goes behind the backend interface.** `uniqr/backends/base.py`
-defines the contract: `set_dpi_aware`, `virtual_screen`, `grab`, `cursor_pos`,
-`copy_text`. Windows has a native backend; macOS and Linux share `portable.py`.
-Nothing outside `uniqr/backends/` and the two shell modules should contain an
-`if sys.platform` check. If you need one elsewhere, that is a sign the contract
-is missing something — extend the contract instead.
+**2. Platform code goes behind the backend interface.** `uniqr/backends/base.py`
+sets the contract: `set_dpi_aware`, `virtual_screen`, `grab`, `cursor_pos`,
+`copy_text`. Windows has its own backend. macOS and Linux share `portable.py`.
 
-**Detection is platform-neutral and stays that way.** `uniqr/decode.py` is pure
-OpenCV/numpy and passes identically on Windows (OpenCV 4.13) and macOS
-(OpenCV 5.0). Do not add OS-specific behaviour to it.
+Nothing outside `uniqr/backends/` and the two shell modules should hold an
+`if sys.platform` check. If one seems necessary elsewhere, the contract is
+missing something. Extend the contract instead.
 
-**Measure before fixing.** Every detection change in this project came from a
-benchmark that showed a number moving. Inverted codes were at 0%, not "seemed
-flaky". If you are about to fix detection, write the failing case first.
+**3. Keep detection platform neutral.** `uniqr/decode.py` is pure OpenCV and
+numpy. It passes the same on Windows (OpenCV 4.13) and macOS (OpenCV 5.0). Do
+not put OS specific behaviour in it.
 
-## Verify with
+**4. Measure before fixing.** Every detection change here came from a benchmark
+showing a number move. Inverted codes were at 0 percent, not "seemed flaky".
+Write the failing case first.
+
+## How to check your work
 
 ```
-python tests/test_real_photos.py     # 3 real photos, must be 3/3
-python tests/test_conditions.py      # 17 synthetic distortions, must be 17/17
-python tests/test_stylized.py        # 8 colour/stylised cases, must be 8/8
-python tools/diagnose.py             # environment + permissions report
+python tests/test_real_photos.py
 ```
 
-All three return non-zero on failure, so they chain with `&&`.
+```
+python tests/test_conditions.py
+```
 
-`UNIQR_BACKEND=portable` forces the macOS/Linux code path on any OS, including
-Windows. Use it to check portable-backend changes without a Mac.
+```
+python tests/test_stylized.py
+```
+
+```
+python tools/diagnose.py
+```
+
+Expected: 3 of 3, 17 of 17, 8 of 8, and no failures in the report. All three
+suites exit non-zero when they fail, so `&&` chaining works.
+
+To test the macOS and Linux code path without a Mac, force the backend:
+
+```
+UNIQR_BACKEND=portable python tests/test_real_photos.py
+```
 
 ## Where things stand
 
-Confirmed working on macOS 14, Intel, Python 3.14.7, OpenCV 5.0.0.93:
+Confirmed on macOS 14, Intel, Python 3.14.7, OpenCV 5.0.0.93:
 
-- all three test suites, including the three real photographs
-- `python scan.py <image>` for file scanning
+- all three test suites pass, including the three real photos
+- `python scan.py <image>` works
 
-Not yet verified on macOS — this is the job:
+Still to do on macOS:
 
-1. **Screen capture.** mss needs Screen Recording permission. Without it macOS
-   returns uniformly black frames rather than an error, so
-   `backends/portable.py:probe()` checks pixel spread to tell blank from
-   blocked. Confirm the check actually fires when permission is absent.
-2. **Global hotkey.** pynput needs Input Monitoring. Both permissions attach to
-   the *terminal app*, not to Python, and only take effect after that app is
-   fully quit and relaunched. In a VM the hypervisor may swallow Ctrl+Alt
-   entirely — `UNIQR_HOTKEY` overrides the combination in pynput syntax.
-3. **Picker overlay.** `uniqr/overlay.py` is tkinter and should mostly port,
-   but the coordinate assumptions are Windows-shaped. Expect trouble with
-   Retina backing scale (mss returns physical pixels; Tk geometry is in points)
-   and with a negative virtual-screen origin on multi-monitor setups. If the
-   highlight boxes are offset from the codes, that is this.
-4. **Tray icon.** Expected to fail. pystray needs the main thread on macOS and
-   Tk already owns it. `PortableShell.start_tray()` returns False and the app
-   continues hotkey-only. A real fix is a native menu-bar item via rumps or
-   pyobjc — do not fight pystray for it.
-5. **Linux.** X11 should work through the same portable backend. Pure Wayland
-   blocks both screen capture and global key grabbing by design and needs a
-   portal-based path that does not exist yet.
+**1. Screen capture.** mss needs Screen Recording permission. Without it macOS
+returns black frames instead of an error, so `backends/portable.py:probe()`
+checks pixel spread to tell a blank screen from a blocked one. Confirm that
+check actually fires when the permission is missing.
 
-## Things already learned the hard way
+**2. Global hotkey.** pynput needs Input Monitoring. Both permissions attach to
+the terminal app, not to Python, and only apply after that app is fully quit
+and reopened. Inside a VM the hypervisor may swallow Ctrl+Alt, so
+`UNIQR_HOTKEY` overrides the combination.
 
-- Both OpenCV detectors assume dark modules on a light background. An inverted
-  code scores 0% at every rotation, so every scan runs both polarities.
-- Finding one code says nothing about whether others exist. An early return on
-  the first hit is what made a three-code flyer report one code.
-- Stylised codes — dotted or rounded modules — cannot even be *located*, so
-  no downstream cleverness helps. Thresholding and growing the modules
-  reconstructs a decodable grid.
-- Decoding stylised codes is knife-edge with respect to framing: the same code
-  decoded at 16, 24 and 30 px of crop margin but not at 33 or 40, because CLAHE
-  tile boundaries shift. Hence a portfolio of sizes and treatments rather than
-  one recipe.
-- A colour code can have almost no grey-scale separation (navy on crimson
-  measures 33 of 255) while separating cleanly in the red channel alone.
+**3. Picker overlay.** `uniqr/overlay.py` is tkinter and should mostly port. The
+coordinate maths is Windows shaped though. Expect trouble with Retina scaling,
+because mss returns physical pixels while Tk geometry uses points. Also with a
+negative screen origin on multi monitor setups. If the highlight boxes sit
+offset from the codes, this is why.
 
-## Safety rules that are not negotiable
+**4. Tray icon.** Expected to fail. pystray wants the main thread on macOS and
+Tk already has it. `PortableShell.start_tray()` returns False and the app
+carries on with the hotkey only. The real fix is a native menu bar item through
+rumps or pyobjc. Do not fight pystray for it.
 
-A decoded payload is untrusted input read off the screen. Only `http://` and
-`https://` get an Open action — see `actions.can_open`. Never hand an arbitrary
-payload to a shell-execute equivalent; `file://` and app schemes like
-`ms-settings:` must stay copy-only. Do not widen this to make a demo nicer.
+**5. Linux.** X11 should work on the same portable backend. Wayland blocks both
+screen capture and global hotkeys by design, and needs a portal based path that
+does not exist yet.
 
-Result cards and the picker are ordinary windows rather than system
-notifications, deliberately: Do Not Disturb silently swallows notifications,
-which would make a scan look broken. Keep it that way.
+## Things learned the hard way
+
+**Both OpenCV detectors assume dark blocks on a light background.** An inverted
+code scores 0 percent at every rotation. So every scan now runs both
+polarities.
+
+**Finding one code tells you nothing about the others.** Returning early on the
+first hit is what made a three code flyer report one code.
+
+**Fancy codes cannot even be located.** Dotted or rounded blocks defeat the
+locator, so nothing further down the pipeline can help. Thresholding and then
+growing the blocks rebuilds a grid it can read.
+
+**Decoding fancy codes is knife edge.** The same code decoded at 16, 24 and
+30 pixels of crop margin, but not at 33 or 40, because the CLAHE tile
+boundaries shift. That is why the scanner tries a range of sizes and contrast
+treatments instead of one recipe.
+
+**Colour codes can hide in grayscale.** Navy on crimson measures 33 out of 255
+once converted to grey, yet separates cleanly in the red channel alone.
+
+## Safety rules, not up for negotiation
+
+A decoded payload is untrusted input read off the screen.
+
+Only `http://` and `https://` get an Open action. See `actions.can_open`. Never
+pass an arbitrary payload to anything that runs it. `file://` and app links like
+`ms-settings:` stay copy only. Do not widen this to make a demo look better.
+
+Result cards and the picker are ordinary windows on purpose, not system
+notifications. Do Not Disturb silently swallows notifications, which would make
+a scan look broken. Keep it that way.
