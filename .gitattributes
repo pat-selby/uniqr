@@ -1,0 +1,9 @@
+# Store text as LF in the repository regardless of the checkout platform.
+# Without this, files edited on Windows and then on macOS show up as entirely
+# rewritten, which makes cross-machine diffs unreadable.
+* text=auto eol=lf
+
+*.png binary
+*.gif binary
+*.ico binary
+*.zip binary

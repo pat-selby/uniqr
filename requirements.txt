@@ -1,0 +1,16 @@
+# Detection is pure OpenCV and runs anywhere. Only screen capture, the
+# hotkey, the tray icon and the clipboard are platform-specific.
+opencv-python>=4.10
+numpy>=2.0
+pillow>=10.0
+
+# Windows backend: GDI capture, RegisterHotKey, Shell_NotifyIcon, clipboard.
+pywin32>=306; sys_platform == "win32"
+
+# Portable backend for macOS and Linux. Installed everywhere rather than
+# gated, so UNIQR_BACKEND=portable can be exercised on Windows too - which is
+# how the cross-platform path stays testable without a Mac to hand.
+mss>=9.0
+pynput>=1.7
+pystray>=0.19
+pyperclip>=1.8

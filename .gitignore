@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Build output
+build/
+dist/
+*.spec
+
+# Debug and scratch output
+dbg_*.png
+*.log
+
+# Uncropped originals of the test photos: they carry third-party contact
+# details and identifiable venues. tools/crop_fixtures.py puts them here.
+fixtures_private/
+uniqr-mac.zip
+
+# Per-machine tool and editor state, not useful to anyone else.
+*.local.json
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
