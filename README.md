@@ -66,6 +66,16 @@ python scan.py --selftest
 `--exhaustive` is slower but tries much harder. `--selftest` checks the engine
 without needing a screen.
 
+`--save` writes the captured image to a file, which is useful when you need to
+debug why a code was not found or share a capture with someone helping you:
+
+```
+python scan.py --save capture.png
+```
+
+You can then scan that file back with `python scan.py capture.png` or attach it
+to a bug report.
+
 ## Safety
 
 A QR code is untrusted input. It is a stranger's writing, and you are pointing
