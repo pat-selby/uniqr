@@ -57,7 +57,6 @@ def c_backend():
 def c_decode():
     import cv2
     import numpy as np
-
     from uniqr.decode import Scanner
 
     expected = "https://example.com/uniqr-diagnose"
@@ -153,9 +152,8 @@ def c_hotkey_live(timeout: int = 12):
     The listener starting proves nothing on macOS - without Input Monitoring
     permission it starts happily and then receives nothing at all.
     """
-    from uniqr.shell_portable import PortableShell, hotkey_choices
+    from uniqr.shell_portable import PortableShell
 
-    label = hotkey_choices()[0][1]
     shell = PortableShell(on_hotkey=lambda: None)
     started = shell.register_hotkey()
     if not started:

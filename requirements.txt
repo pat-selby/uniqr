@@ -1,6 +1,9 @@
 # Detection is pure OpenCV and runs anywhere. Only screen capture, the
 # hotkey, the tray icon and the clipboard are platform-specific.
 opencv-python>=4.10
+# Second, independent decoder. Reads stylised codes that OpenCV locates
+# but cannot decode, such as cards with rounded finder patterns.
+zxing-cpp>=2.2
 numpy>=2.0
 pillow>=10.0
 
