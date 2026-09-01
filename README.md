@@ -4,21 +4,40 @@ Read any QR code on your screen with a keypress. No phone, no screenshots.
 
 ![UniQR picking between several codes](demo_colors.gif)
 
+[![CI](https://github.com/pat-selby/uniqr/actions/workflows/ci.yml/badge.svg)](https://github.com/pat-selby/uniqr/actions/workflows/ci.yml)
+
 Press **Win+Shift+Q**. UniQR finds every QR code on your screen and decodes it.
 Works in a browser, a PDF, a Zoom call, a paused video, a photo of a flyer.
 
 - One code found: it goes straight to your clipboard.
 - Several found: you get a picker so you choose which one.
 
+## Highlights
+
+Cross-platform desktop utility with a **multi-stage computer vision pipeline** built on OpenCV. Designed for real-world screen content — dark mode, perspective distortion, stylised marketing codes, and colour-on-colour signage — not just clean printouts.
+
+| Area | Detail |
+|---|---|
+| **Detection** | Dual OpenCV detectors (Aruco + classic), dual polarity, perspective rectification, destylisation for dotted modules, multi-scale upscaling, CLAHE/Otsu/adaptive threshold, red-channel extraction |
+| **Architecture** | Platform-neutral CV core behind a backend abstraction (`windows` GDI capture vs `portable` mss/pynput) |
+| **Latency** | ~140 ms typical scan, ~900 ms worst-case retry ladder |
+| **Regression** | 28 parametrized pytest cases: 17 synthetic conditions, 8 stylised codes, 3 real photographs |
+| **CI** | GitHub Actions matrix: Windows, macOS, Linux × Python 3.11/3.12; ruff + mypy |
+
 ## Install
 
 You need Python 3.11 or newer.
 
-```
-pip install -r requirements.txt
+```bash
+pip install -e ".[windows]"   # Windows (includes pywin32)
+pip install -e .                # macOS / Linux
+uniqr                         # or: python app.py
 ```
 
-```
+Legacy install still works:
+
+```bash
+pip install -r requirements.txt
 python app.py
 ```
 
@@ -31,7 +50,7 @@ tries `Ctrl+Alt+Q`, then `Ctrl+Shift+9`. On macOS and Linux it uses
 To pick your own hotkey, set `UNIQR_HOTKEY`. Useful inside a virtual machine,
 where the hypervisor often steals `Ctrl+Alt`:
 
-```
+```bash
 UNIQR_HOTKEY='<cmd>+<shift>+8' python app.py
 ```
 
@@ -49,17 +68,16 @@ still appear when Do Not Disturb is on.
 
 ## Scan an image file instead
 
-```
+```bash
+uniqr-scan photo.png
+# or
 python scan.py photo.png
 ```
 
 Two extra options:
 
-```
+```bash
 python scan.py photo.png --exhaustive
-```
-
-```
 python scan.py --selftest
 ```
 
@@ -103,10 +121,10 @@ Plain codes are easy. These are the harder ones it also handles:
 - Coloured codes on coloured backgrounds
 - Small codes, down to about 45 pixels
 
-Checked against real photos:
+Run the full regression suite:
 
-```
-python tests/test_real_photos.py
+```bash
+pytest
 ```
 
 ## Platform support
@@ -160,25 +178,58 @@ that needs a portal based capture path which is not written yet.
 
 ### Forcing a backend
 
-```
+```bash
 UNIQR_BACKEND=portable python app.py
-```
-
-```
 UNIQR_BACKEND=windows python app.py
 ```
 
-## How it works
+## Architecture
 
 ```
-Win+Shift+Q
-    -> capture every monitor
-    -> locate and decode with OpenCV, both detectors, both polarities
-    -> if that fails, try harder: tiles, upscaling, contrast, colour channels
-    -> one code: copy and show a card
-       several: show the picker
+Hotkey (Shell / PortableShell)
+    │
+    ▼
+capture.grab()  ← backends/windows.py | backends/portable.py
+    │
+    ▼
+Scanner.scan()  ← uniqr/decode.py  (platform-neutral OpenCV)
+    │
+    ├── 0 codes → overlay.toast("nothing found")
+    ├── 1 code  → actions.copy() + overlay.toast()
+    └── N codes → overlay.pick() → user choice → copy / open
 ```
 
-The steps run cheapest first. A plain code on a clean screen takes about
-140 ms. The full retry ladder only runs when the cheap passes find nothing, and
-costs about 900 ms.
+### Detection pipeline (`uniqr/decode.py`)
+
+Scans run cheapest-first; hard cases escalate through a retry ladder:
+
+1. **Dual detectors** — OpenCV Aruco + classic QRCodeDetector, merged results
+2. **Dual polarity** — normal and inverted copies (dark-mode codes)
+3. **Locate → rectify → decode** — perspective warp for tilted codes
+4. **Destylise pass** — morphological ops rebuild dotted/rounded marketing grids
+5. **Contrast variants** — CLAHE, Otsu, adaptive threshold, red-channel split
+6. **Upscale retry** — 2×/4× for codes under ~60 px (capped at 1200 px frame)
+7. **Tiled exhaustive mode** — 3×3 overlapping grid at 2× scale (CLI opt-in)
+
+Typical latency: **~140 ms**. Full ladder when cheap passes miss: **~900 ms**.
+
+### Backend abstraction
+
+| Backend | Capture | Hotkey | Tray |
+|---|---|---|---|
+| `windows` | GDI BitBlt (~50 ms for 4K) | `RegisterHotKey` | Shell_NotifyIcon |
+| `portable` | mss | pynput listener | pystray |
+
+Detection, actions, and overlay logic never import platform APIs directly.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest                  # 28 regression cases
+ruff check .            # lint
+mypy uniqr              # typecheck
+python tools/diagnose.py
+```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for platform caveats and benchmark history.

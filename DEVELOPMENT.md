@@ -29,24 +29,24 @@ Write the failing case first.
 
 ## How to check your work
 
+```bash
+pytest
 ```
+
+Or run the legacy scripts individually:
+
+```bash
 python tests/test_real_photos.py
-```
-
-```
 python tests/test_conditions.py
-```
-
-```
 python tests/test_stylized.py
 ```
 
-```
+```bash
 python tools/diagnose.py
 ```
 
-Expected: 3 of 3, 17 of 17, 8 of 8, and no failures in the report. All three
-suites exit non-zero when they fail, so `&&` chaining works.
+Expected: 3 of 3 real photos, 17 of 17 conditions, 8 of 8 stylised, plus selftest.
+All suites exit non-zero when they fail.
 
 To test the macOS and Linux code path without a Mac, force the backend:
 

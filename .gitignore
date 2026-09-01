@@ -3,10 +3,16 @@ __pycache__/
 .venv/
 venv/
 env/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # Build output
 build/
 dist/
+*.egg-info/
 *.spec
 
 # Debug and scratch output
@@ -25,3 +31,6 @@ uniqr-mac.zip
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Throwaway diagnostic captures
+fail*.png

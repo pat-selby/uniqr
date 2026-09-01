@@ -13,6 +13,7 @@ it only runs when the cheap passes come back empty.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import cv2
 import numpy as np
@@ -22,11 +23,41 @@ import numpy as np
 # pages of noise, so keep OpenCV to real errors.
 cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
 
+# zxing-cpp is a second, independent decoder. It reads several stylised codes
+# that OpenCV locates but cannot decode - a real "Scan to download" card with
+# rounded finder patterns decoded at native scale with no preprocessing while
+# both OpenCV detectors failed on the same pixels. Optional: a missing install
+# degrades to OpenCV alone rather than breaking the scanner.
+zxingcpp: Any
+_ZXING_FORMATS: Any
+
+try:
+    import zxingcpp
+
+    _ZXING_FORMATS = zxingcpp.BarcodeFormat.QRCode
+    for _extra in ("MicroQRCode", "RMQRCode"):
+        _fmt = getattr(zxingcpp.BarcodeFormat, _extra, None)
+        if _fmt is not None:
+            _ZXING_FORMATS |= _fmt
+except ImportError:  # pragma: no cover - exercised by the no-zxing test
+    zxingcpp = None
+    _ZXING_FORMATS = None
+
+
+def zxing_available() -> bool:
+    """Whether the second decoder is installed."""
+    return zxingcpp is not None
+
+
 # Below roughly this many pixels a code needs upscaling before it will decode.
 SMALL_CODE_PX = 60
 
-# Tiled pass: a 3x3 grid with generous overlap, each tile enlarged 2x.
+# Tiled pass: an overlapping grid, each tile enlarged before decoding. The
+# grid adapts to the frame, because a tile smaller than the code it is hunting
+# defeats the whole point. A fixed 3x3 on a 579x381 image produced 158px-tall
+# tiles while the code was 215px, so no tile could ever contain it.
 TILE_GRID = 3
+TILE_MIN_PX = 360
 TILE_OVERLAP = 0.25
 TILE_SCALE = 2.0
 
@@ -74,6 +105,39 @@ def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
     return image[y0:y1, x0:x1]
 
 
+def _zxing_detect(image: np.ndarray) -> list["Detection"]:
+    """Read with zxing-cpp, keeping each code's corner positions."""
+    if zxingcpp is None:
+        return []
+    try:
+        results = zxingcpp.read_barcodes(image, formats=_ZXING_FORMATS)
+    except Exception:  # noqa: BLE001 - a decoder failure is not a scan failure
+        return []
+
+    out: list[Detection] = []
+    for result in results:
+        if not result.text:
+            continue
+        p = result.position
+        quad = np.array(
+            [
+                [p.top_left.x, p.top_left.y],
+                [p.top_right.x, p.top_right.y],
+                [p.bottom_right.x, p.bottom_right.y],
+                [p.bottom_left.x, p.bottom_left.y],
+            ],
+            dtype=np.float32,
+        )
+        out.append(Detection(result.text, quad))
+    return out
+
+
+def _zxing_text(image: np.ndarray) -> str:
+    """Just the payload, for the patch reader."""
+    found = _zxing_detect(image)
+    return found[0].text if found else ""
+
+
 def _contrast_variants(patch: np.ndarray):
     """Successively harder attempts to turn a patch into clean black and white.
 
@@ -104,10 +168,23 @@ def _contrast_variants(patch: np.ndarray):
         yield cv2.cvtColor(single, cv2.COLOR_GRAY2BGR)
 
 
+def tile_grid_for(width: int, height: int) -> int:
+    """How many tiles per side this frame can be split into.
+
+    Splitting only helps while each tile is still big enough to hold a whole
+    code. Past that the grid slices codes apart and the pass is worse than
+    useless, so small frames get fewer tiles - down to a single tile, which is
+    just the frame itself at higher magnification.
+    """
+    return max(1, min(TILE_GRID, int(min(width, height) // TILE_MIN_PX)))
+
+
 def _tile_rects(
-    width: int, height: int, grid: int = TILE_GRID, overlap: float = TILE_OVERLAP
+    width: int, height: int, grid: int | None = None, overlap: float = TILE_OVERLAP
 ) -> list[tuple[int, int, int, int]]:
     """Overlapping tile bounds covering the whole frame."""
+    if grid is None:
+        grid = tile_grid_for(width, height)
     step_x, step_y = width / grid, height / grid
     pad_x, pad_y = step_x * overlap, step_y * overlap
     rects = []
@@ -197,8 +274,18 @@ class Scanner:
     def _detect_both_polarities(
         self, image: np.ndarray, scale: float = 1.0
     ) -> list[Detection]:
+        def rescale(dets: list[Detection]) -> list[Detection]:
+            if scale == 1.0:
+                return dets
+            return [Detection(d.text, d.quad / scale) for d in dets]
+
         return _merge(
             [
+                # zxing first: it is the strongest single reader here. It
+                # inverts internally (try_invert defaults on), so unlike the
+                # OpenCV detectors it only needs one call, not one per
+                # polarity - passing it a flipped copy as well was pure waste.
+                rescale(_zxing_detect(image)),
                 self._detect(image, scale),
                 self._detect(cv2.bitwise_not(image), scale),
             ]
@@ -284,6 +371,9 @@ class Scanner:
             sized = patch if target is None else _resize_max(patch, target)
             for variant in _contrast_variants(sized):
                 for polarity in (variant, cv2.bitwise_not(variant)):
+                    text = _zxing_text(polarity)
+                    if text:
+                        return text
                     for det in (self._classic, self._aruco):
                         try:
                             text, _, _ = det.detectAndDecode(polarity)
