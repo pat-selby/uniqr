@@ -75,7 +75,10 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.11"
+# No python_version pin: mypy then analyses under whichever interpreter
+# it runs on. Pinning 3.11 made it read numpy 2.5 stubs as 3.11 code,
+# and those stubs use `type` statements that only parse on 3.12+, so
+# mypy failed inside numpy rather than anywhere in this project.
 packages = ["uniqr"]
 ignore_missing_imports = true
 warn_return_any = false
