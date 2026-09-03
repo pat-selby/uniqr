@@ -18,10 +18,10 @@ Cross-platform desktop utility with a **multi-stage computer vision pipeline** b
 
 | Area | Detail |
 |---|---|
-| **Detection** | Dual OpenCV detectors (Aruco + classic), dual polarity, perspective rectification, destylisation for dotted modules, multi-scale upscaling, CLAHE/Otsu/adaptive threshold, red-channel extraction |
+| **Detection** | Three decoders (OpenCV Aruco + classic, zxing-cpp), dual polarity, perspective rectification, adaptive tiling, destylisation for dotted modules, multi-scale upscaling, CLAHE/Otsu/adaptive threshold, red-channel extraction |
 | **Architecture** | Platform-neutral CV core behind a backend abstraction (`windows` GDI capture vs `portable` mss/pynput) |
-| **Latency** | ~140 ms typical scan, ~900 ms worst-case retry ladder |
-| **Regression** | 28 parametrized pytest cases: 17 synthetic conditions, 8 stylised codes, 3 real photographs |
+| **Latency** | ~520 ms typical scan, ~880 ms worst-case retry ladder (1920x1080) |
+| **Regression** | 103 pytest cases: 17 synthetic conditions, 8 stylised codes, 4 real photographs, plus unit coverage for tile geometry, the decoder layer and the link-safety rules |
 | **CI** | GitHub Actions matrix: Windows, macOS, Linux × Python 3.11/3.12; ruff + mypy |
 
 ## Install
