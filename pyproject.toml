@@ -112,3 +112,14 @@ disable_error_code = ["call-arg", "misc"]
 [[tool.mypy.overrides]]
 module = "uniqr.shell_portable"
 disable_error_code = ["attr-defined"]
+
+# ctypes.windll exists only on Windows, and CI runs mypy on Linux, so these
+# two Windows-only modules trip attr-defined there. The code behind the
+# backend contract is never imported off Windows.
+[[tool.mypy.overrides]]
+module = "uniqr.shell"
+disable_error_code = ["attr-defined"]
+
+[[tool.mypy.overrides]]
+module = "uniqr.backends.windows"
+disable_error_code = ["attr-defined"]
