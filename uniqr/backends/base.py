@@ -45,5 +45,13 @@ class Backend(Protocol):
     def cursor_pos(self) -> tuple[int, int]:
         """Pointer position in the same coordinate space as virtual_screen."""
 
+    def monitor_at(self, x: int, y: int) -> Rect:
+        """Usable area of the monitor holding a point, or the nearest one.
+
+        Excludes the taskbar where the OS reports it. Needed to keep cards
+        on the monitor the code is on: toolkits such as Tk only report the
+        primary screen's size.
+        """
+
     def copy_text(self, text: str) -> None:
         """Replace the clipboard contents."""

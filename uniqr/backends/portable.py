@@ -45,6 +45,23 @@ def virtual_screen() -> Rect:
     return Rect(left=m["left"], top=m["top"], width=m["width"], height=m["height"])
 
 
+def monitor_at(x: int, y: int) -> Rect:
+    """Bounds of the monitor holding a point, or the nearest one.
+
+    mss reports full monitor bounds, taskbars and docks included, so a card
+    placed at the very bottom edge may sit under a dock on macOS.
+    """
+    monitors = _sct().monitors[1:] or _sct().monitors[:1]
+
+    def distance(m: dict) -> int:
+        dx = max(m["left"] - x, 0, x - (m["left"] + m["width"] - 1))
+        dy = max(m["top"] - y, 0, y - (m["top"] + m["height"] - 1))
+        return dx * dx + dy * dy
+
+    m = min(monitors, key=distance)
+    return Rect(left=m["left"], top=m["top"], width=m["width"], height=m["height"])
+
+
 def grab(rect: Rect | None = None) -> np.ndarray:
     if rect is None:
         rect = virtual_screen()
