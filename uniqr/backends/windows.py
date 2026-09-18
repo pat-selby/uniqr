@@ -8,6 +8,7 @@ numpy array with no image-file round trip.
 import ctypes
 
 import numpy as np
+import win32api
 import win32clipboard
 import win32con
 import win32gui
@@ -86,6 +87,13 @@ def grab(rect: Rect | None = None) -> np.ndarray:
             dc.DeleteDC()
         if src_dc is not None:
             win32gui.ReleaseDC(desktop, src_dc)
+
+
+def monitor_at(x: int, y: int) -> Rect:
+    """Work area (taskbar excluded) of the monitor holding a point."""
+    handle = win32api.MonitorFromPoint((int(x), int(y)), win32con.MONITOR_DEFAULTTONEAREST)
+    left, top, right, bottom = win32api.GetMonitorInfo(handle)["Work"]
+    return Rect(left=left, top=top, width=right - left, height=bottom - top)
 
 
 def cursor_pos() -> tuple[int, int]:

@@ -24,6 +24,7 @@ set_dpi_aware = backend.set_dpi_aware
 virtual_screen = backend.virtual_screen
 grab = backend.grab
 cursor_pos = backend.cursor_pos
+monitor_at = backend.monitor_at
 copy_text = backend.copy_text
 
 

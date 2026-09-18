@@ -18,7 +18,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageTk
 
-from uniqr import actions
+from uniqr import actions, capture
+from uniqr.backends.base import Rect
 from uniqr.decode import Detection, payload_kind
 
 QUNS_ACCEPTS_NOTIFICATIONS = 5
@@ -232,13 +233,17 @@ class Picker:
         _button(row, "Copy", lambda: self._finish("copy", det), False)
 
         left, top, w, h = det.bbox
-        x, y = left, top + h + 16
-        cw, ch = 420, 130
-        x = min(x, self.canvas.winfo_width() - cw)
-        if y + ch > self.canvas.winfo_height():
-            y = max(0, top - ch)
+        ox, oy = self.origin
+        frame.update_idletasks()
+        size = (frame.winfo_reqwidth(), frame.winfo_reqheight())
+        anchor = (ox + left, oy + top + h + 16)
+        # The canvas spans every monitor, so its width says nothing about where
+        # one monitor ends. Place in screen space, then convert back.
+        sx, sy = place_within(anchor, size, capture.monitor_at(ox + left, oy + top))
         self._card_frame = frame
-        self._card = self.canvas.create_window(max(0, x), y, window=frame, anchor="nw")
+        self._card = self.canvas.create_window(
+            sx - ox, sy - oy, window=frame, anchor="nw"
+        )
 
     # -- choices -------------------------------------------------------------
 
@@ -296,6 +301,31 @@ def notifications_visible() -> bool:
     if hr != 0:
         return True
     return state.value == QUNS_ACCEPTS_NOTIFICATIONS
+
+
+def place_within(
+    anchor: tuple[int, int],
+    size: tuple[int, int],
+    bounds: Rect,
+    margin: int = 8,
+    flip_gap: int = 24,
+) -> tuple[int, int]:
+    """Top-left corner for a card near `anchor`, kept inside one monitor.
+
+    Clamping against Tk's screen size was the bug: Tk only knows the primary
+    monitor, so a code on a second screen at x=2500 had its card dragged back
+    to the primary's right edge. Bounds now come from the monitor the code is
+    actually on. Coordinates are virtual-desktop pixels, so a monitor left of
+    or above the primary, with negative bounds, works the same way.
+    """
+    ax, ay = anchor
+    w, h = size
+    x = max(min(ax, bounds.right - w - margin), bounds.left + margin)
+    y = ay
+    if y + h > bounds.bottom - margin:
+        y = ay - h - flip_gap
+    y = max(min(y, bounds.bottom - h - margin), bounds.top + margin)
+    return int(x), int(y)
 
 
 class Toast:
@@ -371,12 +401,8 @@ class Toast:
 
     def _place(self, at: tuple[int, int]) -> None:
         w, h = self.win.winfo_reqwidth(), self.win.winfo_reqheight()
-        sw, sh = self.win.winfo_screenwidth(), self.win.winfo_screenheight()
-        x = max(8, min(at[0], sw - w - 8))
-        y = at[1]
-        if y + h > sh - 8:
-            y = max(8, at[1] - h - 24)
-        self.win.geometry(f"+{int(x)}+{int(y)}")
+        x, y = place_within(at, (w, h), capture.monitor_at(*at))
+        self.win.geometry(f"+{x}+{y}")
 
     def _start_timer(self) -> None:
         self._cancel_timer()
