@@ -26,6 +26,7 @@ grab = backend.grab
 cursor_pos = backend.cursor_pos
 monitor_at = backend.monitor_at
 copy_text = backend.copy_text
+round_corners = backend.round_corners
 
 
 def probe() -> tuple[bool, str]:

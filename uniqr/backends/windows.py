@@ -18,6 +18,10 @@ from uniqr.backends.base import Rect
 
 NAME = "windows"
 
+# Windows 11 rounded corners, via the Desktop Window Manager.
+DWMWA_WINDOW_CORNER_PREFERENCE = 33
+DWMWCP_ROUND = 2
+
 SM_XVIRTUALSCREEN = 76
 SM_YVIRTUALSCREEN = 77
 SM_CXVIRTUALSCREEN = 78
@@ -94,6 +98,20 @@ def monitor_at(x: int, y: int) -> Rect:
     handle = win32api.MonitorFromPoint((int(x), int(y)), win32con.MONITOR_DEFAULTTONEAREST)
     left, top, right, bottom = win32api.GetMonitorInfo(handle)["Work"]
     return Rect(left=left, top=top, width=right - left, height=bottom - top)
+
+
+def round_corners(handle: int) -> None:
+    """Rounded corners on Windows 11. Earlier versions refuse, which is fine."""
+    preference = ctypes.c_int(DWMWCP_ROUND)
+    try:
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            ctypes.c_void_p(handle),
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            ctypes.byref(preference),
+            ctypes.sizeof(preference),
+        )
+    except (AttributeError, OSError):
+        pass
 
 
 def cursor_pos() -> tuple[int, int]:

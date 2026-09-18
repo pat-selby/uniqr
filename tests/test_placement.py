@@ -96,3 +96,14 @@ def test_portable_seam_pixel_belongs_to_the_right_monitor(fake_monitors):
 def test_portable_off_screen_point_falls_back_to_the_nearest(fake_monitors):
     assert portable.monitor_at(9000, 500).left == 1920
     assert portable.monitor_at(-500, 500).left == 0
+
+
+# -- card timing --------------------------------------------------------------
+
+
+def test_link_pop_up_waits_until_the_card_has_finished_fading_in():
+    """Each fade step brings the card to the front. A pop-up shown during the
+    fade ends up hidden behind its own card, so it must wait longer."""
+    from uniqr.overlay import FADE_MS, FADE_STEPS, TIP_DELAY_MS
+
+    assert TIP_DELAY_MS > FADE_STEPS * FADE_MS

@@ -62,6 +62,10 @@ def monitor_at(x: int, y: int) -> Rect:
     return Rect(left=m["left"], top=m["top"], width=m["width"], height=m["height"])
 
 
+def round_corners(handle: int) -> None:
+    """No-op: on macOS and Linux the window manager decides corner shape."""
+
+
 def grab(rect: Rect | None = None) -> np.ndarray:
     if rect is None:
         rect = virtual_screen()
