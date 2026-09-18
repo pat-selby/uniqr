@@ -92,8 +92,8 @@ class UniQR:
         # Disturb swallows balloons, which would leave a scan looking dead.
         left, top, w, h = det.bbox
         at = (origin[0] + left, origin[1] + top + h + 14)
-        kind = payload_kind(det.text)
-        opened = overlay.toast(det.text, f"copied {kind}", at)
+        # The card labels the kind of code itself; this is only the status line.
+        opened = overlay.toast(det.text, "Copied", at)
         self.shell.set_tooltip(
             f"UniQR - {'opened' if opened else 'copied'} "
             f"{actions.summarize(det.text, 60)}"

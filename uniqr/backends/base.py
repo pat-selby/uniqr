@@ -55,3 +55,9 @@ class Backend(Protocol):
 
     def copy_text(self, text: str) -> None:
         """Replace the clipboard contents."""
+
+    def round_corners(self, handle: int) -> None:
+        """Ask the OS to draw a window with rounded corners, where it can.
+
+        Cosmetic only: a platform without the option does nothing.
+        """

@@ -12,13 +12,14 @@ the process; creating a second tk.Tk() alongside it would break Tk outright.
 
 import sys
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import font as tkfont
 
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
 
-from uniqr import actions, capture
+from uniqr import actions, backends, capture
 from uniqr.backends.base import Rect
 from uniqr.decode import Detection, payload_kind
 
@@ -31,11 +32,35 @@ TOAST_AFTER_HOVER_MS = 700
 
 DIM = 0.38
 ACCENT = "#4ea1ff"
+ACCENT_HOVER = "#7ab8ff"
 BADGE_TEXT = "#0b1220"
 CARD_BG = "#111826"
 CARD_FG = "#e8eefc"
 CARD_MUTED = "#8fa3c8"
+CARD_BORDER = "#2a3752"
+CARD_RAISED = "#1c2740"
+BUTTON_BG = "#1f2a40"
+BUTTON_HOVER = "#2c3a58"
+OK_FG = "#3fb27f"
+WARN_FG = "#e0a33e"
+TIP_BG = "#0b1220"
 HIGHLIGHT_PAD = 10
+
+# Hover pop-up for the full link: a short pause so it doesn't flicker as the
+# pointer passes over, and a width after which long links wrap.
+TIP_DELAY_MS = 400
+TIP_WRAP_PX = 460
+
+# Card fade-in: FADE_STEPS frames, FADE_MS apart.
+FADE_STEPS = 6
+FADE_MS = 18
+
+# Friendly names for payload kinds, shown as a small label on the card.
+KIND_LABELS = {
+    "url": "Link", "wifi": "Wi-Fi", "email": "Email", "phone": "Phone",
+    "geo": "Location", "contact": "Contact", "event": "Event",
+    "secret": "Secret", "uri": "App link", "text": "Text",
+}
 
 _root: tk.Tk | None = None
 
@@ -54,22 +79,209 @@ def _ui_font(size: int, bold: bool = False) -> tkfont.Font:
     return tkfont.Font(family=family, size=size, weight="bold" if bold else "normal")
 
 
-def _button(parent, label, command, primary: bool) -> None:
-    tk.Button(
+def _mono_font(size: int, bold: bool = False) -> tkfont.Font:
+    """Fixed-width type for addresses.
+
+    Lookalike tricks such as "rn" posing as "m", or "1" as "l", are much easier
+    to spot when every character has the same width.
+    """
+    family = {"win32": "Consolas", "darwin": "Menlo"}.get(sys.platform, "DejaVu Sans Mono")
+    return tkfont.Font(family=family, size=size, weight="bold" if bold else "normal")
+
+
+def _button(parent, label, command, primary: bool) -> tk.Button:
+    bg, hover = (ACCENT, ACCENT_HOVER) if primary else (BUTTON_BG, BUTTON_HOVER)
+    fg = BADGE_TEXT if primary else CARD_FG
+    button = tk.Button(
         parent,
         text=label,
         command=command,
-        bg=ACCENT if primary else "#243049",
-        fg=BADGE_TEXT if primary else CARD_FG,
-        activebackground=ACCENT if primary else "#2e3c5c",
-        highlightbackground=CARD_BG,
+        bg=bg,
+        fg=fg,
+        activebackground=hover,
+        activeforeground=fg,
+        highlightthickness=0,
         relief="flat",
         bd=0,
         padx=16,
-        pady=5,
+        pady=6,
         cursor="hand2",
         font=_ui_font(9, bold=True),
-    ).pack(side="left", padx=(0, 8))
+    )
+    # Tk buttons only change color while pressed; this adds a hover state.
+    button.bind("<Enter>", lambda _e: button.configure(bg=hover), add="+")
+    button.bind("<Leave>", lambda _e: button.configure(bg=bg), add="+")
+    button.pack(side="left", padx=(0, 8))
+    return button
+
+
+def _round(win: tk.Toplevel) -> None:
+    """Rounded corners where the OS supports them. Purely cosmetic."""
+    try:
+        backends.round_corners(int(win.wm_frame(), 16))
+    except (tk.TclError, ValueError):
+        pass
+
+
+class HoverTip:
+    """The full text in a small pop-up while the pointer rests on a widget.
+
+    It waits TIP_DELAY_MS before appearing, so it doesn't flicker as the
+    pointer passes by, wraps long links instead of drawing one endless line,
+    and stays on the monitor the widget is on.
+    """
+
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget = widget
+        self.text = text
+        self.win: tk.Toplevel | None = None
+        self._pending: str | None = None
+        widget.bind("<Enter>", self._schedule, add="+")
+        widget.bind("<Leave>", self.hide, add="+")
+        widget.bind("<Destroy>", self.hide, add="+")
+
+    def _schedule(self, _event=None) -> None:
+        self._cancel()
+        self._pending = self.widget.after(TIP_DELAY_MS, self._show)
+
+    def _cancel(self) -> None:
+        if self._pending is not None:
+            try:
+                self.widget.after_cancel(self._pending)
+            except tk.TclError:
+                pass
+            self._pending = None
+
+    def _show(self) -> None:
+        self._pending = None
+        if self.win is not None or not self.widget.winfo_exists():
+            return
+        win = tk.Toplevel(self.widget)
+        win.withdraw()
+        win.overrideredirect(True)
+        win.attributes("-topmost", True)
+        win.configure(bg=CARD_BORDER)
+        tk.Label(
+            win,
+            text=self.text,
+            bg=TIP_BG,
+            fg=CARD_FG,
+            font=_mono_font(9),
+            justify="left",
+            wraplength=TIP_WRAP_PX,
+            padx=10,
+            pady=8,
+        ).pack(padx=1, pady=1)
+        win.update_idletasks()
+
+        x = self.widget.winfo_rootx()
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
+        size = (win.winfo_reqwidth(), win.winfo_reqheight())
+        px, py = place_within((x, y), size, capture.monitor_at(x, y))
+        win.geometry(f"+{px}+{py}")
+        win.deiconify()
+        # The card is also always-on-top, and every step of its fade-in brings
+        # it back to the front. So the pop-up must only ever appear after the
+        # fade has finished, which TIP_DELAY_MS guarantees (a test pins it).
+        win.lift()
+        _round(win)
+        self.win = win
+
+    def hide(self, _event=None) -> None:
+        self._cancel()
+        if self.win is not None:
+            try:
+                self.win.destroy()
+            except tk.TclError:
+                pass
+            self.win = None
+
+
+def _build_card(
+    parent: tk.Misc,
+    text: str,
+    status: str,
+    buttons: list[tuple[str, Callable[[], None], bool]],
+) -> tk.Frame:
+    """The card used by both the result pop-up and the picker.
+
+    Laid out so the part that decides safety reads first. For a link that is
+    the real host, in large fixed-width type, with the rest of the address
+    dimmed beneath it and any warning in amber. The full link is one hover
+    away but never one click away: only the Open button opens anything, so a
+    stray click on a card that appeared under the pointer does nothing.
+    """
+    outer = tk.Frame(parent, bg=CARD_BORDER)
+    card = tk.Frame(outer, bg=CARD_BG, padx=18, pady=15)
+    card.pack(padx=1, pady=1)
+
+    if not text:
+        tk.Label(card, text=status, bg=CARD_BG, fg=CARD_FG, font=_ui_font(10, bold=True)).pack(anchor="w")
+    else:
+        head = tk.Frame(card, bg=CARD_BG)
+        head.pack(fill="x", pady=(0, 8))
+        kind = payload_kind(text)
+        tk.Label(
+            head,
+            text=KIND_LABELS.get(kind, "Text").upper(),
+            bg=CARD_RAISED,
+            fg=CARD_MUTED,
+            font=_ui_font(7, bold=True),
+            padx=8,
+            pady=2,
+        ).pack(side="left")
+        if status:
+            tk.Label(
+                head, text="✓ " + status, bg=CARD_BG, fg=OK_FG, font=_ui_font(9, bold=True)
+            ).pack(side="right", padx=(24, 0))
+
+        link = actions.describe_link(text)
+        if link is not None:
+            host = tk.Label(
+                card, text=link.host, bg=CARD_BG, fg=CARD_FG,
+                font=_mono_font(12, bold=True), justify="left", wraplength=380,
+            )
+            host.pack(anchor="w")
+            HoverTip(host, link.full)
+            if link.rest not in ("", "/"):
+                rest = tk.Label(
+                    card, text=actions.summarize(link.rest, 54), bg=CARD_BG,
+                    fg=CARD_MUTED, font=_mono_font(9), cursor="question_arrow",
+                )
+                rest.pack(anchor="w", pady=(2, 0))
+                HoverTip(rest, link.full)
+            notes = [(warning, True) for warning in link.warnings]
+        else:
+            flat = " ".join(text.split())
+            body = tk.Label(
+                card, text=actions.summarize(text, 90), bg=CARD_BG, fg=CARD_FG,
+                font=_ui_font(10), justify="left", wraplength=380,
+            )
+            body.pack(anchor="w")
+            if len(flat) > 90 or "\n" in text.strip():
+                HoverTip(body, text.strip())
+            notes = [("Not a web link, so UniQR won't open it.", False)]
+            if kind == "secret":
+                notes.insert(0, ("This is a login secret. Paste it only into your authenticator app.", True))
+
+        # Warnings in amber with a sign; plain notes in muted text.
+        for note, is_warning in notes:
+            tk.Label(
+                card,
+                text=("⚠ " + note) if is_warning else note,
+                bg=CARD_BG,
+                fg=WARN_FG if is_warning else CARD_MUTED,
+                font=_ui_font(9),
+                justify="left",
+                wraplength=380,
+            ).pack(anchor="w", pady=(6, 0))
+
+    if buttons:
+        row = tk.Frame(card, bg=CARD_BG)
+        row.pack(anchor="w", pady=(14, 0))
+        for label, command, primary in buttons:
+            _button(row, label, command, primary)
+    return outer
 
 
 class Picker:
@@ -200,37 +412,11 @@ class Picker:
             return
         det = self.detections[index]
 
-        frame = tk.Frame(self.canvas, bg=CARD_BG, padx=14, pady=12)
-        tk.Label(
-            frame,
-            text=payload_kind(det.text).upper(),
-            bg=CARD_BG,
-            fg=CARD_MUTED,
-            font=_ui_font(8, bold=True),
-        ).pack(anchor="w")
-        tk.Label(
-            frame,
-            text=actions.summarize(det.text, 68),
-            bg=CARD_BG,
-            fg=CARD_FG,
-            font=_ui_font(10),
-            justify="left",
-            wraplength=380,
-        ).pack(anchor="w", pady=(2, 10))
-
-        row = tk.Frame(frame, bg=CARD_BG)
-        row.pack(anchor="w")
+        buttons: list[tuple[str, Callable[[], None], bool]] = []
         if actions.can_open(det.text):
-            _button(row, "Open", lambda: self._finish("open", det), True)
-        else:
-            tk.Label(
-                row,
-                text="not a web link - copy only",
-                bg=CARD_BG,
-                fg=CARD_MUTED,
-                font=_ui_font(8),
-            ).pack(side="left", padx=(0, 8))
-        _button(row, "Copy", lambda: self._finish("copy", det), False)
+            buttons.append(("Open", lambda: self._finish("open", det), True))
+        buttons.append(("Copy", lambda: self._finish("copy", det), False))
+        frame = _build_card(self.canvas, det.text, "", buttons)
 
         left, top, w, h = det.bbox
         ox, oy = self.origin
@@ -355,43 +541,60 @@ class Toast:
         self.win.withdraw()
         self.win.overrideredirect(True)
         self.win.attributes("-topmost", True)
-        self.win.configure(bg=ACCENT)
+        self.win.configure(bg=CARD_BG)
 
-        frame = tk.Frame(self.win, bg=CARD_BG, padx=16, pady=13)
-        frame.pack(padx=2, pady=2)
-
-        tk.Label(
-            frame,
-            text=heading.upper(),
-            bg=CARD_BG,
-            fg=CARD_MUTED,
-            font=_ui_font(8, bold=True),
-        ).pack(anchor="w")
-        if text:
-            tk.Label(
-                frame,
-                text=actions.summarize(text, 70),
-                bg=CARD_BG,
-                fg=CARD_FG,
-                font=_ui_font(10),
-                justify="left",
-                wraplength=400,
-            ).pack(anchor="w", pady=(2, 10))
-
-        row = tk.Frame(frame, bg=CARD_BG)
-        row.pack(anchor="w")
+        buttons: list[tuple[str, Callable[[], None], bool]] = []
         if text and offer_open and actions.can_open(text):
-            _button(row, "Open", self._open, True)
-        _button(row, "Dismiss", self._close, False)
+            buttons.append(("Open", self._open, True))
+        buttons.append(("Dismiss", self._close, False))
+        _build_card(self.win, text, heading, buttons).pack()
 
         self.win.update_idletasks()
         self._place(at)
+        self._set_alpha(0.0)
         self.win.deiconify()
+        _round(self.win)
+        self._fade_in(1)
 
         self.win.bind("<Escape>", lambda _e: self._close())
-        frame.bind("<Enter>", lambda _e: self._cancel_timer())
-        frame.bind("<Leave>", lambda _e: self._leave())
+        # Bound on the window itself, so these also fire for the text and
+        # buttons inside it: hovering anywhere on the card pauses the timer.
+        self.win.bind("<Enter>", lambda _e: self._cancel_timer())
+        self.win.bind("<Leave>", self._on_leave)
         self._start_timer()
+
+    def _on_leave(self, _event=None) -> None:
+        # Tk also reports "left" when the pointer moves onto a button or a
+        # line of text inside the card. Taken at face value, that restarted
+        # the short timer and closed the card while someone was reading it.
+        # So check where the pointer actually is before starting the countdown.
+        if self._pointer_inside():
+            return
+        self._leave()
+
+    def _pointer_inside(self) -> bool:
+        try:
+            px, py = self.win.winfo_pointerxy()
+            x, y = self.win.winfo_rootx(), self.win.winfo_rooty()
+            w, h = self.win.winfo_width(), self.win.winfo_height()
+        except tk.TclError:
+            return False
+        return x <= px < x + w and y <= py < y + h
+
+    def _set_alpha(self, value: float) -> None:
+        try:
+            self.win.attributes("-alpha", value)
+        except tk.TclError:
+            pass
+
+    def _fade_in(self, step: int) -> None:
+        """A quick fade-in, about a tenth of a second."""
+        try:
+            self._set_alpha(min(1.0, step / FADE_STEPS))
+            if step < FADE_STEPS:
+                self.win.after(FADE_MS, self._fade_in, step + 1)
+        except tk.TclError:
+            pass  # closed mid-fade
 
     def _leave(self) -> None:
         # Someone who hovered has already read it - running the full timer
