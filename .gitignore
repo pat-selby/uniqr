@@ -5,6 +5,7 @@ venv/
 env/
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .mypy_cache/
 .ruff_cache/
@@ -14,23 +15,39 @@ build/
 dist/
 *.egg-info/
 *.spec
+*.zip
 
 # Debug and scratch output
 dbg_*.png
 *.log
 
+# Screen captures. `scan.py --save` writes whatever was on screen at the
+# time, which can include private windows, chats and email.
+fail*.png
+capture*.png
+
 # Uncropped originals of the test photos: they carry third-party contact
 # details and identifiable venues. tools/crop_fixtures.py puts them here.
 fixtures_private/
-uniqr-mac.zip
 
-# Per-machine tool and editor state, not useful to anyone else.
+# Personal notes and drafts that stay on this machine.
+private/
+
+# Secrets. None exist today; this keeps it that way.
+.env
+.env.*
+*.pem
+*.key
+
+# Assistant, editor and per-machine tool state.
+.claude/
+CLAUDE.md
+AGENTS.md
 *.local.json
+.vscode/
+.idea/
 
 # OS noise
 Thumbs.db
 desktop.ini
 .DS_Store
-
-# Throwaway diagnostic captures
-fail*.png
