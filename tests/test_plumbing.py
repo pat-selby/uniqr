@@ -289,12 +289,17 @@ _display: bool | None = None
 
 
 def has_display() -> bool:
-    """Whether a window can actually be opened here. Checked once."""
+    """Whether a window can actually be opened here. Checked once.
+
+    Asks for the app's own shared root rather than making a throwaway one.
+    Creating a Tk root, destroying it, then creating another in the same
+    process intermittently fails to re-initialise Tk, which showed up as
+    "couldn't read button.tcl" on roughly one run in three.
+    """
     global _display
     if _display is None:
         try:
-            probe_root = tk.Tk()
-            probe_root.destroy()
+            overlay.shared_root()
             _display = True
         except Exception:  # noqa: BLE001 - any failure means no usable display
             _display = False
