@@ -44,13 +44,16 @@ TRAY_UNSUPPORTED = {
     "darwin": "pystray needs the main thread on macOS and Tk has it",
 }
 
-# pynput hotkey syntax. Deliberately avoiding cmd+shift+q on macOS, which is
-# Log Out, and cmd+q, which is Quit.
+# pynput hotkey syntax. macOS combinations need care: pynput watches keys
+# rather than reserving them, so a combination the system already owns fires
+# both actions. cmd+shift+q is Log Out, cmd+q is Quit, and cmd+ctrl+q is Lock
+# Screen - that last one was in this list and would have locked the Mac on
+# every scan. cmd+shift+8 is free; 3, 4 and 5 are the screenshot shortcuts.
 HOTKEY_CHOICES = {
     "darwin": [
         ("<ctrl>+<alt>+q", "Control+Option+Q"),
         ("<ctrl>+<shift>+q", "Control+Shift+Q"),
-        ("<cmd>+<ctrl>+q", "Command+Control+Q"),
+        ("<cmd>+<shift>+8", "Command+Shift+8"),
     ],
     "default": [
         ("<ctrl>+<alt>+q", "Ctrl+Alt+Q"),
