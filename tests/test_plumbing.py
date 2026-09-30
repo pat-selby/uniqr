@@ -275,10 +275,38 @@ try:
 except ImportError:  # running as a plain script, without pytest installed
     pytest = None
 
+# These four open a real window or grab a real screen, so they need a display.
+# CI runs Linux headless, where both fail on $DISPLAY rather than on anything
+# being wrong with the code.
+NEEDS_DISPLAY = {
+    "scale factor matches grab",
+    "picker at 1x",
+    "picker at 2x (Retina)",
+    "negative screen origin",
+}
+
+_display: bool | None = None
+
+
+def has_display() -> bool:
+    """Whether a window can actually be opened here. Checked once."""
+    global _display
+    if _display is None:
+        try:
+            probe_root = tk.Tk()
+            probe_root.destroy()
+            _display = True
+        except Exception:  # noqa: BLE001 - any failure means no usable display
+            _display = False
+    return _display
+
+
 if pytest is not None:
 
     @pytest.mark.parametrize("name", list(CASES))
     def test_plumbing(name: str) -> None:
+        if name in NEEDS_DISPLAY and not has_display():
+            pytest.skip("needs a screen; this machine is headless")
         CASES[name]()
 
 
