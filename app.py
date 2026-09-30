@@ -1,6 +1,7 @@
 """UniQR - press a hotkey, read any QR code on screen.
 
-    python app.py
+    python app.py            # run it
+    python app.py --quiet    # no card on startup
 
 Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
@@ -8,7 +9,7 @@ code visible anywhere on screen gets decoded and copied to the clipboard.
 
 import sys
 
-from uniqr import actions, backends, capture, overlay
+from uniqr import actions, backends, capture, logbook, overlay
 from uniqr.decode import Scanner, payload_kind
 
 
@@ -32,7 +33,8 @@ def build_shell(on_hotkey, on_notification_click):
 
 
 class UniQR:
-    def __init__(self) -> None:
+    def __init__(self, quiet: bool = False) -> None:
+        self.quiet = quiet
         capture.set_dpi_aware()
         self.scanner = Scanner()
         self.last_payload: str | None = None
@@ -133,11 +135,35 @@ class UniQR:
                     "macOS: if the hotkey does nothing, grant Input Monitoring in\n"
                     "System Settings > Privacy & Security, then restart UniQR."
                 )
+        self._greet(label)
         self.shell.run()
         return 0
 
+    def _greet(self, label: str | None) -> None:
+        """A card on startup, so a silent failure to start is visible.
+
+        Under pythonw there is no console, so without this the only difference
+        between "running" and "crashed while starting" is a tray icon nobody
+        looks at. It also names the hotkey actually registered, which matters
+        because UniQR falls back when the first combination is already taken.
+        """
+        if self.quiet:
+            return
+        message = (
+            f"UniQR is running. Press {label} to scan."
+            if label
+            else "UniQR is running, but no hotkey was free. Use the tray icon."
+        )
+        screen = capture.monitor_at(0, 0)  # the monitor holding the origin
+        try:
+            overlay.toast("", message, (screen.right - 360, screen.bottom - 130))
+        except Exception as exc:  # noqa: BLE001 - a greeting must not stop startup
+            print(f"could not show the startup card: {exc}")
+
 
 def main() -> int:
+    logbook.start(sys.argv)
+    quiet = "--quiet" in sys.argv
     if backends.NAME == "windows":
         from uniqr.shell import SingleInstance
 
@@ -145,7 +171,7 @@ def main() -> int:
             print("UniQR is already running - check the system tray.")
             return 1
     try:
-        return UniQR().run()
+        return UniQR(quiet=quiet).run()
     except KeyboardInterrupt:
         print("\nstopped")
         return 0
