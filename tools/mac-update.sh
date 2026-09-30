@@ -14,7 +14,17 @@ set -u
 
 REPO="${UNIQR_REPO:-$HOME/Downloads/uniqr}"
 LOG="$HOME/Library/Logs/uniqr-update.log"
-PYTHON="${UNIQR_PYTHON:-python3}"
+
+# Prefer the repo's own virtual environment. Using plain python3 when a .venv
+# exists installs requirements into the wrong interpreter and then restarts
+# the app with one that has none of them installed.
+if [ -n "${UNIQR_PYTHON:-}" ]; then
+  PYTHON="$UNIQR_PYTHON"
+elif [ -x "$REPO/.venv/bin/python" ]; then
+  PYTHON="$REPO/.venv/bin/python"
+else
+  PYTHON="python3"
+fi
 
 mkdir -p "$(dirname "$LOG")"
 say() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG"; }
@@ -44,6 +54,7 @@ if [ "$before" = "$after" ]; then
   exit 0
 fi
 say "updated $(git rev-parse --short "$before") -> $(git rev-parse --short "$after")"
+say "using $PYTHON"
 
 # Dependencies change too. zxing-cpp was added at one point, and a copy with
 # stale packages ran the new code badly rather than failing outright.
