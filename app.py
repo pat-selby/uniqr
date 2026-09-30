@@ -12,6 +12,11 @@ import sys
 from uniqr import actions, backends, capture, logbook, overlay
 from uniqr.decode import Scanner, payload_kind
 
+HOTKEY_BLOCKED = (
+    "The hotkey will not reach UniQR: the listener is running but the OS will "
+    "not deliver keys to it.\n"
+)
+
 
 def build_shell(on_hotkey, on_notification_click):
     """Pick the shell that matches the capture backend.
@@ -92,9 +97,10 @@ class UniQR:
 
         # Deliberately our own window rather than a tray balloon: Do Not
         # Disturb swallows balloons, which would leave a scan looking dead.
-        left, top, w, h = det.bbox
-        at = (origin[0] + left, origin[1] + top + h + 14)
-        # The card labels the kind of code itself; this is only the status line.
+        # overlay.below turns the code's image-pixel box into the screen
+        # point the card goes at, which differs on a Retina display.
+        at = overlay.below(det.bbox, origin)
+        # The card labels the kind of code itself; this is the status line.
         opened = overlay.toast(det.text, "Copied", at)
         self.shell.set_tooltip(
             f"UniQR - {'opened' if opened else 'copied'} "
@@ -135,6 +141,12 @@ class UniQR:
                     "macOS: if the hotkey does nothing, grant Input Monitoring in\n"
                     "System Settings > Privacy & Security, then restart UniQR."
                 )
+            # A started listener is not a working one. Where the OS can be
+            # asked, say so up front rather than letting the user press the
+            # hotkey at a program that will never hear it.
+            allowed, detail = capture.input_status()
+            if allowed is False:
+                print(HOTKEY_BLOCKED + detail)
         self._greet(label)
         self.shell.run()
         return 0
