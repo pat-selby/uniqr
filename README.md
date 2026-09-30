@@ -34,6 +34,11 @@ pip install -e .                # macOS / Linux
 uniqr                         # or: python app.py
 ```
 
+macOS needs two permissions granted by hand before it can see your screen or
+hear the hotkey. **[INSTALL.md](INSTALL.md)** has step-by-step instructions for
+each system, how to start UniQR at login, and what to do when something is
+wrong.
+
 Legacy install still works:
 
 ```bash
@@ -140,13 +145,13 @@ things touch the operating system, and they all sit behind one interface in
 | Live screen capture | ✅ | ⚠️ needs permission | ⚠️ X11 only |
 | Global hotkey | ✅ | ⚠️ needs permission | ⚠️ |
 | Tray icon | ✅ | ❌ see below | ⚠️ |
-| Picker and card | ✅ | ⚠️ untested | ⚠️ untested |
+| Picker and card | ✅ | ✅ | ⚠️ untested |
 
 ✅ tested · ⚠️ written, not yet run on that system · ❌ known limit
 
-Windows is tested. The macOS and Linux code is written, and its machinery runs
-on Windows through `UNIQR_BACKEND=portable`, but it has not been run on a real
-Mac or Linux box yet. Expect to fix things.
+Windows and macOS are tested on real machines. The Linux code is written, and
+its machinery runs on Windows through `UNIQR_BACKEND=portable`, but it has not
+been run on a real Linux box yet. Expect to fix things.
 
 ### macOS
 
