@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Runs tools/mac-update.sh at login and every 30 minutes.
+
+  Install:
+    cp tools/com.patselby.uniqr-update.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.patselby.uniqr-update.plist
+
+  Stop it again:
+    launchctl unload ~/Library/LaunchAgents/com.patselby.uniqr-update.plist
+
+  Edit the two paths below if the repo is not in ~/Downloads/uniqr, or if your
+  user name is not pescybers_mac.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.patselby.uniqr-update</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/pescybers_mac/Downloads/uniqr/tools/mac-update.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>UNIQR_REPO</key>
+        <string>/Users/pescybers_mac/Downloads/uniqr</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/pescybers_mac/Library/Logs/uniqr-update.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/pescybers_mac/Library/Logs/uniqr-update.log</string>
+</dict>
+</plist>
