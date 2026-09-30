@@ -88,6 +88,28 @@ def grab(rect: Rect | None = None) -> np.ndarray:
             win32gui.ReleaseDC(desktop, src_dc)
 
 
+def scale_factor() -> float:
+    """Always 1.0 here.
+
+    set_dpi_aware() puts the process in per-monitor DPI-aware mode before
+    anything is captured or drawn, so BitBlt pixels, GetSystemMetrics and Tk
+    all count in the same physical pixels. That is the whole point of calling
+    it, and it is why this backend never needed the notion until macOS did.
+    """
+    return 1.0
+
+
+def probe() -> tuple[bool, str]:
+    """BitBlt needs no permission, and a failed grab raises rather than
+    quietly handing back an empty frame."""
+    return True, "GDI capture needs no permission"
+
+
+def input_status() -> tuple[bool | None, str]:
+    """RegisterHotKey needs no permission and reports its own failures."""
+    return True, "no permission gate on keyboard input"
+
+
 def cursor_pos() -> tuple[int, int]:
     return win32gui.GetCursorPos()
 

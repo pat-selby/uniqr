@@ -27,9 +27,17 @@ cursor_pos = backend.cursor_pos
 copy_text = backend.copy_text
 
 
+def scale_factor() -> float:
+    """Image pixels per screen point. See uniqr/backends/base.py."""
+    return backend.scale_factor()
+
+
 def probe() -> tuple[bool, str]:
     """Verify capture works, where the backend can tell."""
-    checker = getattr(backend, "probe", None)
-    if checker is None:
-        return True, f"{NAME} backend"
-    return checker()
+    return backend.probe()
+
+
+def input_status() -> tuple[bool | None, str]:
+    """Whether the OS will deliver global key events, and why not if it will
+    not. None means the OS has no such gate, which is not a failure."""
+    return backend.input_status()

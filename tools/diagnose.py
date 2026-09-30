@@ -76,7 +76,11 @@ def c_screen():
 
     capture.set_dpi_aware()
     rect = capture.virtual_screen()
-    return PASS, f"virtual screen {rect.width}x{rect.height} at ({rect.left},{rect.top})"
+    scale = capture.scale_factor()
+    return PASS, (
+        f"virtual screen {rect.width}x{rect.height} at ({rect.left},{rect.top}), "
+        f"{scale:g} image pixels per point"
+    )
 
 
 def c_capture():
@@ -124,6 +128,18 @@ def c_tk():
     return PASS, f"borderless topmost window ok at {placed}, tk screen {sw}x{sh}"
 
 
+def c_input_permission():
+    """Will the OS hand us global key events at all?
+
+    Separate from the listener check below, because on macOS the listener
+    starts either way and only this tells them apart.
+    """
+    from uniqr import capture
+
+    allowed, detail = capture.input_status()
+    return (PASS if allowed is not False else FAIL), detail
+
+
 def c_tray():
     from uniqr.shell_portable import PortableShell
 
@@ -132,19 +148,25 @@ def c_tray():
     shell.stop()
     if ok:
         return PASS, "tray icon started"
-    return WARN, "no tray icon (expected on macOS) - hotkey still works"
+    return WARN, f"no tray icon - {shell.tray_detail or 'unavailable'}; hotkey still works"
 
 
 def c_hotkey_listener():
+    from uniqr import capture
     from uniqr.shell_portable import PortableShell, hotkey_choices
 
     shell = PortableShell(on_hotkey=lambda: None)
     label = shell.register_hotkey()
     shell.stop()
     candidates = ", ".join(lbl for _, lbl in hotkey_choices())
-    if label:
-        return PASS, f"listener started on {label} (candidates: {candidates})"
-    return FAIL, f"no listener would start (tried {candidates})"
+    if not label:
+        return FAIL, f"no listener would start (tried {candidates})"
+    if capture.input_status()[0] is False:
+        return WARN, (
+            f"listener started on {label} but will receive nothing until "
+            f"keyboard input is permitted - see the check above"
+        )
+    return PASS, f"listener started on {label} (candidates: {candidates})"
 
 
 def c_hotkey_live(timeout: int = 12):
@@ -153,9 +175,17 @@ def c_hotkey_live(timeout: int = 12):
     The listener starting proves nothing on macOS - without Input Monitoring
     permission it starts happily and then receives nothing at all.
     """
-    from uniqr.shell_portable import PortableShell, hotkey_choices
+    from uniqr import capture
+    from uniqr.shell_portable import PortableShell
 
-    label = hotkey_choices()[0][1]
+    if capture.input_status()[0] is False:
+        # No point making someone hold a key down for twelve seconds when the
+        # OS has already said it will not be delivered.
+        return FAIL, (
+            "skipped the live test: keyboard input is not permitted, so no "
+            "key can arrive. Fix the permission first, then run this again"
+        )
+
     shell = PortableShell(on_hotkey=lambda: None)
     started = shell.register_hotkey()
     if not started:
@@ -175,9 +205,10 @@ def c_hotkey_live(timeout: int = 12):
     if got:
         return PASS, f"{started} received"
     return FAIL, (
-        f"{started} never arrived. On macOS grant Input Monitoring in System "
-        f"Settings > Privacy & Security. In a VM the hypervisor may be eating "
-        f"it - try UNIQR_HOTKEY='<cmd>+<shift>+8'"
+        f"{started} never arrived, although the OS says input is permitted. "
+        f"Something between the keyboard and here is eating it - in a VM that "
+        f"is usually the hypervisor claiming the combination. Try another with "
+        f"UNIQR_HOTKEY='<cmd>+<shift>+8'"
     )
 
 
@@ -197,6 +228,7 @@ def main() -> int:
     check("clipboard", c_clipboard)
     check("tkinter overlay", c_tk)
     check("tray icon", c_tray)
+    check("keyboard permission", c_input_permission)
     check("hotkey listener", c_hotkey_listener)
     if not args.no_input:
         check("hotkey delivery", lambda: c_hotkey_live(args.timeout))

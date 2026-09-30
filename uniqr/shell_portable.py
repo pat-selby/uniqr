@@ -15,7 +15,9 @@ Two platform caveats, both of which need the user's involvement:
 
   * macOS needs Input Monitoring (or Accessibility) permission before pynput
     receives any keys, and Screen Recording before capture returns pixels.
-    Neither failure raises - they just silently do nothing.
+    Neither failure raises - they just silently do nothing. The backend can
+    ask the OS about both, so a listener that started but will never hear
+    anything is reported as such instead of as success.
   * pynput observes keys rather than reserving them, so unlike Win32's
     RegisterHotKey it cannot report that a combination is already taken. If
     another app owns the shortcut, both will fire.
@@ -27,9 +29,20 @@ import sys
 import threading
 from typing import Callable
 
+from uniqr import capture
 from uniqr.icon import icon_image
 
 POLL_MS = 60
+
+# pystray's macOS backend drives NSStatusItem, which must run on the main
+# thread. Tk already owns it, and pystray does not check: run() from any other
+# thread aborts the whole process with SIGILL rather than raising. Measured
+# here, four times out of four, with and without a live Tk root. So on macOS
+# the tray is not attempted at all - a missing convenience beats a scanner
+# that dies on startup. A menu bar item needs rumps or pyobjc, not pystray.
+TRAY_UNSUPPORTED = {
+    "darwin": "pystray needs the main thread on macOS and Tk has it",
+}
 
 # pynput hotkey syntax. Deliberately avoiding cmd+shift+q on macOS, which is
 # Log Out, and cmd+q, which is Quit.
@@ -77,6 +90,10 @@ class PortableShell:
         self.tooltip = tooltip
         self.hotkey_label = ""
         self.tray_available = False
+        self.tray_detail = ""
+        # None where the OS has no such gate; see backends/base.py.
+        self.input_allowed: bool | None = None
+        self.input_detail = ""
 
         self._queue: queue.Queue[str] = queue.Queue()
         self._listener = None
@@ -89,10 +106,15 @@ class PortableShell:
     def register_hotkey(self) -> str | None:
         """Start listening for the first combination pynput will take.
 
-        Success here means "the listener started", not "the shortcut is ours" -
-        see the note at the top of this module.
+        Success here means "the listener started", not "the shortcut is ours",
+        and on macOS not even "the keys will arrive" - see the note at the top
+        of this module. `input_allowed` carries that second answer, which is
+        the one worth telling the user about, because a deaf listener looks
+        exactly like a working one.
         """
         from pynput import keyboard
+
+        self.input_allowed, self.input_detail = capture.input_status()
 
         for combo, label in hotkey_choices():
             try:
@@ -111,10 +133,16 @@ class PortableShell:
     def start_tray(self) -> bool:
         """Best-effort tray icon.
 
-        pystray wants the main thread on macOS, which Tk already owns, so this
-        is expected to fail there. The hotkey is the primary interface; the
-        tray is a convenience, so a failure is reported and not fatal.
+        Skipped outright where pystray cannot be run safely - see
+        TRAY_UNSUPPORTED. The hotkey is the primary interface and the tray is
+        a convenience, so not having one is reported and never fatal.
         """
+        unsupported = TRAY_UNSUPPORTED.get(sys.platform)
+        if unsupported:
+            self.tray_detail = unsupported
+            self._icon = None
+            return False
+
         try:
             import pystray
 
@@ -134,12 +162,16 @@ class PortableShell:
             self._icon = pystray.Icon(
                 "UniQR", icon_image(64), self.tooltip, menu=menu
             )
+            # A thread still alive after the grace period means run() got as
+            # far as its event loop rather than throwing straight back out.
             thread = threading.Thread(target=self._icon.run, daemon=True)
             thread.start()
             thread.join(timeout=1.5)
             self.tray_available = thread.is_alive()
+            self.tray_detail = "" if self.tray_available else "pystray exited at once"
             return self.tray_available
         except Exception as exc:  # noqa: BLE001
+            self.tray_detail = str(exc)
             print(f"tray icon unavailable ({exc}); hotkey still works")
             self._icon = None
             return False

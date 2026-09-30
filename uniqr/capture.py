@@ -11,7 +11,9 @@ from uniqr.backends import (  # noqa: F401
     copy_text,
     cursor_pos,
     grab,
+    input_status,
     probe,
+    scale_factor,
     set_dpi_aware,
     virtual_screen,
 )
