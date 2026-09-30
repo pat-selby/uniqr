@@ -8,6 +8,13 @@ behaves like a plain image, which sidesteps per-pixel alpha on every platform.
 Both windows are Toplevels over one shared hidden root. macOS requires Tk to
 own the main thread, so the portable shell keeps a root alive for the life of
 the process; creating a second tk.Tk() alongside it would break Tk outright.
+
+Everything here has one foot in each of UniQR's two coordinate spaces. The
+screenshot and the detections in it are in image pixels; every Tk number -
+window geometry, canvas size, canvas item coordinates, mouse events - is in
+screen points. `scale_factor()` converts, and on a Retina Mac it is 2.0, so
+skipping the conversion draws every highlight at twice the offset of the code
+it belongs to. `to_points` and `below` are the only two places that divide.
 """
 
 import sys
@@ -72,6 +79,30 @@ def shared_root() -> tk.Tk:
         _root = tk.Tk()
         _root.withdraw()
     return _root
+
+
+def to_points(x: float, y: float, scale: float) -> tuple[int, int]:
+    """Image pixels to screen points."""
+    return int(round(x / scale)), int(round(y / scale))
+
+
+def below(
+    bbox: tuple[int, int, int, int],
+    origin: tuple[int, int] = (0, 0),
+    gap: int = 14,
+    scale: float | None = None,
+) -> tuple[int, int]:
+    """Where to put a card that sits just under a code, in screen points.
+
+    `bbox` is capture-local image pixels, `origin` is the captured region's
+    top-left in screen points, and `gap` is a visual margin - so the gap is
+    added after the conversion, not scaled along with it.
+    """
+    if scale is None:
+        scale = capture.scale_factor()
+    left, top, _w, h = bbox
+    x, y = to_points(left, top + h, scale)
+    return origin[0] + x, origin[1] + y + gap
 
 
 def _ui_font(size: int, bold: bool = False) -> tkfont.Font:
@@ -296,27 +327,42 @@ class Picker:
     ) -> None:
         self.detections = detections
         self.origin = origin
+        self.scale = capture.scale_factor()
         self.result: tuple[str, Detection] | None = None
         self._active: int | None = None
         self._card: int | None = None
         self._card_frame: tk.Frame | None = None
+        self._marker_ids: list[int] = []
+        # Detections converted once, in the same space as every Tk number.
+        self._boxes = [self._to_points(d.bbox) for d in detections]
 
         self.root = shared_root()
         self.win = tk.Toplevel(self.root)
         self.win.withdraw()
         self._build(self._compose(screenshot))
 
+    def _to_points(self, bbox: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+        left, top, w, h = bbox
+        x0, y0 = to_points(left, top, self.scale)
+        x1, y1 = to_points(left + w, top + h, self.scale)
+        return x0, y0, x1 - x0, y1 - y0
+
     # -- image ---------------------------------------------------------------
 
     def _compose(self, shot: np.ndarray) -> np.ndarray:
-        """Darken everything, then restore the area around each code."""
+        """Darken everything, then restore the area around each code.
+
+        Pure image-pixel work, so the padding - a visual margin measured in
+        points everywhere else - is scaled up to match.
+        """
         dimmed = (shot.astype(np.float32) * DIM).astype(np.uint8)
         h, w = shot.shape[:2]
+        pad = int(round(HIGHLIGHT_PAD * self.scale))
         for det in self.detections:
             left, top, bw, bh = det.bbox
-            x0, y0 = max(0, left - HIGHLIGHT_PAD), max(0, top - HIGHLIGHT_PAD)
-            x1 = min(w, left + bw + HIGHLIGHT_PAD)
-            y1 = min(h, top + bh + HIGHLIGHT_PAD)
+            x0, y0 = max(0, left - pad), max(0, top - pad)
+            x1 = min(w, left + bw + pad)
+            y1 = min(h, top + bh + pad)
             if x1 > x0 and y1 > y0:
                 dimmed[y0:y1, x0:x1] = shot[y0:y1, x0:x1]
         return dimmed
@@ -324,10 +370,14 @@ class Picker:
     # -- window --------------------------------------------------------------
 
     def _build(self, composed: np.ndarray) -> None:
-        h, w = composed.shape[:2]
+        # The screenshot is image pixels; the window it goes in is points.
+        px_h, px_w = composed.shape[:2]
+        w, h = to_points(px_w, px_h, self.scale)
         ox, oy = self.origin
 
         self.win.overrideredirect(True)
+        # Negative offsets are legal Tk geometry ("+-1600+0") and are how a
+        # monitor to the left of the primary one is addressed.
         self.win.geometry(f"{w}x{h}+{ox}+{oy}")
         self.win.attributes("-topmost", True)
         self.win.configure(bg="black")
@@ -338,7 +388,12 @@ class Picker:
         self.canvas.pack()
 
         rgb = cv2.cvtColor(composed, cv2.COLOR_BGR2RGB)
-        self._photo = ImageTk.PhotoImage(Image.fromarray(rgb), master=self.win)
+        image = Image.fromarray(rgb)
+        if (image.width, image.height) != (w, h):
+            # Retina: hand Tk an image the size of the window, or it draws the
+            # top-left quarter of the screenshot at full size.
+            image = image.resize((w, h), Image.LANCZOS)
+        self._photo = ImageTk.PhotoImage(image, master=self.win)
         self.canvas.create_image(0, 0, image=self._photo, anchor="nw")
 
         self._draw_markers()
@@ -355,10 +410,18 @@ class Picker:
         self.canvas.focus_set()
 
     def _draw_markers(self) -> None:
-        for i, det in enumerate(self.detections):
-            pts = [coord for point in det.quad for coord in point]
-            self.canvas.create_polygon(pts, outline=ACCENT, fill="", width=3)
-            left, top, _, _ = det.bbox
+        self._marker_ids = []
+        for i, (det, box) in enumerate(zip(self.detections, self._boxes)):
+            pts = [
+                coord
+                for point in det.quad
+                for coord in to_points(point[0], point[1], self.scale)
+            ]
+            self._marker_ids.append(
+                self.canvas.create_polygon(pts, outline=ACCENT, fill="", width=3)
+            )
+            left, top, _, _ = box
+            # The badge radius is a fixed visual size, so it is not scaled.
             bx, by, r = left - 6, top - 6, 15
             self.canvas.create_oval(
                 bx - r, by - r, bx + r, by + r, fill=ACCENT, outline=""
@@ -384,8 +447,8 @@ class Picker:
     # -- hover card ----------------------------------------------------------
 
     def _hit(self, x: int, y: int) -> int | None:
-        for i, det in enumerate(self.detections):
-            left, top, w, h = det.bbox
+        """Which code is under a mouse position? Both in screen points."""
+        for i, (left, top, w, h) in enumerate(self._boxes):
             if left - HIGHLIGHT_PAD <= x <= left + w + HIGHLIGHT_PAD and (
                 top - HIGHLIGHT_PAD <= y <= top + h + HIGHLIGHT_PAD
             ):
@@ -418,13 +481,15 @@ class Picker:
         buttons.append(("Copy", lambda: self._finish("copy", det), False))
         frame = _build_card(self.canvas, det.text, "", buttons)
 
-        left, top, w, h = det.bbox
+        # _boxes are already screen points, which is not the same as
+        # image pixels on a Retina display.
+        left, top, _w, h = self._boxes[index]
         ox, oy = self.origin
         frame.update_idletasks()
         size = (frame.winfo_reqwidth(), frame.winfo_reqheight())
         anchor = (ox + left, oy + top + h + 16)
-        # The canvas spans every monitor, so its width says nothing about where
-        # one monitor ends. Place in screen space, then convert back.
+        # The canvas spans every monitor, so its width says nothing about
+        # where one monitor ends. Place in screen space, then convert back.
         sx, sy = place_within(anchor, size, capture.monitor_at(ox + left, oy + top))
         self._card_frame = frame
         self._card = self.canvas.create_window(
@@ -603,6 +668,13 @@ class Toast:
         self._start_timer()
 
     def _place(self, at: tuple[int, int]) -> None:
+        """Keep the card on screen, in screen points.
+
+        Clamped to the whole virtual desktop rather than to Tk's idea of "the
+        screen", which is the primary monitor only - on a second monitor left
+        of it every position is negative, and clamping to 8 would yank the
+        card across to the primary display, away from the code it describes.
+        """
         w, h = self.win.winfo_reqwidth(), self.win.winfo_reqheight()
         x, y = place_within(at, (w, h), capture.monitor_at(*at))
         self.win.geometry(f"+{x}+{y}")
