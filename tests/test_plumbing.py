@@ -250,6 +250,35 @@ def c_open_stays_narrow():
     return "http(s) only, 6 other schemes refused"
 
 
+# -- the card ----------------------------------------------------------------
+
+
+def c_card_buttons_keep_their_colors():
+    """Card buttons must honor the colors we give them on every platform.
+
+    A real tk.Button on macOS is drawn by the native Aqua control, which
+    throws the background color away and keeps the foreground one, so the
+    dark-card "Dismiss" ended up pale text on a pale control. Labels obey
+    both, and this asserts the card is still built from them.
+    """
+    root = overlay.shared_root()
+    frame = tk.Frame(root)
+    try:
+        primary = overlay._button(frame, "Open", lambda: None, True)
+        plain = overlay._button(frame, "Dismiss", lambda: None, False)
+        for widget, want_bg, want_fg in (
+            (primary, overlay.ACCENT, overlay.BADGE_TEXT),
+            (plain, overlay.BUTTON_BG, overlay.CARD_FG),
+        ):
+            label = widget.cget("text")
+            got_bg, got_fg = widget.cget("bg"), widget.cget("fg")
+            assert got_bg == want_bg, f"{label} background is {got_bg}, wanted {want_bg}"
+            assert got_fg == want_fg, f"{label} text is {got_fg}, wanted {want_fg}"
+        return "Open and Dismiss both keep their own colors"
+    finally:
+        frame.destroy()
+
+
 CASES = {
     "probe: blank frame": c_probe_blank,
     "probe: denied, frame lively": c_probe_denied_but_lively,
@@ -264,6 +293,7 @@ CASES = {
     "picker at 2x (Retina)": c_picker_2x,
     "negative screen origin": c_negative_origin,
     "open action stays narrow": c_open_stays_narrow,
+    "card buttons keep colors": c_card_buttons_keep_their_colors,
 }
 
 
@@ -275,7 +305,7 @@ try:
 except ImportError:  # running as a plain script, without pytest installed
     pytest = None
 
-# These four open a real window or grab a real screen, so they need a display.
+# These open a real window or grab a real screen, so they need a display.
 # CI runs Linux headless, where both fail on $DISPLAY rather than on anything
 # being wrong with the code.
 NEEDS_DISPLAY = {
@@ -283,6 +313,7 @@ NEEDS_DISPLAY = {
     "picker at 1x",
     "picker at 2x (Retina)",
     "negative screen origin",
+    "card buttons keep colors",
 }
 
 _display: bool | None = None

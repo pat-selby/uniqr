@@ -120,17 +120,23 @@ def _mono_font(size: int, bold: bool = False) -> tkfont.Font:
     return tkfont.Font(family=family, size=size, weight="bold" if bold else "normal")
 
 
-def _button(parent, label, command, primary: bool) -> tk.Button:
+def _button(parent, label, command, primary: bool) -> tk.Label:
+    """A clickable card button, drawn as a Label rather than a tk.Button.
+
+    macOS draws a real tk.Button with the native Aqua control, which ignores
+    the background color it is given but still honors the foreground one. On
+    a dark card that produced a pale button with pale text on it - the
+    "Dismiss" control was there, and all but unreadable. A Label accepts
+    every color on every platform, so the card looks the same everywhere.
+    Clicks and hover come from bindings instead of the widget's own command.
+    """
     bg, hover = (ACCENT, ACCENT_HOVER) if primary else (BUTTON_BG, BUTTON_HOVER)
     fg = BADGE_TEXT if primary else CARD_FG
-    button = tk.Button(
+    button = tk.Label(
         parent,
         text=label,
-        command=command,
         bg=bg,
         fg=fg,
-        activebackground=hover,
-        activeforeground=fg,
         highlightthickness=0,
         relief="flat",
         bd=0,
@@ -139,11 +145,25 @@ def _button(parent, label, command, primary: bool) -> tk.Button:
         cursor="hand2",
         font=_ui_font(9, bold=True),
     )
-    # Tk buttons only change color while pressed; this adds a hover state.
     button.bind("<Enter>", lambda _e: button.configure(bg=hover), add="+")
     button.bind("<Leave>", lambda _e: button.configure(bg=bg), add="+")
+    # Fire on release, not press, so sliding off the control cancels it the
+    # way a real button does.
+    button.bind("<ButtonRelease-1>", lambda _e: _if_inside(button, command), add="+")
     button.pack(side="left", padx=(0, 8))
     return button
+
+
+def _if_inside(widget: tk.Widget, command: Callable[[], None]) -> None:
+    """Run `command` only if the pointer is still over `widget`."""
+    try:
+        px, py = widget.winfo_pointerxy()
+        x, y = widget.winfo_rootx(), widget.winfo_rooty()
+        w, h = widget.winfo_width(), widget.winfo_height()
+    except tk.TclError:
+        return
+    if x <= px < x + w and y <= py < y + h:
+        command()
 
 
 def _round(win: tk.Toplevel) -> None:
