@@ -92,3 +92,28 @@ def test_a_small_log_is_kept(log_dir):
     path.write_text("earlier run\n", encoding="utf-8")
     logbook.start()
     assert "earlier run" in read(path)
+
+
+# -- where the log goes ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "platform,expected",
+    [
+        ("darwin", ("Library", "Logs", "UniQR")),
+        ("win32", ("UniQR",)),
+        ("linux", ("uniqr",)),
+    ],
+)
+def test_log_goes_where_the_platform_expects(tmp_path, monkeypatch, platform, expected):
+    """A UniQR folder dumped in the home directory is untidy on a Mac and
+    wrong on Linux, so each platform gets its own conventional place."""
+    monkeypatch.setattr(logbook.sys, "platform", platform)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    monkeypatch.setattr(logbook.Path, "home", classmethod(lambda cls: tmp_path))
+
+    path = logbook.log_path()
+    assert path.name == "uniqr.log"
+    for part in expected:
+        assert part in path.parts, f"{platform}: expected {part!r} in {path}"

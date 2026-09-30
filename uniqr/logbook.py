@@ -18,7 +18,19 @@ MAX_BYTES = 512 * 1024
 
 
 def log_path() -> Path:
-    base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "UniQR"
+    """Where this platform expects a program to keep its log.
+
+    Dropping a UniQR folder straight into the home directory, which is what
+    the Windows-only version did everywhere else, is untidy on a Mac and wrong
+    on Linux.
+    """
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Logs" / "UniQR"
+    elif sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "UniQR"
+    else:
+        state = os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state"
+        base = Path(state) / "uniqr"
     base.mkdir(parents=True, exist_ok=True)
     return base / "uniqr.log"
 

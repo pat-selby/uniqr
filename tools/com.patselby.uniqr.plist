@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Starts UniQR at login on macOS.
+
+  Install:
+    cp tools/com.patselby.uniqr.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.patselby.uniqr.plist
+
+  Stop it:
+    launchctl unload ~/Library/LaunchAgents/com.patselby.uniqr.plist
+
+  IMPORTANT: macOS grants Screen Recording and Input Monitoring to the program
+  that runs, not to UniQR as an idea. Those were granted to Terminal, and
+  launchd runs the venv's python instead, which counts as a different program.
+  So after loading this, grant both permissions again, this time to:
+
+    ~/Downloads/uniqr/.venv/bin/python
+
+  System Settings > Privacy & Security > Screen Recording, and the same under
+  Accessibility. Use the + button and press Cmd+Shift+G to type that path.
+  Then: launchctl kickstart -k gui/$(id -u)/com.patselby.uniqr
+
+  Until that is done UniQR will start but find nothing and hear no keys. The
+  log says which permission is missing: ~/Library/Logs/UniQR/uniqr.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.patselby.uniqr</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/pescybers_mac/Downloads/uniqr/.venv/bin/python</string>
+        <string>/Users/pescybers_mac/Downloads/uniqr/app.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/pescybers_mac/Downloads/uniqr</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>UNIQR_HOTKEY</key>
+        <string>&lt;cmd&gt;+&lt;shift&gt;+8</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart it if it ever stops, but not in a tight loop. -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/pescybers_mac/Library/Logs/UniQR/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/pescybers_mac/Library/Logs/UniQR/launchd.log</string>
+</dict>
+</plist>
