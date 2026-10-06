@@ -65,7 +65,7 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Ruff
-        run: ruff check uniqr tests app.py scan.py
+        run: ruff check uniqr tests benchmarks app.py scan.py
 
       - name: Mypy
         run: mypy uniqr
