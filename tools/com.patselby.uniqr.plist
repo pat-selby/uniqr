@@ -1,27 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Starts UniQR at login on macOS.
+  Template for the UniQR launch agent on macOS. Do not copy this file by hand:
+  it holds example paths, and launchd cannot expand "~" or "$HOME", so a copy
+  points at someone else's username and fails with status 78.
 
-  Install:
-    cp tools/com.patselby.uniqr.plist ~/Library/LaunchAgents/
-    launchctl load ~/Library/LaunchAgents/com.patselby.uniqr.plist
+  Install it with the script, which fills in this Mac's paths and creates the
+  log folder launchd needs:
 
-  Stop it:
-    launchctl unload ~/Library/LaunchAgents/com.patselby.uniqr.plist
+    python3 tools/install_mac_agent.py
 
-  IMPORTANT: macOS grants Screen Recording and Input Monitoring to the program
-  that runs, not to UniQR as an idea. Those were granted to Terminal, and
-  launchd runs the venv's python instead, which counts as a different program.
-  So after loading this, grant both permissions again, this time to:
+  Everything that is not a path is read from here: start at login, and restart
+  if it stops, but not in a tight loop.
 
-    ~/Downloads/uniqr/.venv/bin/python
-
-  System Settings > Privacy & Security > Screen Recording, and the same under
-  Accessibility. Use the + button and press Cmd+Shift+G to type that path.
-  Then: launchctl kickstart -k gui/$(id -u)/com.patselby.uniqr
-
-  Until that is done UniQR will start but find nothing and hear no keys. The
-  log says which permission is missing: ~/Library/Logs/UniQR/uniqr.log
+  macOS grants Screen Recording and Accessibility to the program that runs, and
+  launchd runs the venv's python, which counts as a different program from
+  Terminal. The script prints what to add and where.
 -->
 <plist version="1.0">
 <dict>
