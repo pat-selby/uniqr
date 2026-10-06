@@ -103,7 +103,8 @@ class UniQR:
         # point the card goes at, which differs on a Retina display.
         at = overlay.below(det.bbox, origin)
         # The card labels the kind of code itself; this is the status line.
-        opened = overlay.toast(det.text, "Copied", at)
+        heading = "Copied" if det.symbology == "QR Code" else f"Copied · {det.symbology}"
+        opened = overlay.toast(det.text, heading, at)
         self.shell.set_tooltip(
             f"UniQR - {'opened' if opened else 'copied'} "
             f"{actions.summarize(det.text, 60)}"

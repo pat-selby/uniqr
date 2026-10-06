@@ -3,7 +3,7 @@
 opencv-python>=4.10
 # Second, independent decoder. Reads stylised codes that OpenCV locates
 # but cannot decode, such as cards with rounded finder patterns.
-zxing-cpp>=2.2
+zxing-cpp>=3.1
 numpy>=2.0
 pillow>=10.0
 

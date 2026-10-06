@@ -63,7 +63,10 @@ def report(detections, origin=(0, 0)) -> int:
     ox, oy = origin
     for i, det in enumerate(detections, 1):
         left, top, w, h = det.bbox
-        print(f"[{i}] {payload_kind(det.text)}")
+        kind = payload_kind(det.text)
+        # Say so when it is not a plain QR code; that is the surprising case.
+        extra = "" if det.symbology == "QR Code" else f" ({det.symbology})"
+        print(f"[{i}] {kind}{extra}")
         print(f"    {det.text}")
         print(f"    at ({left + ox}, {top + oy}) size {w}x{h}")
     return 0

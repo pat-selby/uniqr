@@ -12,7 +12,7 @@ runs against an inverted copy. Upscaling for very small codes costs more, so
 it only runs when the cheap passes come back empty.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import cv2
@@ -30,18 +30,58 @@ cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
 # degrades to OpenCV alone rather than breaking the scanner.
 zxingcpp: Any
 _ZXING_FORMATS: Any
+_OTHER_FORMATS: Any
+_MAXICODE: Any
+_BINARIZERS: Any
 
 try:
     import zxingcpp
 
-    _ZXING_FORMATS = zxingcpp.BarcodeFormat.QRCode
-    for _extra in ("MicroQRCode", "RMQRCode"):
-        _fmt = getattr(zxingcpp.BarcodeFormat, _extra, None)
-        if _fmt is not None:
-            _ZXING_FORMATS |= _fmt
+    _fmts = zxingcpp.BarcodeFormat
+    # The QR family: cheap, and read in every step of the ladder.
+    _ZXING_FORMATS = [
+        getattr(_fmts, n) for n in ("QRCode", "MicroQRCode", "RMQRCode") if hasattr(_fmts, n)
+    ]
+    # The other 2D codes. Each costs a few times what the QR family does on a
+    # full screen, so they get one pass per scan rather than a place in every
+    # step. Linear barcodes (EAN, Code 128 ...) are left out on purpose: they
+    # are what a screen is full of, and nobody pressed a hotkey to read a
+    # product label.
+    _OTHER_FORMATS = [
+        getattr(_fmts, n) for n in ("DataMatrix", "Aztec", "PDF417") if hasattr(_fmts, n)
+    ]
+    # MaxiCode is a bullseye and hexagons, and zxing's default thresholding
+    # does not reliably separate the hexagons from the page. Measured on the
+    # benchmark: a fixed threshold read all four codes the default missed.
+    _MAXICODE = [_fmts.MaxiCode] if hasattr(_fmts, "MaxiCode") else []
+    _BINARIZERS = zxingcpp.Binarizer
 except ImportError:  # pragma: no cover - exercised by the no-zxing test
     zxingcpp = None
     _ZXING_FORMATS = None
+    _OTHER_FORMATS = None
+    _MAXICODE = None
+    _BINARIZERS = None
+
+# Names for the cards. Keyed by zxing's own format name.
+SYMBOLOGY_NAMES = {
+    "QRCode": "QR Code",
+    "MicroQRCode": "Micro QR",
+    "RMQRCode": "rMQR",
+    "DataMatrix": "Data Matrix",
+    "Aztec": "Aztec",
+    "PDF417": "PDF417",
+    "MaxiCode": "MaxiCode",
+}
+
+
+def _format_for(symbology: str) -> Any:
+    """The zxing format behind a card label, or None for one we do not read."""
+    if zxingcpp is None:
+        return None
+    for name, label in SYMBOLOGY_NAMES.items():
+        if label == symbology:
+            return getattr(zxingcpp.BarcodeFormat, name, None)
+    return None
 
 
 def zxing_available() -> bool:
@@ -79,6 +119,24 @@ UPSCALE_MAX_DIM = 1200
 # Module-growing kernels tried when a code looks stylised (dotted modules).
 DESTYLE_KERNELS = (3, 5)
 
+# Enlargements tried, in order, on a frame small enough to afford them. Every
+# one runs the full set of readers.
+UPSCALE_FACTORS = (2.0, 4.0)
+
+# One more enlargement that only zxing reads. OpenCV can only ever find a QR
+# code, and running its detectors on a frame three times the size is most of
+# the cost of a step, so it is left out where it adds nothing. This size is
+# what the formats only zxing reads (rMQR in particular) gain from.
+ZXING_ONLY_FACTORS = (3.0,)
+
+# Past this many pixels on the long side, a robust read tries only zxing's
+# default threshold. See Scanner._robust_read.
+ROBUST_MAX_PX = 2600
+
+# The softening pass: a blur of about a quarter of a module on a typical
+# on-screen code, a few pixels at most. See Scanner._softened_pass.
+SOFTEN_SIGMA = 1.2
+
 
 def _quad_span(quad: np.ndarray) -> float:
     return float(
@@ -105,12 +163,19 @@ def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
     return image[y0:y1, x0:x1]
 
 
-def _zxing_detect(image: np.ndarray) -> list["Detection"]:
+def _zxing_detect(
+    image: np.ndarray, formats: Any = None, binarizer: Any = None
+) -> list["Detection"]:
     """Read with zxing-cpp, keeping each code's corner positions."""
     if zxingcpp is None:
         return []
+    options: dict[str, Any] = {}
+    if binarizer is not None:
+        options["binarizer"] = binarizer
     try:
-        results = zxingcpp.read_barcodes(image, formats=_ZXING_FORMATS)
+        results = zxingcpp.read_barcodes(
+            image, formats=_ZXING_FORMATS if formats is None else formats, **options
+        )
     except Exception:  # noqa: BLE001 - a decoder failure is not a scan failure
         return []
 
@@ -128,7 +193,8 @@ def _zxing_detect(image: np.ndarray) -> list["Detection"]:
             ],
             dtype=np.float32,
         )
-        out.append(Detection(result.text, quad))
+        name = result.format.name
+        out.append(Detection(result.text, quad, SYMBOLOGY_NAMES.get(name, name)))
     return out
 
 
@@ -203,10 +269,11 @@ def _tile_rects(
 
 @dataclass
 class Detection:
-    """One decoded QR code and where it sat in the captured image."""
+    """One decoded code and where it sat in the captured image."""
 
     text: str
     quad: np.ndarray  # 4x2 float32, corners in capture-local pixels
+    symbology: str = "QR Code"  # which kind of code it was; see SYMBOLOGY_NAMES
 
     @property
     def bbox(self) -> tuple[int, int, int, int]:
@@ -221,7 +288,7 @@ class Detection:
 
     def offset(self, dx: int, dy: int) -> "Detection":
         """Shift into another coordinate space, e.g. capture-local to screen."""
-        return Detection(self.text, self.quad + np.array([dx, dy], dtype=np.float32))
+        return replace(self, quad=self.quad + np.array([dx, dy], dtype=np.float32))
 
 
 def _run(detector, image: np.ndarray) -> list[Detection]:
@@ -269,7 +336,7 @@ class Scanner:
         found = _merge([_run(self._aruco, image), _run(self._classic, image)])
         if scale == 1.0:
             return found
-        return [Detection(d.text, d.quad / scale) for d in found]
+        return [replace(d, quad=d.quad / scale) for d in found]
 
     def _detect_both_polarities(
         self, image: np.ndarray, scale: float = 1.0
@@ -277,7 +344,7 @@ class Scanner:
         def rescale(dets: list[Detection]) -> list[Detection]:
             if scale == 1.0:
                 return dets
-            return [Detection(d.text, d.quad / scale) for d in dets]
+            return [replace(d, quad=d.quad / scale) for d in dets]
 
         return _merge(
             [
@@ -290,6 +357,58 @@ class Scanner:
                 self._detect(cv2.bitwise_not(image), scale),
             ]
         )
+
+    def _other_formats(self, image: np.ndarray, scale: float = 1.0) -> list[Detection]:
+        """Data Matrix, Aztec, PDF417 and MaxiCode. One zxing call, no ladder.
+
+        These have no OpenCV detector, so there is nothing to rectify with, and
+        the QR-specific steps below (locate, destyle) do not apply to them.
+        Their cost is why this runs once per scan instead of at every step.
+        """
+        if zxingcpp is None:
+            return []
+        found = _zxing_detect(image, _OTHER_FORMATS) if _OTHER_FORMATS else []
+        if _MAXICODE:
+            found += self._maxicode(image)
+        return [replace(d, quad=d.quad / scale) for d in found] if scale != 1.0 else found
+
+    def _maxicode(self, image: np.ndarray) -> list[Detection]:
+        """MaxiCode, which no single threshold reads in every light.
+
+        A bullseye and hexagons. On a clutter-heavy page the adaptive default
+        loses the hexagons and a fixed threshold finds them; under uneven
+        lighting it is the other way round. The benchmark had one failure of
+        each kind, and each was recovered by the other setting, so both run.
+        """
+        grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return _zxing_detect(grey, _MAXICODE) or _zxing_detect(
+            grey, _MAXICODE, _BINARIZERS.FixedThreshold
+        )
+
+    def _robust_read(self, image: np.ndarray, scale: float = 1.0) -> list[Detection]:
+        """Every 2D format, on grey, under each of zxing's thresholding modes.
+
+        Several reads where one is normal, so only for frames small enough that
+        it costs next to nothing. Different damage wants a different threshold:
+        the default adapts to local brightness, the global one ignores local
+        detail that is only noise, and the fixed one survives a flat low
+        contrast. On the benchmark's misses the right choice differed case by
+        case, with no pattern worth hard-coding, so all three are tried.
+        """
+        if zxingcpp is None:
+            return []
+        grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        formats = [*_ZXING_FORMATS, *_OTHER_FORMATS, *_MAXICODE]
+        modes: tuple[Any, ...] = (None, _BINARIZERS.GlobalHistogram, _BINARIZERS.FixedThreshold)
+        if max(image.shape[:2]) > ROBUST_MAX_PX:
+            # Reads this big are the slowest there are, and the smaller
+            # enlargements already cover what the extra modes catch.
+            modes = modes[:1]
+        for binarizer in modes:
+            found = _zxing_detect(grey, formats, binarizer)
+            if found:
+                return [replace(d, quad=d.quad / scale) for d in found] if scale != 1.0 else found
+        return []
 
     def _locate(self, image: np.ndarray) -> list[np.ndarray]:
         """Find where codes are, without trying to read them.
@@ -384,14 +503,89 @@ class Scanner:
         return ""
 
     def scan(self, image: np.ndarray, thorough: bool = True) -> list[Detection]:
-        """Find every decodable QR code in a BGR image.
+        """Find every decodable code in a BGR image, and check the unusual ones.
+
+        Anything other than a plain QR code must be read a second way before it
+        is believed. See _confirm.
+        """
+        return self._validated(image, self._scan_raw(image, thorough))
+
+    def _validated(self, image: np.ndarray, found: list[Detection]) -> list[Detection]:
+        return [d for d in found if d.symbology == "QR Code" or self._confirm(image, d)]
+
+    def _confirm(self, image: np.ndarray, det: Detection) -> bool:
+        """Read a code again, differently, and believe it only if both agree.
+
+        Every reader of these codes corrects errors, and a code damaged past
+        what it can correct will occasionally "correct" into a different valid
+        message instead of failing. The benchmark caught one: a PDF417 under
+        three kinds of damage came back as 52 characters of garbage that zxing
+        called valid, and the same code read under other treatments gave
+        different garbage each time. Two independent reads agreeing on a
+        string of that length is not luck, so agreement is the test, and a
+        second read that returns something else is the veto.
+
+        QR codes skip this. Their error correction is far stronger, and in
+        thousands of benchmark codes it never returned a wrong answer. The
+        other formats have not earned that trust, and a wrong link is worse
+        than no link.
+        """
+        fmt = _format_for(det.symbology)
+        if fmt is None or zxingcpp is None:
+            return True
+        x, y, w, h = det.bbox
+        pad = int(0.3 * max(w, h)) + 8
+        ih, iw = image.shape[:2]
+        crop = image[max(0, y - pad) : min(ih, y + h + pad), max(0, x - pad) : min(iw, x + w + pad)]
+        if crop.size == 0:
+            return False
+        grey = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+
+        def enlarged(k: float) -> np.ndarray:
+            return cv2.resize(grey, None, fx=k, fy=k, interpolation=cv2.INTER_CUBIC)
+
+        # Many ways to look, because the first read could have come from any
+        # of the recovery steps and the second has to be able to find the
+        # code in something else. A narrow set confirmed too little: it threw
+        # away rMQR codes that had read correctly, a fifth of them on one seed.
+        treatments = (
+            grey,
+            enlarged(2),
+            enlarged(3),
+            enlarged(4),
+            cv2.GaussianBlur(grey, (0, 0), 1.2),
+            cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(grey),
+            cv2.GaussianBlur(enlarged(2), (0, 0), 1.5),
+        )
+        modes: tuple[Any, ...] = (
+            None,
+            _BINARIZERS.GlobalHistogram,
+            _BINARIZERS.FixedThreshold,
+        )
+        for treated in treatments:
+            for binarizer in modes:
+                options = {} if binarizer is None else {"binarizer": binarizer}
+                try:
+                    results = zxingcpp.read_barcodes(treated, formats=[fmt], **options)
+                except Exception:  # noqa: BLE001 - a failed re-read is not a veto
+                    continue
+                for r in results:
+                    if not r.text:
+                        continue
+                    # The first thing it reads decides: the same text confirms
+                    # it, anything else is the same symbol read another way.
+                    return r.text == det.text
+        return False
+
+    def _scan_raw(self, image: np.ndarray, thorough: bool = True) -> list[Detection]:
+        """Find every decodable code in a BGR image, unchecked.
 
         Both polarities always run - a screen can hold a light and a dark code
         at once, and merging is the only way to see both. `thorough` adds the
         locate-then-rectify pass, which is what recovers the second and third
         code when several small or tilted ones share a frame.
         """
-        whole = self._detect_both_polarities(image)
+        whole = _merge([self._detect_both_polarities(image), self._other_formats(image)])
         if not thorough:
             return whole
 
@@ -407,6 +601,10 @@ class Scanner:
         if found:
             return found
 
+        found = self._softened_pass(image)
+        if found:
+            return found
+
         # Nothing at all: the code may be too small for the locator to see.
         # Enlarging helps, but only where it is affordable - blowing a full
         # 1920x1080 screen up to 4x costs seconds, and "no code on screen" is
@@ -414,19 +612,30 @@ class Scanner:
         if max(image.shape[:2]) > UPSCALE_MAX_DIM:
             return []
 
-        for factor in (2.0, 4.0):
+        for factor in UPSCALE_FACTORS:
             big = cv2.resize(
                 image, None, fx=factor, fy=factor, interpolation=cv2.INTER_LANCZOS4
             )
             hits = _merge(
                 [
                     self._detect_both_polarities(big, factor),
-                    [
-                        Detection(d.text, d.quad / factor)
-                        for d in self._rectify_pass(big)
-                    ],
+                    # Only small frames reach this step, so reading every
+                    # format under every threshold is affordable here, and
+                    # those are the ones that gain most from being enlarged.
+                    # It covers the other formats too, so they are not read
+                    # separately.
+                    self._robust_read(big, factor),
+                    [replace(d, quad=d.quad / factor) for d in self._rectify_pass(big)],
                 ]
             )
+            if hits:
+                return hits
+
+        for factor in ZXING_ONLY_FACTORS:
+            big = cv2.resize(
+                image, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC
+            )
+            hits = self._robust_read(big, factor)
             if hits:
                 return hits
         return []
@@ -460,6 +669,36 @@ class Scanner:
                     return found
         return []
 
+    def _softened_pass(self, image: np.ndarray) -> list[Detection]:
+        """Melt rings and dots into the solid shapes a detector expects.
+
+        Some designs draw each finder pattern as a ring around a dot and each
+        module as a separate dot. The OpenCV locators find no corner at all in
+        those, so nothing downstream gets a chance - not even the rectify
+        pass, which starts from a located quad. Measured on the benchmark: all
+        five ring-pattern codes viewed at an angle that nothing else read came
+        back with a blur of about a quarter of a module.
+
+        Cheap ones first. Only a small frame can afford the enlargement that
+        catches the rest, for the same reason the upscale step below it is
+        limited.
+        """
+        soft = cv2.GaussianBlur(image, (0, 0), SOFTEN_SIGMA)
+        found = _zxing_detect(soft)
+        if found:
+            return found
+
+        grey = cv2.cvtColor(soft, cv2.COLOR_BGR2GRAY)
+        equalised = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(grey)
+        found = _zxing_detect(cv2.cvtColor(equalised, cv2.COLOR_GRAY2BGR))
+        if found:
+            return found
+
+        if max(image.shape[:2]) > UPSCALE_MAX_DIM or _BINARIZERS is None:
+            return []
+        big = cv2.resize(soft, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+        return self._robust_read(big, 2.0)
+
     def _rectify_pass(self, image: np.ndarray) -> list[Detection]:
         return [
             det
@@ -487,9 +726,8 @@ class Scanner:
             # _detect_both_polarities as well would halve them twice and
             # scatter phantom copies across the frame.
             hits = self._detect_both_polarities(big) + self._rectify_pass(big)
-            groups.append(
-                [Detection(d.text, d.quad / TILE_SCALE).offset(x0, y0) for d in hits]
-            )
+            scaled = [replace(d, quad=d.quad / TILE_SCALE).offset(x0, y0) for d in hits]
+            groups.append(self._validated(image, scaled))
         return _merge(groups)
 
 
