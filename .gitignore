@@ -51,3 +51,6 @@ AGENTS.md
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Benchmark scratch: failed cases saved for replay
+benchmarks/failures/
