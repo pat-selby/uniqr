@@ -117,23 +117,32 @@ UNIQR_HOTKEY='<cmd>+<shift>+8' uniqr
 ### Start it at login
 
 ```
-cp tools/com.patselby.uniqr.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.patselby.uniqr.plist
+python3 tools/install_mac_agent.py
 ```
 
-Open that file first and fix the paths inside it if your copy is not in
-`~/Downloads/uniqr`.
+Run it from the UniQR folder. It writes the startup file with this Mac's own
+paths, creates the log folder, and starts UniQR. If you chose a different
+hotkey above, add it: `python3 tools/install_mac_agent.py --hotkey '<cmd>+<shift>+8'`.
+
+Do not copy the plist file from `tools/` by hand. It holds example paths, and
+macOS cannot expand `~`, so a copy fails with status 78 and no explanation.
 
 One catch. macOS grants permission to the **program that runs**, and you gave
 it to Terminal. Started at login the program is the venv's Python instead,
-which counts as something different. So grant Screen Recording and
-Accessibility once more, this time to:
+which counts as something different. The script opens a Finder window with that
+program selected. In **System Settings → Privacy & Security**, drag it into both
+**Screen Recording** and **Accessibility**, and switch each on. The folder is
+hidden, so in a file picker press **Cmd+Shift+.** to show it.
+
+Then restart UniQR so it sees the new permission:
 
 ```
-~/Downloads/uniqr/.venv/bin/python
+launchctl unload ~/Library/LaunchAgents/com.patselby.uniqr.plist && launchctl load ~/Library/LaunchAgents/com.patselby.uniqr.plist
 ```
 
-In the **+** dialog, press **Cmd+Shift+G** to type that path.
+To check it: `launchctl list | grep uniqr`. A number in the first column means it
+is running. A dash and a number mean it started and stopped, and the reason is in
+`~/Library/Logs/UniQR/uniqr.log`.
 
 ---
 
@@ -215,8 +224,7 @@ pip uninstall uniqr
 Then delete the folder, and:
 
 - **Windows**: delete the shortcut from `shell:startup`
-- **macOS**: `launchctl unload ~/Library/LaunchAgents/com.patselby.uniqr.plist`
-  and delete that file, then remove the entries you added under Privacy &
-  Security
+- **macOS**: `python3 tools/install_mac_agent.py --uninstall`, then remove the
+  entries you added under Privacy & Security
 
 Nothing else is written anywhere except the log file listed above.
