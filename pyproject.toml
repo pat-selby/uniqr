@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "opencv-python>=4.10",
-    "zxing-cpp>=2.2",
+    "zxing-cpp>=3.1",
     "numpy>=2.0",
     "pillow>=10.0",
     "mss>=9.0",
@@ -45,6 +45,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "types-pillow",
+    # Draws the styled codes the benchmark lab scans.
+    "qrcode>=7.4",
 ]
 all = ["uniqr[windows,dev]"]
 
