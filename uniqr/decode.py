@@ -519,7 +519,7 @@ class Scanner:
         Every reader of these codes corrects errors, and a code damaged past
         what it can correct will occasionally "correct" into a different valid
         message instead of failing. The benchmark caught one: a PDF417 under
-        three kinds of damage came back as 52 characters of garbage that zxing
+        three kinds of damage came back as 51 characters of garbage that zxing
         called valid, and the same code read under other treatments gave
         different garbage each time. Two independent reads agreeing on a
         string of that length is not luck, so agreement is the test, and a

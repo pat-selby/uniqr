@@ -148,7 +148,7 @@ used to design any fix:
 
 | | decoded | before |
 |---|---:|---:|
-| QR code | 99.9% | 99.6% |
+| QR code | 99.9% | 99.7% |
 | Data Matrix | 100% | 0% |
 | Aztec | 92.9% | 0% |
 | PDF417 | 89.1% | 0% |

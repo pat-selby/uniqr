@@ -140,7 +140,7 @@ def test_a_plain_qr_code_is_not_second_guessed(scanner):
 def test_the_pdf417_that_once_read_as_garbage_does_not_any_more(scanner):
     """Benchmark seed 4, case 00931: three kinds of damage on a PDF417.
 
-    Rebuilt from its recorded numbers. UniQR used to return 52 characters of
+    Rebuilt from its recorded numbers. UniQR used to return 51 characters of
     garbage for it. Returning nothing is acceptable; returning the wrong text
     is not.
     """
