@@ -14,9 +14,14 @@ from uniqr import logbook
 @pytest.fixture
 def log_dir(tmp_path, monkeypatch):
     """Point the log at a temp folder and put the streams back afterwards."""
+    # Every place any platform keeps its log. Redirecting only the Windows one
+    # let these tests write to the real log on a Mac or Linux box, where a
+    # crash recorded by one test then showed up in the next.
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    monkeypatch.setattr(logbook.Path, "home", classmethod(lambda cls: tmp_path))
     out, err, hook = sys.stdout, sys.stderr, sys.excepthook
-    yield tmp_path / "UniQR"
+    yield tmp_path
     sys.stdout, sys.stderr, sys.excepthook = out, err, hook
 
 
