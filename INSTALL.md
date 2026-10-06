@@ -192,6 +192,18 @@ card, UniQR heard you fine and the problem is the code, not the key.
 **It was working, now it is not.** Check the app is still running. On Windows
 look for the tray icon; on macOS check the Terminal window is still open.
 
+UniQR watches itself. If it stops answering for 10 seconds, it writes where it
+got stuck to the log. After 45 seconds it starts a fresh copy of itself. If it
+freezes again right away, three times in a row, it stops trying and stays
+closed. Look in the log for lines like these:
+
+- `UniQR has not answered for N seconds` followed by a list of code locations.
+  Send that list to whoever maintains UniQR; it names the exact cause.
+- `UniQR restarted itself` means a freeze happened and it recovered.
+- `The last run did not exit cleanly` at startup means the last copy was closed
+  by something other than Exit. A shutdown, a crash and a freeze all look the
+  same here, and the line gives the last time it was seen alive.
+
 ---
 
 ## Removing it

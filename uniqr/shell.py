@@ -6,6 +6,7 @@ shows one. This module creates that window and routes what arrives at it.
 """
 
 import ctypes
+from ctypes import wintypes
 from typing import Callable
 
 import win32api
@@ -27,6 +28,8 @@ IDM_SCAN = 1001
 IDM_EXIT = 1002
 
 HOTKEY_ID = 1
+HEARTBEAT_ID = 2
+HEARTBEAT_MS = 1000
 
 # Tried in order. Win+Shift+Q is the one we want; the rest are escape hatches
 # for when another app already claimed it.
@@ -43,6 +46,12 @@ class SingleInstance:
     def __init__(self, name: str = "UniQR.SingleInstance") -> None:
         self._handle = ctypes.windll.kernel32.CreateMutexW(None, False, name)
         self.already_running = ctypes.windll.kernel32.GetLastError() == 183  # EXISTS
+        if self.already_running:
+            # Hand back the handle we just opened to the other copy's mutex.
+            # Left open, it would keep that mutex alive after the other copy
+            # exits, and a restarted UniQR would find itself "already running"
+            # because of its own earlier attempt.
+            ctypes.windll.kernel32.CloseHandle(self._handle)
 
 
 class Shell:
@@ -57,6 +66,7 @@ class Shell:
         self.tooltip = tooltip
         self.hotkey_label = ""
         self._hicon = None
+        self._heartbeat: Callable[[], None] | None = None
         self.hwnd = self._create_window()
         self._add_tray_icon()
 
@@ -70,6 +80,7 @@ class Shell:
             WM_TRAYICON: self._on_tray_message,
             win32con.WM_HOTKEY: self._on_hotkey_message,
             win32con.WM_COMMAND: self._on_command,
+            win32con.WM_TIMER: self._on_timer,
             win32con.WM_DESTROY: self._on_destroy,
         }
         class_atom = win32gui.RegisterClass(wc)
@@ -120,6 +131,24 @@ class Shell:
             return label
         return None
 
+    def set_heartbeat(self, beat: Callable[[], None]) -> None:
+        """Call `beat` once a second for as long as the message loop is turning.
+
+        A timer on the hidden window, so it only fires if this thread is
+        really pulling messages. That includes the nested loops the picker and
+        the cards run while they wait, which is why a card left open for a
+        minute does not look like a freeze.
+        """
+        self._heartbeat = beat
+        # Through user32 directly: pywin32 does not expose SetTimer everywhere.
+        user32 = ctypes.windll.user32
+        user32.SetTimer.argtypes = [
+            wintypes.HWND, wintypes.WPARAM, wintypes.UINT, ctypes.c_void_p,
+        ]
+        user32.SetTimer.restype = wintypes.WPARAM
+        if not user32.SetTimer(self.hwnd, HEARTBEAT_ID, HEARTBEAT_MS, None):
+            raise ctypes.WinError()
+
     # -- output --------------------------------------------------------------
 
     def set_tooltip(self, text: str) -> None:
@@ -147,6 +176,11 @@ class Shell:
         )
 
     # -- message handlers ----------------------------------------------------
+
+    def _on_timer(self, hwnd, msg, wparam, lparam):
+        if wparam == HEARTBEAT_ID and self._heartbeat is not None:
+            self._heartbeat()
+        return 0
 
     def _on_hotkey_message(self, hwnd, msg, wparam, lparam):
         if wparam == HOTKEY_ID:
@@ -188,6 +222,7 @@ class Shell:
         return 0
 
     def _on_destroy(self, hwnd, msg, wparam, lparam):
+        ctypes.windll.user32.KillTimer(self.hwnd, HEARTBEAT_ID)
         win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
         win32gui.PostQuitMessage(0)
         return 0

@@ -279,6 +279,31 @@ def c_card_buttons_keep_their_colors():
         frame.destroy()
 
 
+# -- the watchdog's heartbeat ------------------------------------------------
+
+
+def c_heartbeat_survives_a_waiting_window():
+    """A card or picker left open must not look like a freeze.
+
+    Both block in a nested event loop until someone answers. If the heartbeat
+    only ticked from the normal loop, it would stop for exactly as long as a
+    person takes to decide, and the watchdog would restart UniQR under them.
+    """
+    from uniqr.shell_portable import PortableShell
+
+    root = overlay.shared_root()
+    shell = PortableShell(on_hotkey=lambda: None)
+    beats: list[int] = []
+    shell.set_heartbeat(lambda: beats.append(1))
+
+    win = tk.Toplevel(root)
+    root.after(2500, win.destroy)
+    root.wait_window(win)  # the same call the card and the picker make
+    shell.stop()
+    assert len(beats) >= 2, f"only {len(beats)} beats in 2.5s of waiting"
+    return f"{len(beats)} beats while a window waited"
+
+
 CASES = {
     "probe: blank frame": c_probe_blank,
     "probe: denied, frame lively": c_probe_denied_but_lively,
@@ -294,6 +319,7 @@ CASES = {
     "negative screen origin": c_negative_origin,
     "open action stays narrow": c_open_stays_narrow,
     "card buttons keep colors": c_card_buttons_keep_their_colors,
+    "heartbeat survives a waiting window": c_heartbeat_survives_a_waiting_window,
 }
 
 
@@ -314,6 +340,7 @@ NEEDS_DISPLAY = {
     "picker at 2x (Retina)",
     "negative screen origin",
     "card buttons keep colors",
+    "heartbeat survives a waiting window",
 }
 
 _display: bool | None = None

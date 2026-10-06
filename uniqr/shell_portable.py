@@ -33,6 +33,7 @@ from uniqr import capture
 from uniqr.icon import icon_image
 
 POLL_MS = 60
+HEARTBEAT_MS = 1000
 
 # pystray's macOS backend drives NSStatusItem, which must run on the main
 # thread. Tk already owns it, and pystray does not check: run() from any other
@@ -102,6 +103,7 @@ class PortableShell:
         self._listener = None
         self._icon = None
         self._stopping = False
+        self._tick_id: str | None = None
         self.root = overlay.shared_root()
 
     # -- setup ---------------------------------------------------------------
@@ -179,6 +181,23 @@ class PortableShell:
             self._icon = None
             return False
 
+    def set_heartbeat(self, beat: Callable[[], None]) -> None:
+        """Call `beat` once a second for as long as Tk's loop is turning.
+
+        Its own timer chain rather than a call from _pump. _pump is the code
+        that starts a scan, so while the picker waits for a choice it is not
+        running, and a heartbeat hung off it would stop for as long as a person
+        takes to decide. Tk timers keep firing inside the picker's nested loop.
+        """
+
+        def tick() -> None:
+            if self._stopping:
+                return
+            beat()
+            self._tick_id = self.root.after(HEARTBEAT_MS, tick)
+
+        self._tick_id = self.root.after(HEARTBEAT_MS, tick)
+
     # -- output --------------------------------------------------------------
 
     def set_tooltip(self, text: str) -> None:
@@ -221,6 +240,12 @@ class PortableShell:
 
     def stop(self) -> None:
         self._stopping = True
+        if self._tick_id is not None:
+            try:
+                self.root.after_cancel(self._tick_id)
+            except Exception:  # noqa: BLE001
+                pass
+            self._tick_id = None
         if self._listener is not None:
             try:
                 self._listener.stop()

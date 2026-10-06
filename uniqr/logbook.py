@@ -16,6 +16,8 @@ from pathlib import Path
 # One old file is kept, so a crash is not scrolled away by later runs.
 MAX_BYTES = 512 * 1024
 
+_handle = None
+
 
 def log_path() -> Path:
     """Where this platform expects a program to keep its log.
@@ -75,9 +77,10 @@ def _rotate(path: Path) -> None:
 
 def start(argv: list[str] | None = None) -> Path:
     """Send print() and crashes to the log file. Returns where it went."""
+    global _handle
     path = log_path()
     _rotate(path)
-    handle = path.open("a", encoding="utf-8", errors="replace")
+    handle = _handle = path.open("a", encoding="utf-8", errors="replace")
 
     console_out, console_err = sys.stdout, sys.stderr
     sys.stdout = _Tee(handle, console_out)
@@ -97,3 +100,13 @@ def start(argv: list[str] | None = None) -> Path:
     if argv:
         print("command: " + " ".join(argv))
     return path
+
+
+def handle():
+    """The open log file, for code that must write to it directly.
+
+    The watchdog needs the real file, not print(): a stack trace dump goes
+    through the operating system's file handle and cannot use a Python wrapper.
+    None until start() has run.
+    """
+    return _handle

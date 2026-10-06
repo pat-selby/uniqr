@@ -7,9 +7,11 @@ Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
 """
 
+import os
 import sys
+import time
 
-from uniqr import actions, backends, capture, logbook, overlay
+from uniqr import actions, backends, capture, logbook, overlay, watchdog
 from uniqr.decode import Scanner, payload_kind
 
 HOTKEY_BLOCKED = (
@@ -148,7 +150,17 @@ class UniQR:
             if allowed is False:
                 print(HOTKEY_BLOCKED + detail)
         self._greet(label)
-        self.shell.run()
+
+        dog = watchdog.start(self.shell)
+        clean = False
+        try:
+            self.shell.run()
+            clean = True
+        except KeyboardInterrupt:
+            clean = True  # Ctrl+C is a deliberate way to leave
+            raise
+        finally:
+            dog.stop(clean=clean)
         return 0
 
     def _greet(self, label: str | None) -> None:
@@ -173,15 +185,36 @@ class UniQR:
             print(f"could not show the startup card: {exc}")
 
 
+def _claim_instance(restarted: bool) -> bool:
+    """False if another UniQR holds the single-instance mutex (Windows only).
+
+    A copy that was started by the watchdog is born while the frozen one is
+    still being torn down, so it waits a few seconds for the mutex rather than
+    taking the first "already running" as the answer.
+    """
+    from uniqr.shell import SingleInstance
+
+    for _ in range(20 if restarted else 1):
+        if not SingleInstance().already_running:
+            return True
+        time.sleep(0.5)
+    return False
+
+
 def main() -> int:
     logbook.start(sys.argv)
     quiet = "--quiet" in sys.argv
-    if backends.NAME == "windows":
-        from uniqr.shell import SingleInstance
-
-        if SingleInstance().already_running:
-            print("UniQR is already running - check the system tray.")
-            return 1
+    restarted = bool(os.environ.get(watchdog.RESTARTS_ENV))
+    if restarted:
+        print(
+            "UniQR restarted itself because the last copy stopped answering "
+            f"(restart {os.environ[watchdog.RESTARTS_ENV]})."
+        )
+        if backends.NAME != "windows":
+            time.sleep(1)  # let the old copy finish exiting
+    if backends.NAME == "windows" and not _claim_instance(restarted):
+        print("UniQR is already running - check the system tray.")
+        return 1
     try:
         return UniQR(quiet=quiet).run()
     except KeyboardInterrupt:
