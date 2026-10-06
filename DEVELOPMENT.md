@@ -54,6 +54,63 @@ To test the macOS and Linux code path without a Mac, force the backend:
 UNIQR_BACKEND=portable python tests/test_real_photos.py
 ```
 
+## The benchmark lab
+
+`benchmarks/` scores the scanner on thousands of generated codes. It is the
+tool for rule 4 above: do not fix what you have not measured.
+
+```bash
+python -m benchmarks.run                  # ~1,000 codes, a few minutes
+python -m benchmarks.run --seed 7         # a different, reproducible set
+python -m benchmarks.run --formats qr --tags rotate,blur
+python -m benchmarks.search               # what would have read the misses?
+python -m benchmarks.run --replay         # re-scan saved misses after a change
+```
+
+Each case is a code with known contents, drawn in some style and size, then
+damaged. A case is a handful of numbers, so the same seed rebuilds the same
+pixels and any miss can be reproduced from its metadata.
+
+**The loop for improving the scanner:**
+
+1. Run the benchmark. Read the misses, not the percentage.
+2. Run `benchmarks.search`. It tries hundreds of treatments against every miss
+   and lists what recovers each one.
+3. Put a recipe that helps several misses into `uniqr/decode.py`.
+4. `--replay` to confirm those misses now decode.
+5. Run a seed you have never run before. A recipe that fixes the misses it was
+   found on and nothing else is overfitting.
+
+**Rules the numbers depend on:**
+
+- **Report a seed you did not tune on.** Seeds 1 to 4 were used to find and
+  check the fixes, so seeds 5, 6 and 7 are the ones quoted. A seed stops being
+  clean the moment you read its misses. Use a new one.
+- **A miss is not always the scanner's fault.** Damage can destroy a code. Each
+  miss is retried with the same code enlarged to 12 pixels per module, read by
+  UniQR and by zxing directly. If that fails too it is counted as
+  *unreadable*, not as a miss. Without this the early results blamed UniQR for
+  damage no reader could survive.
+- **Wrong answers are tracked on their own.** Returning the wrong text is worse
+  than returning nothing. One showed up: a PDF417 under three kinds of damage
+  came back as 52 characters of garbage that the reader called valid, and the
+  same code read under other treatments gave different garbage each time. The
+  fix is `Scanner._confirm`, which makes every non-QR code agree with a second
+  read before it is believed. The case is pinned in `tests/test_formats.py`.
+  If a wrong answer ever appears again, that is the first thing to fix.
+- **Images with no code in them are part of the test.** Adding a format raises
+  the chance of seeing a code that is not there. Blank pages, noise, text,
+  checkerboards and linear barcodes must all come back empty.
+- **Each change earns its place.** Two changes made on a hunch (a blur and a
+  second threshold in the patch reader) fixed nothing when each was switched
+  off in turn, and were removed. Check by turning a change off and replaying.
+- **Cost matters.** The scan runs on a hotkey press. `uniqr/decode.py` keeps
+  the extra formats to one pass per scan, and the expensive recoveries to
+  frames small enough to afford them.
+
+`benchmarks/failures/` holds saved misses and is ignored by git. Do not commit
+screenshots of a real screen: they hold whatever was open at the time.
+
 ## Where things stand
 
 Confirmed on macOS 14, Intel, Python 3.14.7, OpenCV 5.0.0.93:
