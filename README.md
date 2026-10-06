@@ -1,6 +1,7 @@
 # UniQR
 
 Read any QR code on your screen with a keypress. No phone, no screenshots.
+Also reads Data Matrix, Aztec, PDF417 and other 2D codes.
 
 ![UniQR picking between several codes](demo_colors.gif)
 
@@ -18,10 +19,10 @@ Cross-platform desktop utility with a **multi-stage computer vision pipeline** b
 
 | Area | Detail |
 |---|---|
-| **Detection** | Three decoders (OpenCV Aruco + classic, zxing-cpp), dual polarity, perspective rectification, adaptive tiling, destylisation for dotted modules, multi-scale upscaling, CLAHE/Otsu/adaptive threshold, red-channel extraction |
+| **Detection** | Three decoders (OpenCV Aruco + classic, zxing-cpp), seven code types, dual polarity, perspective rectification, adaptive tiling, destylisation and softening for dotted and ring-shaped codes, multi-scale upscaling, three thresholding modes, CLAHE/Otsu/adaptive threshold, red-channel extraction |
 | **Architecture** | Platform-neutral CV core behind a backend abstraction (`windows` GDI capture vs `portable` mss/pynput) |
 | **Latency** | ~520 ms typical scan, ~880 ms worst-case retry ladder (1920x1080) |
-| **Regression** | 103 pytest cases: 17 synthetic conditions, 8 stylised codes, 4 real photographs, plus unit coverage for tile geometry, the decoder layer and the link-safety rules |
+| **Testing** | 203 pytest cases, plus a [benchmark lab](benchmarks/RESULTS.md) that scores about 1,000 generated codes per run across 19 styles and code types, with a separate count of wrong answers |
 | **CI** | GitHub Actions matrix: Windows, macOS, Linux × Python 3.11/3.12; ruff + mypy |
 
 ## Install
@@ -125,6 +126,52 @@ Plain codes are easy. These are the harder ones it also handles:
 - Fancy advert codes with dotted or rounded blocks and a logo in the middle
 - Coloured codes on coloured backgrounds
 - Small codes, down to about 45 pixels
+- Rings, dots, bars, gradients and logos
+- Other 2D codes: Micro QR, rMQR, Data Matrix, Aztec, PDF417 and MaxiCode
+
+Linear product barcodes (EAN, Code 128 and the like) are left alone on purpose.
+A screen is full of them, and nobody pressed the hotkey to read one.
+
+Anything that is not a plain QR code is read a second way before it is
+believed. These formats can, rarely, "correct" damage into a different valid
+message instead of failing, and a wrong link is worse than no link.
+
+## How well does it read?
+
+Measured on codes generated for the purpose, in 19 styles and code types, each
+drawn at a known size and then damaged: rotated, tilted, blurred, noisy,
+compressed, low contrast, in glare or shadow, partly covered, or placed on a
+busy 1080p page. The contents are known, so a right answer is checkable.
+
+Average of three runs of about 990 codes each, on random seeds that were not
+used to design any fix:
+
+| | decoded | before |
+|---|---:|---:|
+| QR code | 99.9% | 99.6% |
+| Data Matrix | 100% | 0% |
+| Aztec | 92.9% | 0% |
+| PDF417 | 89.1% | 0% |
+| Micro QR | 94.9% | 94 to 98% |
+| rMQR | 91.7% | 79% |
+| MaxiCode | 75.6% | 0% |
+
+**Wrong answers: 0** in every run. **False alarms: 0** on 48 images with no code
+in them, from blank pages to checkerboards to product barcodes. Of the codes
+that a reader could read at all, 99.4% decode. Most of the rest were damaged
+past recovery: each miss is retried with the same code enlarged, and if even
+that fails it counts as unreadable rather than as UniQR's fault.
+
+The full table, with every style and condition, is in
+[benchmarks/RESULTS.md](benchmarks/RESULTS.md). To reproduce it:
+
+```bash
+pip install -e ".[dev]"
+python -m benchmarks.run --per-cell 4 --seed 7
+```
+
+The price is speed. A scan of a busy 1080p screen takes about 8% longer than it
+did, because there are more kinds of code to look for.
 
 Run the full regression suite:
 
