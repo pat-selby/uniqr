@@ -93,7 +93,7 @@ pixels and any miss can be reproduced from its metadata.
   damage no reader could survive.
 - **Wrong answers are tracked on their own.** Returning the wrong text is worse
   than returning nothing. One showed up: a PDF417 under three kinds of damage
-  came back as 52 characters of garbage that the reader called valid, and the
+  came back as 51 characters of garbage that the reader called valid, and the
   same code read under other treatments gave different garbage each time. The
   fix is `Scanner._confirm`, which makes every non-QR code agree with a second
   read before it is believed. The case is pinned in `tests/test_formats.py`.
