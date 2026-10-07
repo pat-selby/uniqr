@@ -192,3 +192,37 @@ def test_the_windows_shell_delivers_heartbeats():
     finally:
         shell.stop()
     assert len(beats) >= 2, f"only {len(beats)} beats in 2.4s"
+
+
+def test_a_packaged_exe_restarts_itself_with_a_clean_environment(monkeypatch):
+    """A one-file PyInstaller build must unpack its own folder when it restarts,
+    or the new copy runs from a folder the old copy deletes on exit."""
+    launched = {}
+
+    def fake_popen(argv, **options):
+        launched["argv"], launched["env"] = argv, options["env"]
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", "/apps/UniQR.exe")
+    monkeypatch.setattr(sys, "argv", ["/apps/UniQR.exe", "--quiet"])
+    monkeypatch.setattr(watchdog.subprocess, "Popen", fake_popen)
+
+    watchdog._spawn_self({"PATH": "x"})
+
+    assert launched["argv"] == ["/apps/UniQR.exe", "--quiet"]
+    assert launched["env"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+    assert launched["env"]["PATH"] == "x"
+
+
+def test_a_normal_run_restarts_with_the_same_command_line(monkeypatch):
+    launched = {}
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    monkeypatch.setattr(sys, "orig_argv", ["python", "app.py", "--quiet"])
+    monkeypatch.setattr(
+        watchdog.subprocess,
+        "Popen",
+        lambda argv, **options: launched.update(argv=argv, env=options["env"]),
+    )
+    watchdog._spawn_self({"A": "1"})
+    assert launched["argv"] == [sys.executable, "app.py", "--quiet"]
+    assert "PYINSTALLER_RESET_ENVIRONMENT" not in launched["env"]
