@@ -35,6 +35,7 @@ the first time. Signing needs a certificate, which costs money each year.
 """
 
 import hashlib
+import os
 import platform
 import sys
 from pathlib import Path
@@ -104,6 +105,15 @@ def main() -> int:
 
     if not (WINDOWS or LINUX):
         print("This builds for Windows and Linux. A Mac needs an .app, which is not set up yet.", file=sys.stderr)
+        return 1
+
+    if LINUX and not os.environ.get("DISPLAY"):
+        # The packager imports pynput to find its parts, and pynput refuses to
+        # load without an X server. Without one it logs a warning, carries on,
+        # and produces a program that dies at start. Failing here is kinder.
+        print("There is no display, so the keyboard library cannot be inspected and the", file=sys.stderr)
+        print("program would be built without it. On a machine with no screen, run:", file=sys.stderr)
+        print("  xvfb-run -a python tools/build_exe.py", file=sys.stderr)
         return 1
 
     BUILD.mkdir(parents=True, exist_ok=True)

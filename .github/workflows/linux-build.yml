@@ -41,7 +41,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e . pyinstaller
-          python tools/build_exe.py
+          # Under the fake screen too: the packager has to import pynput to
+          # find its parts, and pynput will not load without an X server.
+          xvfb-run -a python tools/build_exe.py
 
       - name: Smoke test on a fake screen
         run: xvfb-run -a python tools/smoke_test_linux.py dist/UniQR-linux-x86_64
