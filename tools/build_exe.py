@@ -1,10 +1,12 @@
-"""Build UniQR.exe: one file that runs without Python installed.
+"""Build UniQR as one file that runs without Python installed.
 
-    pip install -e ".[windows]" pyinstaller
+    pip install -e ".[windows]" pyinstaller     # on Linux: pip install -e . pyinstaller
     python tools/build_exe.py
 
-The result is dist/UniQR.exe. Run this from a clean virtual environment, not
-your everyday Python. PyInstaller packs in what the program imports, but a
+On Windows the result is dist/UniQR.exe. On Linux it is dist/UniQR-linux-<chip>,
+a single executable with no extension (Linux has no ".exe"). It has to be built
+on the system it is for: PyInstaller cannot build a Linux program on Windows.
+Run this from a clean virtual environment, not your everyday Python. PyInstaller packs in what the program imports, but a
 crowded environment gives its hooks more to find, and the file gets bigger.
 
 What the choices are for:
@@ -17,6 +19,14 @@ What the choices are for:
   version info  the Name and Details shown in the file's Properties. Without
                 them Windows shows a blank, which looks like malware.
 
+The last three are Windows features. On Linux there is no file icon, no
+Properties dialog and no console window to hide, so they are left out.
+
+Build Linux on the oldest system you want it to run on. A Linux program needs
+at least the C library (glibc) version it was built against, so a build made on
+a new system will not start on an older one. GitHub's ubuntu-22.04 is used for
+that reason.
+
 Not used on purpose: UPX compression. It shrinks the file and makes antivirus
 programs much likelier to flag it.
 
@@ -25,6 +35,7 @@ the first time. Signing needs a certificate, which costs money each year.
 """
 
 import hashlib
+import platform
 import sys
 from pathlib import Path
 
@@ -36,7 +47,13 @@ from uniqr.icon import SIZES, _draw  # noqa: E402
 
 BUILD = ROOT / "build" / "pyinstaller"
 DIST = ROOT / "dist"
-NAME = "UniQR"
+
+WINDOWS = sys.platform == "win32"
+LINUX = sys.platform.startswith("linux")
+# "UniQR.exe" is the name people know. On Linux the chip is part of the name,
+# because a program built for one will not run on the other.
+NAME = "UniQR" if WINDOWS else f"UniQR-linux-{platform.machine()}"
+OUTPUT = f"{NAME}.exe" if WINDOWS else NAME
 
 VERSION_FILE = """\
 VSVersionInfo(
@@ -85,17 +102,24 @@ def main() -> int:
         print("PyInstaller is not installed. Run: pip install pyinstaller", file=sys.stderr)
         return 1
 
+    if not (WINDOWS or LINUX):
+        print("This builds for Windows and Linux. A Mac needs an .app, which is not set up yet.", file=sys.stderr)
+        return 1
+
     BUILD.mkdir(parents=True, exist_ok=True)
+    windows_only = (
+        ["--noconsole", "--icon", str(write_icon()), "--version-file", str(write_version_file())]
+        if WINDOWS
+        else []
+    )
     pyinstaller.run(
         [
             str(ROOT / "app.py"),
             "--name", NAME,
             "--onefile",
-            "--noconsole",
             "--noconfirm",
             "--clean",
-            "--icon", str(write_icon()),
-            "--version-file", str(write_version_file()),
+            *windows_only,
             "--distpath", str(DIST),
             "--workpath", str(BUILD),
             "--specpath", str(BUILD),
@@ -108,9 +132,9 @@ def main() -> int:
         ]
     )
 
-    exe = DIST / f"{NAME}.exe"
+    exe = DIST / OUTPUT
     if not exe.exists():
-        print("The build did not produce an exe.", file=sys.stderr)
+        print("The build did not produce a program.", file=sys.stderr)
         return 1
     digest = hashlib.sha256(exe.read_bytes()).hexdigest()
     print()

@@ -1,0 +1,58 @@
+name: Linux build
+
+# Builds the single-file Linux program and runs it for real on a fake screen.
+# Runs when the files that decide its behavior change, and on request.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/build_exe.py"
+      - "tools/smoke_test_linux.py"
+      - ".github/workflows/linux-build.yml"
+      - "uniqr/backends/**"
+      - "uniqr/watchdog.py"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and smoke test (Ubuntu 22.04)
+    # The oldest runner on offer. A Linux program needs at least the C library
+    # it was built against, so this decides how old a system can run it.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # xvfb is the fake screen and xdotool presses the key. libtk8.6 is what Tk
+      # draws with. libgl1 and libglib2.0-0 are what OpenCV needs. xclip is
+      # deliberately not installed: a new install does not have it.
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xdotool libtk8.6 libgl1 libglib2.0-0
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pyinstaller
+          python tools/build_exe.py
+
+      - name: Smoke test on a fake screen
+        run: xvfb-run -a python tools/smoke_test_linux.py dist/UniQR-linux-x86_64
+
+      - name: Fingerprint
+        run: sha256sum dist/UniQR-linux-x86_64 | tee dist/UniQR-linux-x86_64.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UniQR-linux-x86_64
+          path: |
+            dist/UniQR-linux-x86_64
+            dist/UniQR-linux-x86_64.sha256
+          if-no-files-found: error
