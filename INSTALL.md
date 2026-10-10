@@ -14,7 +14,9 @@ Pick your system below. Each takes about two minutes.
 
 ### Easiest: the .exe
 
-If you were given **UniQR.exe**, you don't need Python or anything else.
+Download **UniQR.exe** from the
+[latest release](https://github.com/pat-selby/uniqr/releases/latest). You don't
+need Python or anything else.
 
 1. Put it somewhere permanent, like `C:\Users\you\UniQR\`.
 2. Double-click it. The first start takes a few seconds, because the file
@@ -25,8 +27,8 @@ If you were given **UniQR.exe**, you don't need Python or anything else.
 The first time, Windows may say **"Windows protected your PC"** and name an
 unknown publisher. That is because the file isn't code-signed, which costs money
 every year. Click **More info**, then **Run anyway**. Only do that for a copy you
-got from the person who made it. If they gave you a SHA-256 fingerprint, you can
-check yours first:
+got from this repo's release page or from the person who made it. The release
+page lists the file's SHA-256 fingerprint, and you can check yours against it:
 
 ```
 certutil -hashfile UniQR.exe SHA256
