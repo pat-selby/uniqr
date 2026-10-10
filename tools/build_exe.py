@@ -110,7 +110,15 @@ def main() -> int:
     windows_only = (
         ["--noconsole", "--icon", str(write_icon()), "--version-file", str(write_version_file())]
         if WINDOWS
-        else []
+        else [
+            # pynput and python-xlib choose their parts at run time, by
+            # importing a module whose name is built from the platform. The
+            # packager cannot see that, and left out pynput.keyboard._xorg: the
+            # program started, then died with "this platform is not supported".
+            # Found by running it, not by building it.
+            "--collect-submodules", "pynput",
+            "--collect-submodules", "Xlib",
+        ]
     )
     pyinstaller.run(
         [
