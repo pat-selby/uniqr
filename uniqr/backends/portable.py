@@ -275,6 +275,12 @@ def probe() -> tuple[bool, str]:
     if int(shot.max()) - int(shot.min()) < 2:
         if _on_wayland():
             return False, WAYLAND
+        if sys.platform != "darwin":
+            # The macOS advice below is about a permission Linux does not have.
+            return False, (
+                "screen capture returned a blank frame - is the screen asleep or "
+                "locked? On a desktop with no windows open it can also be plain black"
+            )
         return False, (
             f"screen capture returned a blank frame - {DENIED}"
             if allowed is None

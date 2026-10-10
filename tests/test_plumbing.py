@@ -61,14 +61,40 @@ def fake_grab(width: int, height: int, blank: bool):
 
 
 def c_probe_blank():
-    """A denied permission that hands back an all-black frame."""
-    with patched(
-        portable, grab=fake_grab(64, 64, blank=True), screen_capture_allowed=lambda: None
+    """A denied permission that hands back an all-black frame, on a Mac."""
+    with (
+        patched(portable.sys, platform="darwin"),
+        patched(portable, grab=fake_grab(64, 64, blank=True), screen_capture_allowed=lambda: None),
     ):
         ok, detail = portable.probe()
     assert not ok, "a blank frame was reported as working capture"
     assert "Screen Recording" in detail, f"unhelpful message: {detail!r}"
     return detail[:46]
+
+
+def c_probe_blank_on_linux():
+    """A blank frame on Linux must not tell the user to grant a macOS permission,
+    and on Wayland must say what Wayland is doing."""
+    import os
+
+    saved = {k: os.environ.pop(k, None) for k in ("XDG_SESSION_TYPE", "WAYLAND_DISPLAY")}
+    try:
+        with (
+            patched(portable.sys, platform="linux"),
+            patched(portable, grab=fake_grab(64, 64, blank=True), screen_capture_allowed=lambda: None),
+        ):
+            ok, plain = portable.probe()
+            os.environ["XDG_SESSION_TYPE"] = "wayland"
+            _ok, wayland = portable.probe()
+    finally:
+        for key, value in saved.items():
+            os.environ.pop(key, None)
+            if value is not None:
+                os.environ[key] = value
+    assert not ok
+    assert "macOS" not in plain and "Screen Recording" not in plain, plain
+    assert "Wayland" in wayland and "Xorg" in wayland, wayland
+    return "plain blank frame and Wayland each get their own message"
 
 
 def c_probe_denied_but_lively():
@@ -326,6 +352,7 @@ def c_clipboard_without_a_helper():
 
 CASES = {
     "probe: blank frame": c_probe_blank,
+    "probe: blank frame on Linux": c_probe_blank_on_linux,
     "probe: denied, frame lively": c_probe_denied_but_lively,
     "probe: granted": c_probe_granted,
     "probe: no permission API": c_probe_unknown_platform,

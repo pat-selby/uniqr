@@ -36,7 +36,7 @@ root.attributes("-topmost", True)
 root.geometry("+100+100")
 photo = ImageTk.PhotoImage(Image.fromarray(img))
 tk.Label(root, image=photo, bd=0).pack()
-root.after(25000, root.destroy)
+root.after(60000, root.destroy)
 root.mainloop()
 """
 
@@ -79,9 +79,14 @@ def main() -> int:
         print(f"no program at {program}")
         return 2
 
+    # Something has to be on the screen first. A fake screen starts out
+    # completely black, and UniQR refuses to run when it can only see a blank
+    # frame, as it should: a real desktop is never one flat color.
+    qr_window = subprocess.Popen([sys.executable, "-c", SHOW_QR])
+    time.sleep(4)
+
     started = time.time()
     app = subprocess.Popen([str(program)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    qr_window = None
     try:
         if not wait_for("UniQR is running", 90):
             print("FAIL: the program never said it was running. Its log:")
@@ -89,9 +94,6 @@ def main() -> int:
             return 1
         print(f"ok: started in {time.time() - started:.1f} s")
         print("    " + [line for line in read_log().splitlines() if "UniQR is running" in line][-1])
-
-        qr_window = subprocess.Popen([sys.executable, "-c", SHOW_QR])
-        time.sleep(4)
 
         before = len(read_log())
         subprocess.run(["xdotool", "key", HOTKEY], check=True)
