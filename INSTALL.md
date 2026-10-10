@@ -12,6 +12,34 @@ Pick your system below. Each takes about two minutes.
 
 ## Windows
 
+### Easiest: the .exe
+
+Download **UniQR.exe** from the
+[latest release](https://github.com/pat-selby/uniqr/releases/latest). You don't
+need Python or anything else.
+
+1. Put it somewhere permanent, like `C:\Users\you\UniQR\`.
+2. Double-click it. The first start takes a few seconds, because the file
+   unpacks itself.
+3. A card says UniQR is running. It sits in the system tray, next to the clock.
+   Press **Win+Shift+Q** on a QR code.
+
+The first time, Windows may say **"Windows protected your PC"** and name an
+unknown publisher. That is because the file isn't code-signed, which costs money
+every year. Click **More info**, then **Run anyway**. Only do that for a copy you
+got from this repo's release page or from the person who made it. The release
+page lists the file's SHA-256 fingerprint, and you can check yours against it:
+
+```
+certutil -hashfile UniQR.exe SHA256
+```
+
+To start it with Windows, press `Win+R`, type `shell:startup`, press Enter, and
+drop a shortcut to UniQR.exe in that folder. To quit, right-click the tray icon
+and choose Exit.
+
+### Or run it from the source
+
 **1. Get it.**
 
 ```

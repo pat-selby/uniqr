@@ -27,7 +27,12 @@ Cross-platform desktop utility with a **multi-stage computer vision pipeline** b
 
 ## Install
 
-You need Python 3.11 or newer.
+**On Windows, the easy way:** download `UniQR.exe` from the
+[latest release](https://github.com/pat-selby/uniqr/releases/latest) and double-click
+it. No Python needed. Windows will warn about an unknown publisher the first time,
+because the file isn't code-signed. [INSTALL.md](INSTALL.md) explains.
+
+**From source,** on any system, you need Python 3.11 or newer.
 
 ```bash
 pip install -e ".[windows]"   # Windows (includes pywin32)

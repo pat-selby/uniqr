@@ -54,6 +54,40 @@ To test the macOS and Linux code path without a Mac, force the backend:
 UNIQR_BACKEND=portable python tests/test_real_photos.py
 ```
 
+## Building UniQR.exe
+
+```powershell
+python -m venv build-env && build-env\Scripts\activate
+pip install -e ".[windows]" pyinstaller
+python tools/build_exe.py
+```
+
+The result is `dist/UniQR.exe`, one file of about 77 MB. Use a clean environment:
+a crowded one makes the file bigger. `build/` and `dist/` are ignored by git, so
+the exe is never committed.
+
+Things that are not obvious:
+
+- **One file unpacks itself on every start.** About four seconds. A folder
+  build would start faster but is not one file to hand over.
+- **A restart has to unpack its own copy.** The watchdog restarts UniQR by
+  launching itself, and a one-file build hands its temporary folder to anything
+  it starts. The new copy would run from a folder the old one deletes on exit.
+  `watchdog._spawn_self` sets `PYINSTALLER_RESET_ENVIRONMENT` when packaged. A
+  packaged program that freezes on purpose restarted three times from three
+  different folders and then stopped, as it should.
+- **No UPX compression.** It saves space and makes antivirus likelier to flag
+  the file.
+- **It is not code-signed.** Windows shows "unknown publisher" the first time.
+  Signing needs a certificate that costs money each year.
+- **A clean install pulls the newest OpenCV**, which was 5.0.0 here, not the
+  4.13 the benchmark first ran on. The tests pass on both.
+
+To check a build the way it was checked here: start it, put a QR code on screen,
+press Win+Shift+Q, and look for the link on the clipboard and a line in
+`%LOCALAPPDATA%\UniQR\uniqr.log`. Then choose Exit from the tray and confirm no
+`_MEI...` folder is left in your temp folder.
+
 ## The benchmark lab
 
 `benchmarks/` scores the scanner on thousands of generated codes. It is the

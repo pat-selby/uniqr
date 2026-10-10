@@ -87,9 +87,20 @@ class AliveMarker:
 
 def _spawn_self(env: dict[str, str]) -> None:
     """Start another UniQR exactly the way this one was started."""
-    # orig_argv keeps `python app.py` and `python -m ...` intact. argv alone
-    # would lose the interpreter, and sys.executable alone would lose the script.
-    argv = [sys.executable, *sys.orig_argv[1:]]
+    if getattr(sys, "frozen", False):
+        # A packaged UniQR.exe. sys.executable is the program itself and there
+        # is no interpreter or script, so the command line is just its own
+        # arguments. A one-file PyInstaller build also unpacks itself into a
+        # temporary folder and hands that folder to anything it starts. The new
+        # copy would then run from a folder the old copy deletes on its way
+        # out. This variable tells it to unpack its own.
+        argv = [sys.executable, *sys.argv[1:]]
+        env = {**env, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
+    else:
+        # orig_argv keeps `python app.py` and `python -m ...` intact. argv alone
+        # would lose the interpreter, and sys.executable alone would lose the
+        # script.
+        argv = [sys.executable, *sys.orig_argv[1:]]
     options: dict[str, Any] = {
         "env": env,
         "cwd": os.getcwd(),
