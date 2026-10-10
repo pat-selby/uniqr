@@ -20,6 +20,7 @@ reopened.
 
 import ctypes
 import ctypes.util
+import os
 import sys
 import threading
 
@@ -211,7 +212,38 @@ def cursor_pos() -> tuple[int, int]:
 def copy_text(text: str) -> None:
     import pyperclip
 
-    pyperclip.copy(text)
+    try:
+        pyperclip.copy(text)
+        return
+    except pyperclip.PyperclipException:
+        # On Linux, pyperclip drives a helper program (xclip, xsel or
+        # wl-clipboard), and a fresh install usually has none. Without this a
+        # scan would find the code and then fail at the last step.
+        pass
+
+    # Tk can hold the clipboard itself, with nothing to install. It keeps the
+    # text only while UniQR is running, which it is. The shared root is the one
+    # Tk root the process may have, so it is reused, never created here.
+    from uniqr import overlay
+
+    root = overlay.shared_root()
+    root.clipboard_clear()
+    root.clipboard_append(text)
+    root.update()
+
+
+WAYLAND = (
+    "this is a Wayland session, which does not let apps read the screen or hear "
+    "global hotkeys. Log out, and on the login screen choose the Xorg or X11 "
+    "session (on Ubuntu: 'Ubuntu on Xorg'), then start UniQR again"
+)
+
+
+def _on_wayland() -> bool:
+    return sys.platform.startswith("linux") and (
+        os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
+        or bool(os.environ.get("WAYLAND_DISPLAY"))
+    )
 
 
 DENIED = (
@@ -241,6 +273,8 @@ def probe() -> tuple[bool, str]:
     if shot.size == 0:
         return False, "screen capture returned an empty frame"
     if int(shot.max()) - int(shot.min()) < 2:
+        if _on_wayland():
+            return False, WAYLAND
         return False, (
             f"screen capture returned a blank frame - {DENIED}"
             if allowed is None
@@ -249,6 +283,11 @@ def probe() -> tuple[bool, str]:
         )
 
     detail = f"captured {shot.shape[1]}x{shot.shape[0]}"
+    if _on_wayland():
+        detail += (
+            ". Warning: this is a Wayland session, so only some windows may be "
+            "visible and hotkeys may not arrive. Use an Xorg session if scans find nothing"
+        )
     if allowed:
         detail += ", Screen Recording granted"
     return True, detail

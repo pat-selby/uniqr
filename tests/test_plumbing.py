@@ -304,6 +304,26 @@ def c_heartbeat_survives_a_waiting_window():
     return f"{len(beats)} beats while a window waited"
 
 
+def c_clipboard_without_a_helper():
+    """On Linux a fresh install has no xclip or xsel, and pyperclip then raises.
+    Copying must still work, through Tk, or a scan fails at the last step."""
+    import pyperclip
+
+    real = pyperclip.copy
+
+    def no_helper(_text):
+        raise pyperclip.PyperclipException("no copy/paste mechanism")
+
+    pyperclip.copy = no_helper
+    try:
+        portable.copy_text("https://example.com/no-helper")
+    finally:
+        pyperclip.copy = real
+    got = overlay.shared_root().clipboard_get()
+    assert got == "https://example.com/no-helper", got
+    return "falls back to Tk when pyperclip has no helper"
+
+
 CASES = {
     "probe: blank frame": c_probe_blank,
     "probe: denied, frame lively": c_probe_denied_but_lively,
@@ -318,6 +338,7 @@ CASES = {
     "picker at 2x (Retina)": c_picker_2x,
     "negative screen origin": c_negative_origin,
     "open action stays narrow": c_open_stays_narrow,
+    "clipboard without a helper": c_clipboard_without_a_helper,
     "card buttons keep colors": c_card_buttons_keep_their_colors,
     "heartbeat survives a waiting window": c_heartbeat_survives_a_waiting_window,
 }
@@ -339,6 +360,7 @@ NEEDS_DISPLAY = {
     "picker at 1x",
     "picker at 2x (Retina)",
     "negative screen origin",
+    "clipboard without a helper",
     "card buttons keep colors",
     "heartbeat survives a waiting window",
 }
