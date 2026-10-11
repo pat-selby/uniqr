@@ -230,7 +230,16 @@ class PortableShell:
             while True:
                 item = self._queue.get_nowait()
                 if item == "scan":
-                    self.on_hotkey()
+                    # A scan that fails must not end the polling. This used to
+                    # let the exception out, which skipped the line below that
+                    # schedules the next poll: after one failed scan the hotkey
+                    # was still heard and never acted on again.
+                    try:
+                        self.on_hotkey()
+                    except Exception:  # noqa: BLE001 - keep listening whatever went wrong
+                        import traceback
+
+                        print("scan failed:\n" + traceback.format_exc())
                 elif item == "quit":
                     self.stop()
                     return

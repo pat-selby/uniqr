@@ -322,3 +322,33 @@ def test_exit_chosen_during_start_up_ends_the_real_app_cleanly(tmp_path):
     finally:
         if app.poll() is None:
             app.kill()
+
+
+def test_a_failed_scan_does_not_end_the_polling():
+    """The picker crashed in a published build, and the crash escaped the
+    polling loop, so the next poll was never scheduled: the hotkey was still
+    heard and never acted on again. One bad scan must not kill the listener."""
+    import queue
+
+    from uniqr.shell_portable import PortableShell
+
+    class FakeRoot:
+        def __init__(self):
+            self.scheduled = []
+
+        def after(self, ms, fn):
+            self.scheduled.append((ms, fn))
+
+    shell = PortableShell.__new__(PortableShell)  # no window, no listener needed
+    shell._queue = queue.Queue()
+    shell._stopping = False
+    shell.root = FakeRoot()
+
+    def broken_scan():
+        raise ModuleNotFoundError("No module named 'PIL._tkinter_finder'")
+
+    shell.on_hotkey = broken_scan
+    shell._queue.put("scan")
+    shell._pump()
+
+    assert shell.root.scheduled, "the next poll was never scheduled, so the hotkey went deaf"

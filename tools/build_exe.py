@@ -56,6 +56,21 @@ LINUX = sys.platform.startswith("linux")
 NAME = "UniQR" if WINDOWS else f"UniQR-linux-{platform.machine()}"
 OUTPUT = f"{NAME}.exe" if WINDOWS else NAME
 
+# Modules that are only ever imported by name at run time, so the packager cannot
+# see them, and that a program can start fine without. Each one here was found
+# missing from a published build because a person hit the failure. After a
+# build, the archive is checked for them and the build fails if one is absent.
+#
+#   PIL._tkinter_finder   Pillow's ImageTk loads it when the picker draws the
+#                         screenshot. Missing, the picker crashed whenever a
+#                         screen held more than one code. The single-code path
+#                         never touches it, so a start-up test passed.
+#   pynput.keyboard._xorg the Linux keyboard listener, chosen at run time.
+REQUIRED_MODULES = {
+    "win32": ["PIL._tkinter_finder"],
+    "linux": ["PIL._tkinter_finder", "pynput.keyboard._xorg"],
+}
+
 VERSION_FILE = """\
 VSVersionInfo(
   ffi=FixedFileInfo(
@@ -94,6 +109,17 @@ def write_version_file() -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def missing_from(exe: Path) -> list[str]:
+    """Which of the required modules did not make it into the built file."""
+    from PyInstaller.archive.readers import CArchiveReader
+
+    archive = CArchiveReader(str(exe))
+    pyz = next(name for name in archive.toc if name.lower().endswith(".pyz"))
+    present = set(archive.open_embedded_archive(pyz).toc)
+    key = "win32" if WINDOWS else "linux"
+    return [m for m in REQUIRED_MODULES[key] if m not in present]
 
 
 def main() -> int:
@@ -144,6 +170,8 @@ def main() -> int:
             "--paths", str(ROOT),
             # The backends are chosen at run time, so make sure none is missed.
             "--collect-submodules", "uniqr",
+            # Imported by name when the picker draws; see REQUIRED_MODULES.
+            "--hidden-import", "PIL._tkinter_finder",
             # Never part of the program, and heavy if an environment has them.
             "--exclude-module", "pytest",
             "--exclude-module", "benchmarks",
@@ -153,6 +181,11 @@ def main() -> int:
     exe = DIST / OUTPUT
     if not exe.exists():
         print("The build did not produce a program.", file=sys.stderr)
+        return 1
+    missing = missing_from(exe)
+    if missing:
+        print(f"The build is missing {', '.join(missing)}, so it would fail for users.", file=sys.stderr)
+        print("Add it to the build, and keep it in REQUIRED_MODULES.", file=sys.stderr)
         return 1
     digest = hashlib.sha256(exe.read_bytes()).hexdigest()
     print()
