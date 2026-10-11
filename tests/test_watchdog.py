@@ -271,3 +271,54 @@ def test_exit_chosen_while_a_card_is_open_still_ends_the_message_loop():
     if "Error" in result.stderr and "window" in result.stderr.lower() and "ok" not in result.stdout:
         pytest.skip("no desktop session to create a window in")
     assert result.stdout.strip().endswith("ok"), (result.stderr[-1500:] or result.stdout)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the Win32 shell is Windows only")
+def test_exit_chosen_during_start_up_ends_the_real_app_cleanly(tmp_path):
+    """The packaged exe's start-up test found this on GitHub: Exit sent while
+    the greeting card was up let start-up carry on to a window that no longer
+    existed, and it crashed with "Invalid window handle". Run the real app, the
+    way a person would, and ask it to exit as soon as it says it is running."""
+    import ctypes
+    import os
+    import subprocess
+    import time
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    log = tmp_path / "UniQR" / "uniqr.log"
+    # Its own log folder, so the test never touches the real one.
+    env = {**os.environ, "LOCALAPPDATA": str(tmp_path)}
+    app = subprocess.Popen(
+        [sys.executable, "app.py"], cwd=root, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+    def log_text() -> str:
+        return log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+
+    try:
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            text = log_text()
+            if "UniQR is running" in text or "already running" in text or app.poll() is not None:
+                break
+            time.sleep(0.2)
+        if "already running" in log_text():
+            pytest.skip("another UniQR is running on this machine; quit it to run this test")
+        assert "UniQR is running" in log_text(), "it never started: " + log_text()[-800:]
+
+        user32 = ctypes.windll.user32
+        hwnd = user32.FindWindowW("UniQRHiddenWindow", "UniQR")
+        assert hwnd, "no hidden window to send Exit to"
+        user32.PostMessageW(hwnd, 0x0111, 1002, 0)  # what the tray menu's Exit sends
+
+        try:
+            code = app.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            pytest.fail("Exit was sent and the app is still running: " + log_text()[-800:])
+        assert code == 0, f"it ended with code {code}: " + log_text()[-800:]
+        assert "stopped because of an error" not in log_text(), log_text()[-800:]
+    finally:
+        if app.poll() is None:
+            app.kill()

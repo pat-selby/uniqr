@@ -133,6 +133,16 @@ class Shell:
             return label
         return None
 
+    @property
+    def stopping(self) -> bool:
+        """True once Exit has been chosen, even if run() has not started yet.
+
+        Exit can arrive while the greeting card is still up, before the main
+        loop exists. The window is gone by then, and anything that needs it
+        (the heartbeat timer, the loop itself) must be skipped.
+        """
+        return self._quit
+
     def set_heartbeat(self, beat: Callable[[], None]) -> None:
         """Call `beat` once a second for as long as the message loop is turning.
 
@@ -141,6 +151,8 @@ class Shell:
         the cards run while they wait, which is why a card left open for a
         minute does not look like a freeze.
         """
+        if self._quit:
+            return  # the window is already gone
         self._heartbeat = beat
         # Through user32 directly: pywin32 does not expose SetTimer everywhere.
         user32 = ctypes.windll.user32

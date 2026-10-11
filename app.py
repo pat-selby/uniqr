@@ -152,6 +152,12 @@ class UniQR:
                 print(HOTKEY_BLOCKED + detail)
         self._greet(label)
 
+        if self.shell.stopping:
+            # Exit was chosen while the greeting card was up. Everything below
+            # needs the shell's window, which is gone, and carrying on crashed
+            # start-up with "Invalid window handle".
+            return 0
+
         dog = watchdog.start(self.shell)
         clean = False
         try:

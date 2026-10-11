@@ -181,6 +181,11 @@ class PortableShell:
             self._icon = None
             return False
 
+    @property
+    def stopping(self) -> bool:
+        """True once Exit has been chosen. See the Windows shell."""
+        return self._stopping
+
     def set_heartbeat(self, beat: Callable[[], None]) -> None:
         """Call `beat` once a second for as long as Tk's loop is turning.
 
