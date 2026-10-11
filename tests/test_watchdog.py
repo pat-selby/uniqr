@@ -226,3 +226,44 @@ def test_a_normal_run_restarts_with_the_same_command_line(monkeypatch):
     watchdog._spawn_self({"A": "1"})
     assert launched["argv"] == [sys.executable, "app.py", "--quiet"]
     assert "PYINSTALLER_RESET_ENVIRONMENT" not in launched["env"]
+
+
+EXIT_DURING_A_CARD = """
+import sys, threading
+import win32gui
+from uniqr import overlay
+from uniqr.shell import Shell
+
+shell = Shell(on_hotkey=lambda: None)
+# Exit arrives while a card's own message loop is running, as it did at start-up.
+overlay.shared_root().after(300, lambda: win32gui.PostMessage(shell.hwnd, 0x0111, 1002, 0))
+overlay.toast("", "test card", (100, 100), timeout_ms=1500)
+if not shell._quit:
+    sys.exit("the exit was never handled")
+runner = threading.Thread(target=shell.run, daemon=True)
+runner.start()
+runner.join(timeout=5)
+if runner.is_alive():
+    sys.exit("run() kept waiting after the shell was told to stop")
+print("ok")
+"""
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="the Win32 shell is Windows only")
+def test_exit_chosen_while_a_card_is_open_still_ends_the_message_loop():
+    """The first smoke test of the packaged exe caught this: Exit sent while the
+    greeting card was open was swallowed by the card's own message loop, and the
+    process ran on with no window. run() must end once the shell has been told to
+    stop, whoever consumed the quit message.
+
+    Run in its own process: Windows allows one of these hidden windows per
+    process, and the heartbeat test above has already made this process's, and
+    a loop that never ends must not be able to hang the test run."""
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, "-c", EXIT_DURING_A_CARD], capture_output=True, text=True, timeout=60
+    )
+    if "Error" in result.stderr and "window" in result.stderr.lower() and "ok" not in result.stdout:
+        pytest.skip("no desktop session to create a window in")
+    assert result.stdout.strip().endswith("ok"), result.stderr[-400:] or result.stdout

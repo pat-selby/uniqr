@@ -11,6 +11,7 @@ from typing import Callable
 
 import win32api
 import win32con
+import win32event
 import win32gui
 
 from uniqr.icon import ensure_icon
@@ -67,6 +68,7 @@ class Shell:
         self.hotkey_label = ""
         self._hicon = None
         self._heartbeat: Callable[[], None] | None = None
+        self._quit = False
         self.hwnd = self._create_window()
         self._add_tray_icon()
 
@@ -224,14 +226,26 @@ class Shell:
     def _on_destroy(self, hwnd, msg, wparam, lparam):
         ctypes.windll.user32.KillTimer(self.hwnd, HEARTBEAT_ID)
         win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+        self._quit = True
         win32gui.PostQuitMessage(0)
         return 0
 
     # -- lifecycle -----------------------------------------------------------
 
     def run(self) -> None:
-        """Block here, handing messages to the handlers above until told to quit."""
-        win32gui.PumpMessages()
+        """Block here, handing messages to the handlers above until told to quit.
+
+        Not PumpMessages(), which waits for the quit message to arrive here. A
+        card that is open when Exit is chosen runs its own message loop, and
+        that loop takes the quit message for itself. Choosing Exit in the first
+        seconds after start, while the greeting card was up, left a process with
+        no window, no hotkey and no tray icon, and nothing to close it with.
+        The shell now remembers it was told to stop and checks that, waking at
+        once for any message and at least four times a second regardless.
+        """
+        while not self._quit:
+            win32event.MsgWaitForMultipleObjects([], False, 250, win32con.QS_ALLINPUT)
+            win32gui.PumpWaitingMessages()
 
     def stop(self) -> None:
         try:
