@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tells SignPath what to sign. Paste this into the artifact configuration of the
+  SignPath project, or commit it and let SignPath read it from the repository.
+
+  The root is <zip-file> because GitHub's upload-artifact packs the exe in a zip.
+
+  product-name and product-version make SignPath refuse any file whose embedded
+  details differ. That is a condition of the free open-source program: the name
+  must be the project's and the version must match the release. Both come from
+  tools/build_exe.py, which writes them into the exe. When you release a new
+  version, change product-version here to the new number (uniqr/__init__.py).
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="UniQR.exe" product-name="UniQR" product-version="0.1.0">
+      <authenticode-sign/>
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

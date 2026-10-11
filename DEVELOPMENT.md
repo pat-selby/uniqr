@@ -88,6 +88,54 @@ press Win+Shift+Q, and look for the link on the clipboard and a line in
 `%LOCALAPPDATA%\UniQR\uniqr.log`. Then choose Exit from the tray and confirm no
 `_MEI...` folder is left in your temp folder.
 
+## Code signing (SignPath)
+
+The Windows file shows an "unknown publisher" warning because it is not signed.
+SignPath Foundation signs open-source projects for free. The repository side is
+ready; what is left is on SignPath's side, and only you can do it.
+
+What is already in the repo:
+
+- `CODE_SIGNING_POLICY.md`, the policy page SignPath requires, linked from the
+  README. Its Status section says the file is unsigned. Change it when that
+  stops being true.
+- `.github/workflows/windows-build.yml`, which builds the exe on GitHub and
+  checks that it starts and exits. Its signing job does nothing until the
+  `SIGNPATH_ORGANIZATION_ID` variable exists.
+- `signpath/artifact-configuration.xml`, which tells SignPath which file to sign.
+  It names the product (`UniQR`) and the version. Change the version in it for
+  each release.
+
+What you do, in order:
+
+1. Turn on two-factor sign-in for your GitHub account and your SignPath
+   account. The free program requires it for everyone on the team.
+2. Merge the pull request that adds these files, so the policy page is live on
+   `main`. Then apply at https://signpath.org/apply. Acceptance is up to
+   SignPath, and they say there is no appeal.
+3. When accepted, in SignPath: add the predefined GitHub.com trusted build
+   system to your organization and link it to the project. Create the artifact
+   configuration from `signpath/artifact-configuration.xml`. Make the signing
+   policy require manual approval of every request.
+4. In the GitHub repository's Settings, Secrets and variables, Actions: add the
+   secret `SIGNPATH_API_TOKEN` (from a SignPath user who may submit requests),
+   and the variables `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG` and
+   `SIGNPATH_SIGNING_POLICY_SLUG`.
+5. In Actions, run "Windows build" by hand. Approve the request in SignPath.
+   Check the result: right-click the file, Properties, Digital Signatures.
+6. To replace the file on a release, type the tag (for example `v0.1.0`) into
+   the manual run. It swaps in the signed exe and its fingerprint. Then edit
+   the release notes by hand: they quote the old fingerprint, and should link
+   the code signing policy.
+
+SignPath's screens may differ from this list. Their documentation is the
+authority: https://docs.signpath.io
+
+What I could not confirm from their documentation: whether the product name and
+version attributes in the artifact configuration enforce a match or only record
+it, and whether the signing action unpacks the zip it returns. The workflow
+looks for the exe either way, and fails with a plain message if it is missing.
+
 ## The benchmark lab
 
 `benchmarks/` scores the scanner on thousands of generated codes. It is the

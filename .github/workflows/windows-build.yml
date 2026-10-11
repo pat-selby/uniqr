@@ -1,0 +1,123 @@
+name: Windows build
+
+# Builds UniQR.exe on GitHub from this repository, checks that it starts and
+# exits, and keeps it as a download. It can also send it to SignPath for a free
+# code signature, but only when the repository has been set up for that: the
+# signing job is skipped until the SIGNPATH_ORGANIZATION_ID variable exists.
+# See "Code signing" in DEVELOPMENT.md.
+#
+# Building here, from the public source, is what SignPath checks before it will
+# sign: the file must come from this repository, not from someone's laptop.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the signed exe to, like v0.1.0. Leave empty to only build."
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - "tools/build_exe.py"
+      - "tools/smoke_test_windows.py"
+      - "signpath/**"
+      - ".github/workflows/windows-build.yml"
+      - "uniqr/watchdog.py"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and start-up test
+    runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[windows]" pyinstaller
+          python tools/build_exe.py
+
+      - name: Start it, then ask it to exit
+        run: python tools/smoke_test_windows.py dist/UniQR.exe
+
+      - name: Fingerprint
+        shell: bash
+        run: sha256sum dist/UniQR.exe
+
+      # SignPath reads the file from here, which is why this step needs an id.
+      - name: Keep the unsigned exe
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: UniQR-windows-unsigned
+          path: dist/UniQR.exe
+          if-no-files-found: error
+
+  sign:
+    name: Sign with SignPath
+    needs: build
+    # Only on request, and only once SignPath has been set up for this project.
+    if: github.event_name == 'workflow_dispatch' && vars.SIGNPATH_ORGANIZATION_ID != ''
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      # Needed only to attach the signed file to a release, when a tag is given.
+      contents: write
+    steps:
+      # Each signing request waits here for a person to approve it in SignPath.
+      - name: Ask SignPath to sign it
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      # SignPath hands the signed file back in the format it was sent, a zip, and
+      # the action may or may not unpack it. Look for the exe either way.
+      - name: Find the signed exe
+        run: |
+          set -e
+          ls -R signed
+          found=$(find signed -iname UniQR.exe | head -1)
+          if [ -z "$found" ]; then
+            zip=$(find signed -iname '*.zip' | head -1)
+            if [ -n "$zip" ]; then unzip -o "$zip" -d signed; fi
+            found=$(find signed -iname UniQR.exe | head -1)
+          fi
+          test -n "$found" || { echo "There is no UniQR.exe in what SignPath returned."; exit 1; }
+          mkdir -p release
+          cp "$found" release/UniQR.exe
+          (cd release && sha256sum UniQR.exe | tee UniQR.exe.sha256)
+
+      - name: Keep the signed exe
+        uses: actions/upload-artifact@v7
+        with:
+          name: UniQR-windows-signed
+          path: |
+            release/UniQR.exe
+            release/UniQR.exe.sha256
+          if-no-files-found: error
+
+      # Replaces the unsigned file on the public release page, and its
+      # fingerprint, since the signature changes the file. It runs only when
+      # someone typed a tag into the manual run. The release notes quote the
+      # old fingerprint, so they need editing by hand afterward.
+      - name: Attach to the release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.tag }}" release/UniQR.exe release/UniQR.exe.sha256 --clobber --repo "${{ github.repository }}"
