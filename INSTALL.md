@@ -176,8 +176,51 @@ is running. A dash and a number mean it started and stopped, and the reason is i
 
 ## Linux
 
-Works under X11. Wayland blocks screen capture and global hotkeys by design,
-so UniQR cannot work there yet.
+UniQR works under **X11**. Many Linux desktops, Ubuntu among them, use Wayland
+by default, and Wayland blocks screen capture and global hotkeys by design, so
+UniQR cannot work there yet. Check which one you have:
+
+```
+echo $XDG_SESSION_TYPE
+```
+
+If it says `wayland`, log out and choose the Xorg or X11 option on the login
+screen (on Ubuntu, "Ubuntu on Xorg"), then come back here. When UniQR cannot
+read the screen it says so in its log (see "When something is wrong" below).
+
+### Easiest: download the program
+
+Download **UniQR-linux-x86_64** from the
+[latest release](https://github.com/pat-selby/uniqr/releases/latest). You don't
+need Python. In a terminal, in the folder where you saved it:
+
+```
+chmod +x UniQR-linux-x86_64
+./UniQR-linux-x86_64
+```
+
+Press **Ctrl+Alt+Q** on a QR code. A card appears under it and the link is
+copied. To quit, press Ctrl+C in that terminal, or run `pkill UniQR-linux`.
+Closing the terminal usually stops it too. Some desktops show no tray icon, and the
+hotkey still works.
+
+To check you have the exact file published, download `UniQR-linux-x86_64.sha256`
+into the same folder and run:
+
+```
+sha256sum -c UniQR-linux-x86_64.sha256
+```
+
+It should say `OK`.
+
+This file is built for 64-bit Intel and AMD computers on Ubuntu 22.04, and
+should run on systems that have a C library as new as Ubuntu 22.04's or newer.
+It was tested by GitHub on a fake screen, not on every kind of Linux desktop. On
+an ARM computer or an older system, use the source instead.
+
+### Or run it from the source
+
+This works on any Linux that has Python 3.11 or newer.
 
 ```
 git clone https://github.com/pat-selby/uniqr.git
@@ -245,14 +288,18 @@ closed. Look in the log for lines like these:
 
 ## Removing it
 
+**If you downloaded the Windows or Linux file,** quit UniQR and delete the file
+(`UniQR.exe` or `UniQR-linux-x86_64`). On Windows, also delete the shortcut from
+`shell:startup` if you added one.
+
+**If you installed it from the source,** run this, then delete the folder:
+
 ```
 pip uninstall uniqr
 ```
 
-Then delete the folder, and:
+On a Mac, also run `python3 tools/install_mac_agent.py --uninstall` if you set it
+to start at login, then remove the entries you added under Privacy & Security.
 
-- **Windows**: delete the shortcut from `shell:startup`
-- **macOS**: `python3 tools/install_mac_agent.py --uninstall`, then remove the
-  entries you added under Privacy & Security
-
-Nothing else is written anywhere except the log file listed above.
+Nothing else is written anywhere except the log file listed under "When something
+is wrong". Delete its folder too if you want no trace.
