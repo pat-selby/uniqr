@@ -226,8 +226,11 @@ class Shell:
     def _on_destroy(self, hwnd, msg, wparam, lparam):
         ctypes.windll.user32.KillTimer(self.hwnd, HEARTBEAT_ID)
         win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+        # Deliberately no PostQuitMessage. A card that is open runs its own
+        # message loop, and if that loop receives the quit message it can stop
+        # processing timers altogether, so the card never closes and the
+        # program hangs. run() watches this flag instead.
         self._quit = True
-        win32gui.PostQuitMessage(0)
         return 0
 
     # -- lifecycle -----------------------------------------------------------

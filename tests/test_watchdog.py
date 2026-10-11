@@ -229,15 +229,19 @@ def test_a_normal_run_restarts_with_the_same_command_line(monkeypatch):
 
 
 EXIT_DURING_A_CARD = """
-import sys, threading
+import faulthandler, sys, threading
+# If anything hangs, say where, and stop, well before the test's own time limit.
+faulthandler.dump_traceback_later(25, exit=True)
 import win32gui
 from uniqr import overlay
 from uniqr.shell import Shell
 
 shell = Shell(on_hotkey=lambda: None)
+print("shell created", file=sys.stderr, flush=True)
 # Exit arrives while a card's own message loop is running, as it did at start-up.
 overlay.shared_root().after(300, lambda: win32gui.PostMessage(shell.hwnd, 0x0111, 1002, 0))
 overlay.toast("", "test card", (100, 100), timeout_ms=1500)
+print("card closed, quit flag:", shell._quit, file=sys.stderr, flush=True)
 if not shell._quit:
     sys.exit("the exit was never handled")
 runner = threading.Thread(target=shell.run, daemon=True)
@@ -266,4 +270,4 @@ def test_exit_chosen_while_a_card_is_open_still_ends_the_message_loop():
     )
     if "Error" in result.stderr and "window" in result.stderr.lower() and "ok" not in result.stdout:
         pytest.skip("no desktop session to create a window in")
-    assert result.stdout.strip().endswith("ok"), result.stderr[-400:] or result.stdout
+    assert result.stdout.strip().endswith("ok"), (result.stderr[-1500:] or result.stdout)

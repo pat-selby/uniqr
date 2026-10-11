@@ -79,13 +79,15 @@ def main() -> int:
         print("FAIL: started, but its hidden window is missing, so Exit cannot be sent")
         subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
         return 1
+    after_exit = len(log_lines())
     user32.PostMessageW(hwnd, WM_COMMAND, IDM_EXIT, 0)
 
     end = time.time() + 20
     while time.time() < end and running(exe.name):
         time.sleep(0.5)
     if running(exe.name):
-        print("FAIL: Exit was sent and the exe is still running")
+        print("FAIL: Exit was sent and the exe is still running. Its log since then:")
+        print(chr(10).join(log_lines()[after_exit:]) or "(nothing was written)")
         subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
         return 1
     print("ok: Exit stopped it, and nothing was left running")
