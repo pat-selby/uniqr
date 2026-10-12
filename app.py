@@ -249,10 +249,18 @@ class UniQR:
                 if getattr(self.shell, "tray_available", True)
                 else "Turn it off with --uninstall-autostart."
             )
-            overlay.toast("", "UniQR will start when you log in.", self._corner(screen), 3500)
+            # Logged first: the card below holds up start-up until it closes.
             print(f"start at login: on. {how}")
+            overlay.toast(
+                "", "UniQR will start when you log in.", self._corner(screen), 2500,
+                hover_pause=False,
+            )
         else:
-            overlay.toast("", "Could not set up start at login. See the log.", self._corner(screen), 4500)
+            print("start at login: could not be set up")
+            overlay.toast(
+                "", "Could not set up start at login. See the log.", self._corner(screen), 4000,
+                hover_pause=False,
+            )
 
     @staticmethod
     def _corner(screen) -> tuple[int, int]:

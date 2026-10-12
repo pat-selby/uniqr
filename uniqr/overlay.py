@@ -625,6 +625,7 @@ class Toast:
         choices: tuple[str, str] | None = None,
         note: str = "",
         until: Callable[[], bool] | None = None,
+        hover_pause: bool = True,
     ) -> None:
         self.text = text
         self.opened = False
@@ -664,8 +665,11 @@ class Toast:
         self.win.bind("<Escape>", lambda _e: self._close())
         # Bound on the window itself, so these also fire for the text and
         # buttons inside it: hovering anywhere on the card pauses the timer.
-        self.win.bind("<Enter>", lambda _e: self._cancel_timer())
-        self.win.bind("<Leave>", self._on_leave)
+        # A card that only reports something, with nothing to read or click,
+        # closes on time even with the pointer on it: startup waits behind it.
+        if hover_pause:
+            self.win.bind("<Enter>", lambda _e: self._cancel_timer())
+            self.win.bind("<Leave>", self._on_leave)
         self._start_timer()
         if until is not None:
             self.win.after(UNTIL_POLL_MS, self._check_until)
@@ -775,10 +779,14 @@ class Toast:
 
 
 def toast(
-    text: str, heading: str, at: tuple[int, int], timeout_ms: int = TOAST_MS
+    text: str,
+    heading: str,
+    at: tuple[int, int],
+    timeout_ms: int = TOAST_MS,
+    hover_pause: bool = True,
 ) -> bool:
     """Show a card near `at`. Returns True if the user opened the link."""
-    return Toast(text, heading, at, timeout_ms).show()
+    return Toast(text, heading, at, timeout_ms, hover_pause=hover_pause).show()
 
 
 def ask(

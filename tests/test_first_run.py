@@ -354,3 +354,13 @@ def test_the_question_can_be_answered_from_the_keyboard(root, key, expected):
     root.after(150, lambda: card.win.event_generate(f"<Key-{key}>"))
     card.show()
     assert card.answer is expected
+
+
+def test_a_report_card_closes_on_time_even_when_hovered(root):
+    """The confirmation after Yes has nothing to read, and start-up waits behind it."""
+    bound = []
+    card = overlay.Toast("", "Done", (200, 200), 400, hover_pause=False)
+    card.win.event_generate("<Enter>")  # pointer arrives, as it would
+    bound.append(card.win.bind("<Enter>"))
+    card.show()
+    assert bound == [""]  # nothing is bound to Enter, so nothing can pause the timer
