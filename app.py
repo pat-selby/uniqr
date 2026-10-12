@@ -2,6 +2,9 @@
 
     python app.py            # run it
     python app.py --quiet    # no card on startup
+    python app.py --hotkey '<ctrl>+<alt>+<shift>+q'   # Linux and macOS: another hotkey
+    python app.py --install-autostart                  # Linux: start at login
+    python app.py --uninstall-autostart
 
 Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
@@ -11,7 +14,7 @@ import os
 import sys
 import time
 
-from uniqr import actions, backends, capture, logbook, overlay, watchdog
+from uniqr import actions, autostart, backends, capture, logbook, overlay, watchdog
 from uniqr.decode import Scanner, payload_kind
 
 HOTKEY_BLOCKED = (
@@ -209,6 +212,18 @@ def _claim_instance(restarted: bool) -> bool:
 
 
 def main() -> int:
+    # These two only change a settings file and exit. They run before the log
+    # starts and before anything else, so they work with UniQR not running.
+    done = autostart.handle_command_line(sys.argv)
+    if done is not None:
+        return done
+    # The same setting as the UNIQR_HOTKEY environment variable, without needing
+    # to know it exists. Read when the hotkey is registered, so setting it here is
+    # early enough. Windows has its own fixed list and ignores it.
+    hotkey = autostart.option(sys.argv, "--hotkey")
+    if hotkey:
+        os.environ["UNIQR_HOTKEY"] = hotkey
+
     logbook.start(sys.argv)
     quiet = "--quiet" in sys.argv
     restarted = bool(os.environ.get(watchdog.RESTARTS_ENV))

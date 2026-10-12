@@ -11,19 +11,30 @@ screen, press the hotkey, and look for the link. It checks two things:
                installed on the runner, which is how a new install looks, so
                this also covers UniQR copying without one.
 
+Then it checks start-at-login: it asks the program to write its autostart file,
+reads the command back out of that file, starts UniQR with exactly that command
+as a login would, and presses the custom hotkey the file sets.
+
 It needs xdotool to press the key, and Tk, OpenCV and Pillow in the Python that
 runs it, to draw the code and read the clipboard.
 """
 
+import configparser
 import os
+import shlex
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 PAYLOAD = "https://example.com/uniqr-linux-test"
 SECOND = "https://example.com/uniqr-linux-second"
 HOTKEY = "ctrl+alt+q"
+# The combination the install guide recommends, written the way pynput wants it
+# and the way xdotool presses it.
+CUSTOM_PYNPUT = "<ctrl>+<alt>+<shift>+q"
+CUSTOM_XDOTOOL = "ctrl+alt+shift+q"
 
 # One code first, for the card. Then two, which opens the picker: a different
 # part of the program, with its own imports. A published build was missing one
@@ -81,6 +92,67 @@ def wait_for(text: str, seconds: float, start: int = 0) -> bool:
             return True
         time.sleep(0.5)
     return False
+
+
+def check_autostart(program: Path) -> int:
+    """Install start-at-login, then start UniQR the way a login would."""
+    config = tempfile.mkdtemp(prefix="uniqr-autostart-")
+    env = {**os.environ, "XDG_CONFIG_HOME": config}
+    install = subprocess.run(
+        [str(program), "--install-autostart", "--hotkey", CUSTOM_PYNPUT],
+        capture_output=True, text=True, env=env, timeout=60,
+    )
+    entry_file = Path(config) / "autostart" / "uniqr.desktop"
+    if install.returncode != 0 or not entry_file.exists():
+        print("FAIL: --install-autostart did not write the file:")
+        print(install.stdout, install.stderr)
+        return 1
+    print("ok: --install-autostart wrote " + str(entry_file))
+
+    parser = configparser.RawConfigParser(interpolation=None)
+    parser.optionxform = str
+    parser.read(entry_file, encoding="utf-8")
+    exec_line = parser["Desktop Entry"]["Exec"]
+    command = shlex.split(exec_line)
+    print("    Exec=" + exec_line)
+
+    # The same command the desktop would run. If the quoting in the file were
+    # wrong, this is where it would show.
+    qr_window = subprocess.Popen([sys.executable, "-c", SHOW_QR])
+    time.sleep(4)
+    before = len(read_log())
+    app = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        if not wait_for("UniQR is running", 90, start=before):
+            print("FAIL: the command from the autostart file did not start UniQR. Its log:")
+            print(read_log()[before:])
+            return 1
+        if CUSTOM_PYNPUT not in read_log()[before:]:
+            print(f"FAIL: it started, but did not take the hotkey {CUSTOM_PYNPUT}. Its log:")
+            print(read_log()[before:])
+            return 1
+        print(f"ok: started from the autostart file, and took {CUSTOM_PYNPUT}")
+
+        # Wait for the log line of this run only, so an earlier scan cannot satisfy it.
+        mark = len(read_log())
+        subprocess.run(["xdotool", "key", CUSTOM_XDOTOOL], check=True)
+        if not wait_for(PAYLOAD, 20, start=mark):
+            print(f"FAIL: pressed {CUSTOM_XDOTOOL}, and the code was never read. Its log:")
+            print(read_log()[before:])
+            return 1
+        print(f"ok: the custom hotkey ({CUSTOM_XDOTOOL}) read the code")
+    finally:
+        qr_window.terminate()
+        app.terminate()
+
+    removed = subprocess.run(
+        [str(program), "--uninstall-autostart"], capture_output=True, text=True, env=env, timeout=60
+    )
+    if removed.returncode != 0 or entry_file.exists():
+        print("FAIL: --uninstall-autostart did not remove the file")
+        return 1
+    print("ok: --uninstall-autostart removed it")
+    return 0
 
 
 def main() -> int:
@@ -147,7 +219,10 @@ def main() -> int:
             print(read_log()[before:])
             return 1
         print("ok: the picker opened, and choosing 2 copied the second code")
-        return 0
+        qr_window.terminate()
+        app.terminate()
+        app.wait(timeout=30)
+        return check_autostart(program)
     finally:
         for proc in (qr_window, app):
             if proc is not None:

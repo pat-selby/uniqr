@@ -247,7 +247,18 @@ so the terminal leaves the angle brackets alone:
 UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q' ./UniQR-linux-x86_64
 ```
 
-If you installed from the source, it is the same, with `uniqr` at the end instead.
+You can also write it as an option, which does the same thing:
+
+```
+./UniQR-linux-x86_64 --hotkey '<ctrl>+<alt>+<shift>+q'
+```
+
+If you installed from the source, it is the same, with `uniqr` instead of
+`./UniQR-linux-x86_64`.
+
+The `--hotkey` option and the start-at-login commands below need **version 0.1.3
+or newer**. `UNIQR_HOTKEY` works in every version. An older file ignores options it does not
+know, so it would just start normally.
 
 How to write one:
 
@@ -264,9 +275,43 @@ export UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q'
 ```
 
 The log shows which hotkey UniQR took, on the line that says it is running (see
-"When something is wrong" below). `UNIQR_HOTKEY` works on Linux and on a Mac. It
-does nothing on Windows, which has its own fallbacks: Win+Shift+Q, then
-Ctrl+Alt+Q, then Ctrl+Shift+9.
+"When something is wrong" below). `UNIQR_HOTKEY` and `--hotkey` work on Linux and
+on a Mac. They do nothing on Windows, which has its own fallbacks: Win+Shift+Q,
+then Ctrl+Alt+Q, then Ctrl+Shift+9.
+
+### Start it at login
+
+UniQR does not start by itself after a restart. To start it every time you log
+in, run this once, from the same folder as the file:
+
+```
+./UniQR-linux-x86_64 --install-autostart
+```
+
+From the source, with the virtual environment switched on, it is
+`uniqr --install-autostart`.
+
+If you use a different hotkey, say so here, because the line in `~/.bashrc` is not
+read when the desktop starts a program at login:
+
+```
+./UniQR-linux-x86_64 --install-autostart --hotkey '<ctrl>+<alt>+<shift>+q'
+```
+
+That writes `~/.config/autostart/uniqr.desktop`, the standard place most Linux
+desktops look for programs to start at login. It takes effect the next time you
+log in. The command prints how to start UniQR right now without logging out.
+
+The file records where the program is, so if you move or rename it, run the
+command again. To undo it:
+
+```
+./UniQR-linux-x86_64 --uninstall-autostart
+```
+
+GitHub tests that the file is written correctly and that the command in it starts
+UniQR with your hotkey. It cannot test a real login on a real desktop, so if it
+does not start after you log in, tell me which desktop you use.
 
 ---
 
@@ -327,7 +372,8 @@ closed. Look in the log for lines like these:
 
 **If you downloaded the Windows or Linux file,** quit UniQR and delete the file
 (`UniQR.exe` or `UniQR-linux-x86_64`). On Windows, also delete the shortcut from
-`shell:startup` if you added one.
+`shell:startup` if you added one. On Linux, if you set it to start at login, run
+`./UniQR-linux-x86_64 --uninstall-autostart` first, then delete the file.
 
 **If you installed it from the source,** run this, then delete the folder:
 
