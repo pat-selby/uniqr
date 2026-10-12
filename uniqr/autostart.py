@@ -1,26 +1,36 @@
-"""Start UniQR at login on Linux, from the program itself.
+"""Start UniQR at login, from the program itself, on Linux and Windows.
 
     ./UniQR-linux-x86_64 --install-autostart
     ./UniQR-linux-x86_64 --install-autostart --hotkey '<ctrl>+<alt>+<shift>+q'
-    ./UniQR-linux-x86_64 --uninstall-autostart
+    UniQR.exe --install-autostart
+    --uninstall-autostart undoes either
 
-Most Linux desktops start whatever has a small "desktop entry" file in
-~/.config/autostart/ when you log in. This writes that file, pointing at the copy
-of UniQR that ran it. It lives in the program, not in a separate script, so
-someone who only downloaded the one file needs nothing else.
+Linux: most desktops start whatever has a small "desktop entry" file in
+~/.config/autostart/ when you log in. This writes that file.
 
-The path is recorded, so if the file is moved or renamed, run the command again.
+Windows: the standard per-user list of programs to start at login is a "Run"
+entry in the registry. This adds one, which needs no administrator rights and
+appears under Settings, Apps, Startup.
 
-macOS has tools/install_mac_agent.py. On Windows, put a shortcut in shell:startup.
+Either way it points at the copy of UniQR that ran it, so someone who only
+downloaded the one file needs nothing else. The path is recorded, so if the file
+is moved or renamed, run the command again.
+
+macOS has tools/install_mac_agent.py.
 """
 
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 ENTRY_NAME = "uniqr.desktop"
+
+# The name of the entry in Windows' list of programs to start at login.
+RUN_VALUE = "UniQR"
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 # Characters that make an argument need quoting in an Exec line.
 _RESERVED = set(" \t\n\"'\\><~|&;$*?#()`")
@@ -54,7 +64,14 @@ def program_command() -> list[str]:
         # The packaged program is its own command. Absolute, so it still works
         # when it was started as ./UniQR-linux-x86_64 from some folder.
         return [str(Path(sys.executable).resolve())]
-    return [sys.executable, str(Path(__file__).resolve().parent.parent / "app.py")]
+    python = Path(sys.executable)
+    if sys.platform == "win32" and python.name.lower() == "python.exe":
+        # A login should not open a black console window that stays up for as
+        # long as UniQR runs.
+        windowless = python.with_name("pythonw.exe")
+        if windowless.exists():
+            python = windowless
+    return [str(python), str(Path(__file__).resolve().parent.parent / "app.py")]
 
 
 def quote(arg: str) -> str:
@@ -110,9 +127,8 @@ def _hotkey_problem(hotkey: str) -> str | None:
 
 def install(hotkey: str | None = None, config: Path | None = None) -> int:
     if not _on_linux():
-        print("This sets up start-at-login on Linux.", file=sys.stderr)
+        print("This sets up start-at-login on Linux and Windows.", file=sys.stderr)
         print("On a Mac, run: python3 tools/install_mac_agent.py", file=sys.stderr)
-        print("On Windows, put a shortcut to UniQR.exe in the folder that shell:startup opens.", file=sys.stderr)
         return 1
     if hotkey:
         problem = _hotkey_problem(hotkey)
@@ -148,10 +164,109 @@ def uninstall(config: Path | None = None) -> int:
     return 0
 
 
+class _Registry:
+    """The real per-user Run list. Windows only, and tests swap it for a fake."""
+
+    def write(self, name: str, value: str) -> None:
+        if sys.platform == "win32":
+            import winreg
+
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
+                winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+        else:
+            raise OSError("the Windows registry is not available here")
+
+    def read(self, name: str) -> str | None:
+        if sys.platform == "win32":
+            import winreg
+
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
+                    return str(winreg.QueryValueEx(key, name)[0])
+            except FileNotFoundError:
+                return None
+        return None
+
+    def delete(self, name: str) -> bool:
+        if sys.platform == "win32":
+            import winreg
+
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
+                    winreg.DeleteValue(key, name)
+                return True
+            except FileNotFoundError:
+                return False
+        return False
+
+
+def _tell(message: str, ok: bool = True, quiet: bool = False) -> None:
+    """Say how it went. The packaged Windows program has no console to print to,
+    so there it also shows a small message box, unless told to be quiet."""
+    print(message, file=sys.stdout if ok else sys.stderr)
+    if sys.platform == "win32" and getattr(sys, "frozen", False) and not quiet:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(0, message, "UniQR", 0x40 if ok else 0x10)
+
+
+def run_command(command: list[str]) -> str:
+    """The command line stored in the Run list, quoted the way Windows reads it."""
+    return subprocess.list2cmdline(command)
+
+
+def install_windows(
+    hotkey: str | None = None,
+    quiet: bool = False,
+    store: _Registry | None = None,
+    name: str = RUN_VALUE,
+    command: list[str] | None = None,
+) -> int:
+    store = store or _Registry()
+    line = run_command(command or program_command())
+    try:
+        store.write(name, line)
+    except OSError as exc:
+        _tell(f"UniQR could not be set to start at login: {exc}", ok=False, quiet=quiet)
+        return 1
+    note = ""
+    if hotkey:
+        note = "\n\nThe hotkey option is ignored on Windows, which uses Win+Shift+Q, then Ctrl+Alt+Q."
+    _tell(
+        "Done. UniQR will start the next time you log in to Windows.\n\n"
+        f"It starts: {line}\n\n"
+        "If you move or rename that file, run this again. "
+        "To see or switch it off: Settings, Apps, Startup. "
+        "To remove it: run UniQR with --uninstall-autostart." + note,
+        quiet=quiet,
+    )
+    return 0
+
+
+def uninstall_windows(
+    quiet: bool = False, store: _Registry | None = None, name: str = RUN_VALUE
+) -> int:
+    store = store or _Registry()
+    if not store.delete(name):
+        _tell("UniQR was not set to start at login, so there is nothing to remove.", quiet=quiet)
+        return 0
+    _tell(
+        "Removed. UniQR will no longer start when you log in to Windows.\n"
+        "A copy that is already running keeps running until you quit it.",
+        quiet=quiet,
+    )
+    return 0
+
+
 def handle_command_line(argv: list[str]) -> int | None:
     """Act on --install-autostart / --uninstall-autostart. None means neither was given."""
+    quiet = "--quiet" in argv
     if "--install-autostart" in argv:
+        if sys.platform == "win32":
+            return install_windows(option(argv, "--hotkey"), quiet=quiet)
         return install(option(argv, "--hotkey"))
     if "--uninstall-autostart" in argv:
+        if sys.platform == "win32":
+            return uninstall_windows(quiet=quiet)
         return uninstall()
     return None

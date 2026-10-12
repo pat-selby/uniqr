@@ -34,9 +34,37 @@ page lists the file's SHA-256 fingerprint, and you can check yours against it:
 certutil -hashfile UniQR.exe SHA256
 ```
 
-To start it with Windows, press `Win+R`, type `shell:startup`, press Enter, and
-drop a shortcut to UniQR.exe in that folder. To quit, right-click the tray icon
-and choose Exit.
+To quit, right-click the tray icon and choose Exit.
+
+### Start it when you log in
+
+UniQR does not start by itself after a restart. To start it every time you log in
+to Windows, open PowerShell in the folder where you saved the file and run this
+once:
+
+```
+.\UniQR.exe --install-autostart
+```
+
+A small box tells you it worked. It takes a few seconds to appear, because the
+file unpacks itself first. UniQR will start at your next login. It adds an entry
+to Windows' list of programs that start at login, which needs no administrator
+rights, and which you can see, and switch off, under **Settings, Apps, Startup**.
+
+The entry records where the file is. If you move or rename it, run the command
+again. To remove the entry:
+
+```
+.\UniQR.exe --uninstall-autostart
+```
+
+This needs **version 0.1.4 or newer**. An older file ignores options it does not
+know, so it would just start normally. The older way still works: press `Win+R`,
+type `shell:startup`, press Enter, and drop a shortcut to UniQR.exe in that folder.
+
+GitHub tests that the entry is written correctly and that the command stored in
+it starts UniQR. It cannot test a real login, so if UniQR does not start after you
+log in, tell me.
 
 ### Or run it from the source
 
@@ -68,8 +96,15 @@ Ctrl+Shift+9. The startup card tells you which one it got.
 
 ### Start it with Windows
 
-Press `Win+R`, type `shell:startup`, press Enter. Put a shortcut in that folder
-pointing to:
+If you installed from the source, run this once (from version 0.1.4 on). It points
+at `pythonw.exe` for you, so no console window opens:
+
+```
+python app.py --install-autostart
+```
+
+Or by hand: press `Win+R`, type `shell:startup`, press Enter. Put a shortcut in
+that folder pointing to:
 
 ```
 pythonw.exe C:\path\to\uniqr\app.py
@@ -372,8 +407,9 @@ closed. Look in the log for lines like these:
 
 **If you downloaded the Windows or Linux file,** quit UniQR and delete the file
 (`UniQR.exe` or `UniQR-linux-x86_64`). On Windows, also delete the shortcut from
-`shell:startup` if you added one. On Linux, if you set it to start at login, run
-`./UniQR-linux-x86_64 --uninstall-autostart` first, then delete the file.
+`shell:startup` if you added one. If you set it to start at login with
+`--install-autostart`, run `.\UniQR.exe --uninstall-autostart` (Windows) or
+`./UniQR-linux-x86_64 --uninstall-autostart` (Linux) first, then delete the file.
 
 **If you installed it from the source,** run this, then delete the folder:
 
