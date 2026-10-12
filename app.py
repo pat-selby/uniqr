@@ -5,6 +5,7 @@
     python app.py --hotkey '<ctrl>+<alt>+<shift>+q'   # Linux and macOS: another hotkey
     python app.py --install-autostart                  # Linux: start at login
     python app.py --uninstall-autostart
+    python app.py --open-url https://example.com       # test opening a link, then exit
 
 Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
@@ -217,6 +218,13 @@ def main() -> int:
     done = autostart.handle_command_line(sys.argv)
     if done is not None:
         return done
+    # Opens one link the way the Open button does, says whether it worked, and
+    # exits. For finding out why Open does nothing on a given machine.
+    link = autostart.option(sys.argv, "--open-url")
+    if link:
+        opened = actions.open_url(link)
+        print("opened it" if opened else "could not open it (see the lines above)")
+        return 0 if opened else 1
     # The same setting as the UNIQR_HOTKEY environment variable, without needing
     # to know it exists. Read when the hotkey is registered, so setting it here is
     # early enough. Windows has its own fixed list and ignores it.

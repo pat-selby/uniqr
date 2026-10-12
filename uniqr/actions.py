@@ -1,6 +1,11 @@
 """What to do with a decoded payload."""
 
 import ipaddress
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
 import webbrowser
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -83,12 +88,98 @@ def can_open(text: str) -> bool:
     return text.strip().lower().startswith(SAFE_SCHEMES)
 
 
+# What a Linux desktop offers for "open this link in the user's browser", best
+# first. xdg-open follows the browser the user chose in their desktop settings.
+_LINUX_LAUNCHERS = (
+    ["xdg-open"],
+    ["gio", "open"],
+    ["sensible-browser"],
+    ["x-www-browser"],
+)
+# A launcher that fails does so at once. One still running after this long has
+# handed the link to the browser (or is the browser, starting up).
+_LAUNCH_WAIT_S = 0.8
+
+
+def _linux() -> bool:
+    return sys.platform.startswith("linux")
+
+
+def _browser_env() -> dict[str, str]:
+    """The environment a browser should start with.
+
+    A packaged (one-file) UniQR puts its own unpacked folder first in
+    LD_LIBRARY_PATH, so its bundled copies of system libraries are found first.
+    A browser started from it inherits that, loads the wrong libraries and may
+    fail to start at all, with nothing on screen. PyInstaller keeps the user's
+    original value in LD_LIBRARY_PATH_ORIG.
+    """
+    env = dict(os.environ)
+    if _linux() and getattr(sys, "frozen", False):
+        original = env.pop("LD_LIBRARY_PATH_ORIG", None)
+        if original is None:
+            env.pop("LD_LIBRARY_PATH", None)
+        else:
+            env["LD_LIBRARY_PATH"] = original
+    return env
+
+
+def _launch(command: list[str], url: str, env: dict[str, str]) -> bool:
+    """Run one launcher. True if it started and did not fail straight away."""
+    program = shutil.which(command[0], path=env.get("PATH"))
+    if program is None:
+        return False
+    with tempfile.TemporaryFile() as errors:
+        try:
+            proc = subprocess.Popen(
+                [program, *command[1:], url],
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=errors,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            print(f"{command[0]} could not be started: {exc}")
+            return False
+        try:
+            code = proc.wait(timeout=_LAUNCH_WAIT_S)
+        except subprocess.TimeoutExpired:
+            return True
+        if code == 0:
+            return True
+        errors.seek(0)
+        detail = errors.read(300).decode(errors="replace").strip()
+        print(f"{command[0]} could not open the link (exit {code}): {detail}")
+        return False
+
+
+def _open_on_linux(url: str) -> bool:
+    env = _browser_env()
+    if any(_launch(command, url, env) for command in _LINUX_LAUNCHERS):
+        return True
+    # Last resort, with the same clean environment.
+    saved = os.environ.copy()
+    try:
+        os.environ.clear()
+        os.environ.update(env)
+        return bool(webbrowser.open(url))
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+
+
 def open_url(text: str) -> bool:
-    """Open a web link in the default browser. Returns False if not allowed."""
+    """Open a web link in the default browser. False if not allowed or not opened."""
     if not can_open(text):
         return False
-    webbrowser.open(text.strip())
-    return True
+    url = text.strip()
+    if _linux():
+        opened = _open_on_linux(url)
+        if not opened:
+            print("no way to open a browser worked; the link stays on the clipboard")
+        return opened
+    return bool(webbrowser.open(url))
 
 
 def summarize(text: str, limit: int = 120) -> str:

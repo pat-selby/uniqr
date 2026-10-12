@@ -11,6 +11,10 @@ screen, press the hotkey, and look for the link. It checks two things:
                installed on the runner, which is how a new install looks, so
                this also covers UniQR copying without one.
 
+Then it checks the Open button's path: it runs the program with --open-url and a
+fake xdg-open first on the PATH, and checks the link arrives and that the program
+hands the launcher the user's own library path, not its unpacked folder's.
+
 Then it checks start-at-login: it asks the program to write its autostart file,
 reads the command back out of that file, starts UniQR with exactly that command
 as a login would, and presses the custom hotkey the file sets.
@@ -92,6 +96,38 @@ def wait_for(text: str, seconds: float, start: int = 0) -> bool:
             return True
         time.sleep(0.5)
     return False
+
+
+def check_open_link(program: Path) -> int:
+    """Open a link from the packaged program, with a fake xdg-open to catch it."""
+    folder = Path(tempfile.mkdtemp(prefix="uniqr-open-"))
+    record = folder / "record"
+    launcher = folder / "xdg-open"
+    launcher.write_text(
+        "#!/bin/sh\n"
+        f'printf "%s\\n%s\\n" "$1" "$LD_LIBRARY_PATH" > "{record}"\n',
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
+    users_libs = "/opt/uniqr-test-libs"
+    env = {**os.environ, "PATH": f"{folder}:{os.environ['PATH']}", "LD_LIBRARY_PATH": users_libs}
+    url = "https://example.com/uniqr-open-test"
+    result = subprocess.run(
+        [str(program), "--open-url", url], capture_output=True, text=True, env=env, timeout=120
+    )
+    if result.returncode != 0 or not record.exists():
+        print("FAIL: --open-url did not reach the launcher:")
+        print(result.stdout, result.stderr)
+        return 1
+    got_url, got_libs = record.read_text(encoding="utf-8").splitlines()[:2]
+    if got_url != url:
+        print(f"FAIL: the launcher was handed {got_url!r}, not the link")
+        return 1
+    if got_libs != users_libs:
+        print(f"FAIL: the launcher got LD_LIBRARY_PATH={got_libs!r}, not the user's {users_libs!r}")
+        return 1
+    print("ok: --open-url reached the launcher, with the user's own library path")
+    return 0
 
 
 def check_autostart(program: Path) -> int:
@@ -222,7 +258,7 @@ def main() -> int:
         qr_window.terminate()
         app.terminate()
         app.wait(timeout=30)
-        return check_autostart(program)
+        return check_open_link(program) or check_autostart(program)
     finally:
         for proc in (qr_window, app):
             if proc is not None:
