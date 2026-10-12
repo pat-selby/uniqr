@@ -30,6 +30,7 @@ runs it, to draw the code and read the clipboard.
 import configparser
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -155,11 +156,20 @@ def check_first_run(program: Path) -> int:
             print("FAIL: the autostart file was written before anyone answered")
             return 1
         print("ok: a first run asks, and has turned nothing on")
-        time.sleep(2)  # the card is up and focused
+        time.sleep(2)  # the card is up
+        # A fake screen has no window manager, so keys go to the window under the
+        # pointer. The card sits in the bottom right corner; put the pointer on it,
+        # as a person who wanted to answer would.
+        size = re.search(r"captured (\d+)x(\d+)", read_log()[before:])
+        width, height = (int(size.group(1)), int(size.group(2))) if size else (1280, 1024)
+        subprocess.run(["xdotool", "mousemove", str(width - 300), str(height - 110)], check=True)
+        time.sleep(0.5)
         subprocess.run(["xdotool", "key", "y"], check=True)
         if not wait_for("start at login: on", 20, start=before) or not desktop.exists():
             print("FAIL: pressed y, and start at login was not set up. Its log:")
             print(read_log()[before:])
+            focus = subprocess.run(["xdotool", "getmouselocation"], capture_output=True, text=True)
+            print("pointer:", focus.stdout.strip(), "screen:", width, height)
             return 1
         saved = json.loads((settings_dir / "settings.json").read_text(encoding="utf-8"))
         if saved.get("autostart_asked") is not True:
