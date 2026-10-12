@@ -26,6 +26,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from uniqr import settings
+
 ENTRY_NAME = "uniqr.desktop"
 
 # The name of the entry in Windows' list of programs to start at login.
@@ -270,3 +272,69 @@ def handle_command_line(argv: list[str]) -> int | None:
             return uninstall_windows(quiet=quiet)
         return uninstall()
     return None
+
+
+# -- asking, and the on/off switch used by the card and the tray menu -----------
+
+# The question is put at most this many times without an answer. Someone who
+# ignores it three times has answered, in effect, and asking again is nagging.
+MAX_IGNORED = 3
+
+
+def supported() -> bool:
+    """Whether UniQR can set up start-at-login by itself here (not on a Mac)."""
+    return sys.platform == "win32" or _on_linux()
+
+
+def is_enabled(store: _Registry | None = None, config: Path | None = None) -> bool:
+    if sys.platform == "win32":
+        return (store or _Registry()).read(RUN_VALUE) is not None
+    if _on_linux():
+        return entry_path(config).exists()
+    return False
+
+
+def set_enabled(on: bool, store: _Registry | None = None, config: Path | None = None) -> bool:
+    """Turn start-at-login on or off. True if it now matches what was asked."""
+    if sys.platform == "win32":
+        if on:
+            return install_windows(quiet=True, store=store) == 0
+        return uninstall_windows(quiet=True, store=store) == 0
+    if _on_linux():
+        if on:
+            # Keep a hotkey chosen for this run, so a login copy uses it too.
+            return install(os.environ.get("UNIQR_HOTKEY") or None, config) == 0
+        return uninstall(config) == 0
+    return False
+
+
+def should_ask(quiet: bool = False, restarted: bool = False) -> bool:
+    """Whether this start should put the start-at-login question.
+
+    Only the packaged program asks: someone running from the source has the
+    command-line options and the install guide, and a developer starting it
+    fifty times a day does not want a question. It never asks when it is
+    already set up, when it was started quietly or by its own watchdog, or once
+    it has an answer.
+    """
+    if quiet or restarted or not supported():
+        return False
+    if not getattr(sys, "frozen", False):
+        return False
+    if settings.get("autostart_asked"):
+        return False
+    if int(settings.get("autostart_ignored", 0)) >= MAX_IGNORED:
+        return False
+    return not is_enabled()
+
+
+def record_answer(answered: bool | None, stopping: bool = False) -> None:
+    """Remember what happened to the question.
+
+    Yes and no are final. No answer counts toward MAX_IGNORED, except when the
+    card was closed because UniQR itself was quitting: that says nothing.
+    """
+    if answered is not None:
+        settings.set("autostart_asked", True)
+    elif not stopping:
+        settings.set("autostart_ignored", int(settings.get("autostart_ignored", 0)) + 1)

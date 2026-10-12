@@ -36,6 +36,8 @@ QUNS_ACCEPTS_NOTIFICATIONS = 5
 # pointer has been over it - by then it has already been read.
 TOAST_MS = 2200
 TOAST_AFTER_HOVER_MS = 700
+UNTIL_POLL_MS = 250
+ASK_MS = 15000  # long enough to read a question and answer it
 
 DIM = 0.38
 ACCENT = "#4ea1ff"
@@ -253,6 +255,7 @@ def _build_card(
     text: str,
     status: str,
     buttons: list[tuple[str, Callable[[], None], bool]],
+    note: str = "",
 ) -> tk.Frame:
     """The card used by both the result pop-up and the picker.
 
@@ -268,6 +271,11 @@ def _build_card(
 
     if not text:
         tk.Label(card, text=status, bg=CARD_BG, fg=CARD_FG, font=_ui_font(10, bold=True)).pack(anchor="w")
+        if note:
+            tk.Label(
+                card, text=note, bg=CARD_BG, fg=CARD_MUTED, font=_ui_font(9),
+                justify="left", wraplength=380,
+            ).pack(anchor="w", pady=(6, 0))
     else:
         head = tk.Frame(card, bg=CARD_BG)
         head.pack(fill="x", pady=(0, 8))
@@ -614,9 +622,17 @@ class Toast:
         at: tuple[int, int],
         timeout_ms: int = TOAST_MS,
         offer_open: bool = True,
+        choices: tuple[str, str] | None = None,
+        note: str = "",
+        until: Callable[[], bool] | None = None,
     ) -> None:
         self.text = text
         self.opened = False
+        # With `choices` the card asks a question: True for the first button,
+        # False for the second, None if it timed out or was closed unanswered.
+        self.answer: bool | None = None
+        self._until = until
+        self._asking = bool(choices)
         self._timer: str | None = None
         self._timeout = timeout_ms
         self._left_once = False
@@ -629,10 +645,14 @@ class Toast:
         self.win.configure(bg=CARD_BG)
 
         buttons: list[tuple[str, Callable[[], None], bool]] = []
-        if text and offer_open and actions.can_open(text):
-            buttons.append(("Open", self._open, True))
-        buttons.append(("Dismiss", self._close, False))
-        _build_card(self.win, text, heading, buttons).pack()
+        if choices:
+            buttons.append((choices[0], lambda: self._answer(True), True))
+            buttons.append((choices[1], lambda: self._answer(False), False))
+        else:
+            if text and offer_open and actions.can_open(text):
+                buttons.append(("Open", self._open, True))
+            buttons.append(("Dismiss", self._close, False))
+        _build_card(self.win, text, heading, buttons, note).pack()
 
         self.win.update_idletasks()
         self._place(at)
@@ -647,6 +667,30 @@ class Toast:
         self.win.bind("<Enter>", lambda _e: self._cancel_timer())
         self.win.bind("<Leave>", self._on_leave)
         self._start_timer()
+        if until is not None:
+            self.win.after(UNTIL_POLL_MS, self._check_until)
+        if choices:
+            # Answerable from the keyboard: Y or Enter for the first button, N
+            # for the second. Escape already dismisses it, unanswered.
+            for key in ("<Key-y>", "<Key-Y>", "<Return>"):
+                self.win.bind(key, lambda _e: self._answer(True))
+            for key in ("<Key-n>", "<Key-N>"):
+                self.win.bind(key, lambda _e: self._answer(False))
+            self.win.focus_force()
+
+    def _check_until(self) -> None:
+        """Close the card once the caller says so, e.g. because UniQR is quitting."""
+        if self._until is not None and self._until():
+            self._close()
+            return
+        try:
+            self.win.after(UNTIL_POLL_MS, self._check_until)
+        except tk.TclError:
+            pass  # the card is already gone
+
+    def _answer(self, value: bool) -> None:
+        self.answer = value
+        self._close()
 
     def _on_leave(self, _event=None) -> None:
         # Tk also reports "left" when the pointer moves onto a button or a
@@ -701,7 +745,9 @@ class Toast:
 
     def _start_timer(self) -> None:
         self._cancel_timer()
-        delay = TOAST_AFTER_HOVER_MS if self._left_once else self._timeout
+        # A question keeps its full time: someone who moved the pointer over it
+        # to read it has not answered yet.
+        delay = TOAST_AFTER_HOVER_MS if self._left_once and not self._asking else self._timeout
         self._timer = self.win.after(delay, self._close)
 
     def _cancel_timer(self) -> None:
@@ -733,3 +779,18 @@ def toast(
 ) -> bool:
     """Show a card near `at`. Returns True if the user opened the link."""
     return Toast(text, heading, at, timeout_ms).show()
+
+
+def ask(
+    heading: str,
+    note: str,
+    choices: tuple[str, str],
+    at: tuple[int, int],
+    timeout_ms: int = ASK_MS,
+    until: Callable[[], bool] | None = None,
+) -> bool | None:
+    """A card with a question. True for the first button, False for the second,
+    None if it timed out, was dismissed with Escape, or `until` ended it."""
+    card = Toast("", heading, at, timeout_ms, choices=choices, note=note, until=until)
+    card.show()
+    return card.answer

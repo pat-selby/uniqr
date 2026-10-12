@@ -27,6 +27,7 @@ MOD_NOREPEAT = 0x4000
 
 IDM_SCAN = 1001
 IDM_EXIT = 1002
+IDM_AUTOSTART = 1003
 
 HOTKEY_ID = 1
 HEARTBEAT_ID = 2
@@ -61,9 +62,14 @@ class Shell:
         on_hotkey: Callable[[], None],
         on_notification_click: Callable[[], None] | None = None,
         tooltip: str = "UniQR",
+        autostart_enabled: Callable[[], bool] | None = None,
+        on_autostart_toggle: Callable[[], None] | None = None,
     ) -> None:
         self.on_hotkey = on_hotkey
         self.on_notification_click = on_notification_click
+        # Both given: the tray menu gets a "Start at login" item, checked when on.
+        self.autostart_enabled = autostart_enabled
+        self.on_autostart_toggle = on_autostart_toggle
         self.tooltip = tooltip
         self.hotkey_label = ""
         self._hicon = None
@@ -214,6 +220,11 @@ class Shell:
         menu = win32gui.CreatePopupMenu()
         label = f"Scan now ({self.hotkey_label})" if self.hotkey_label else "Scan now"
         win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_SCAN, label)
+        if self.autostart_enabled and self.on_autostart_toggle:
+            checked = win32con.MF_CHECKED if self.autostart_enabled() else 0
+            win32gui.AppendMenu(
+                menu, win32con.MF_STRING | checked, IDM_AUTOSTART, "Start at login"
+            )
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 0, "")
         win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_EXIT, "Exit UniQR")
 
@@ -231,6 +242,8 @@ class Shell:
         item = win32api.LOWORD(wparam)
         if item == IDM_SCAN:
             self.on_hotkey()
+        elif item == IDM_AUTOSTART and self.on_autostart_toggle:
+            self.on_autostart_toggle()
         elif item == IDM_EXIT:
             self.stop()
         return 0

@@ -15,6 +15,10 @@ Then it checks the Open button's path: it runs the program with --open-url and a
 fake xdg-open first on the PATH, and checks the link arrives and that the program
 hands the launcher the user's own library path, not its unpacked folder's.
 
+Then it checks the first-run question: a fresh start with no saved settings asks
+whether to start at login, the keypress "y" answers yes, and the autostart file
+appears. A second start asks nothing.
+
 Then it checks start-at-login: it asks the program to write its autostart file,
 reads the command back out of that file, starts UniQR with exactly that command
 as a login would, and presses the custom hotkey the file sets.
@@ -24,6 +28,7 @@ runs it, to draw the code and read the clipboard.
 """
 
 import configparser
+import json
 import os
 import shlex
 import subprocess
@@ -130,6 +135,60 @@ def check_open_link(program: Path) -> int:
     return 0
 
 
+def check_first_run(program: Path) -> int:
+    """A first run asks about start at login. Answering yes sets it up, once."""
+    settings_dir = Path(tempfile.mkdtemp(prefix="uniqr-first-"))  # empty: a first run
+    xdg = Path(tempfile.mkdtemp(prefix="uniqr-xdg-"))  # where the desktop file goes
+    env = {**os.environ, "UNIQR_CONFIG_DIR": str(settings_dir), "XDG_CONFIG_HOME": str(xdg)}
+    desktop = xdg / "autostart" / "uniqr.desktop"
+
+    qr_window = subprocess.Popen([sys.executable, "-c", SHOW_QR])
+    time.sleep(4)
+    before = len(read_log())
+    app = subprocess.Popen([str(program)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        if not wait_for("asking whether to start at login", 90, start=before):
+            print("FAIL: a first run never asked about start at login. Its log:")
+            print(read_log()[before:])
+            return 1
+        if desktop.exists():
+            print("FAIL: the autostart file was written before anyone answered")
+            return 1
+        print("ok: a first run asks, and has turned nothing on")
+        time.sleep(2)  # the card is up and focused
+        subprocess.run(["xdotool", "key", "y"], check=True)
+        if not wait_for("start at login: on", 20, start=before) or not desktop.exists():
+            print("FAIL: pressed y, and start at login was not set up. Its log:")
+            print(read_log()[before:])
+            return 1
+        saved = json.loads((settings_dir / "settings.json").read_text(encoding="utf-8"))
+        if saved.get("autostart_asked") is not True:
+            print(f"FAIL: the answer was not remembered: {saved}")
+            return 1
+        print("ok: pressing y wrote the autostart file and remembered the answer")
+    finally:
+        app.terminate()
+        app.wait(timeout=30)
+
+    # The second start must not ask again.
+    before = len(read_log())
+    app = subprocess.Popen([str(program)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        if not wait_for("UniQR is running", 90, start=before):
+            print("FAIL: the second start never said it was running. Its log:")
+            print(read_log()[before:])
+            return 1
+        time.sleep(3)
+        if "asking whether to start at login" in read_log()[before:]:
+            print("FAIL: it asked a second time")
+            return 1
+        print("ok: a second start does not ask again")
+    finally:
+        qr_window.terminate()
+        app.terminate()
+    return 0
+
+
 def check_autostart(program: Path) -> int:
     """Install start-at-login, then start UniQR the way a login would."""
     config = tempfile.mkdtemp(prefix="uniqr-autostart-")
@@ -203,6 +262,13 @@ def main() -> int:
     # Something has to be on the screen first. A fake screen starts out
     # completely black, and UniQR refuses to run when it can only see a blank
     # frame, as it should: a real desktop is never one flat color.
+    # The program asks about start at login on a first run, which would hold the
+    # hotkey for a few seconds. Say it has already asked; check_first_run tests
+    # the question on its own.
+    settings_dir = tempfile.mkdtemp(prefix="uniqr-settings-")
+    Path(settings_dir, "settings.json").write_text(json.dumps({"autostart_asked": True}), encoding="utf-8")
+    os.environ["UNIQR_CONFIG_DIR"] = settings_dir
+
     qr_window = subprocess.Popen([sys.executable, "-c", SHOW_QR])
     time.sleep(4)
 
@@ -258,7 +324,7 @@ def main() -> int:
         qr_window.terminate()
         app.terminate()
         app.wait(timeout=30)
-        return check_open_link(program) or check_autostart(program)
+        return check_open_link(program) or check_first_run(program) or check_autostart(program)
     finally:
         for proc in (qr_window, app):
             if proc is not None:

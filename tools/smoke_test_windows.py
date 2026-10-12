@@ -6,6 +6,10 @@ Used by the Windows build workflow, so a build that starts and dies is caught
 before anyone signs or downloads it. It checks what can be checked on a build
 machine with nobody at the keyboard:
 
+  first run   a start with no saved settings puts the start-at-login question
+              on the greeting card. Turning nothing on, and choosing Exit while
+              the question is up, must end the exe at once and not leave it
+              waiting for an answer.
   login       it asks the exe to add itself to Windows' list of programs to start
               at login, reads the command back out of the registry, and starts
               the exe with exactly that command, as a login would. A quoting
@@ -25,9 +29,11 @@ and then removes the entry named UniQR.
 """
 
 import ctypes
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -108,6 +114,59 @@ def start_and_exit(exe: Path, command_line: str) -> int:
     return 0
 
 
+def first_run_then_exit(exe: Path) -> int:
+    """A first run asks about start at login. Exit while it is up must not wait."""
+    folder = Path(tempfile.mkdtemp(prefix="uniqr-first-"))  # empty: a first run
+    env = {**os.environ, "UNIQR_CONFIG_DIR": str(folder)}
+    before = len(log_lines())
+    started = time.time()
+    subprocess.Popen(
+        [str(exe)], env=env, creationflags=DETACHED, close_fds=True,
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    while time.time() - started < 90:
+        new = log_lines()[before:]
+        if any("asking whether to start at login" in line for line in new):
+            break
+        if any("already running" in line for line in new):
+            print("Another UniQR is already running. Quit it and run this test again.")
+            return 2
+        time.sleep(0.5)
+    else:
+        print("FAIL: a first run never asked about start at login. Its log:")
+        print(chr(10).join(log_lines()[before:]) or "(nothing was written)")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    if run_entry() is not None:
+        print("FAIL: start at login was already on before anyone answered")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    print("ok: a first run asks, and has turned nothing on")
+
+    hwnd = ctypes.windll.user32.FindWindowW("UniQRHiddenWindow", "UniQR")
+    if not hwnd:
+        print("FAIL: the question is up, but the hidden window is missing, so Exit cannot be sent")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    ctypes.windll.user32.PostMessageW(hwnd, WM_COMMAND, IDM_EXIT, 0)
+    gone = time.time()
+    # The question stays up for 15 s if nothing closes it, so 10 s tells them apart.
+    while time.time() - gone < 10 and running(exe.name):
+        time.sleep(0.25)
+    if running(exe.name):
+        print("FAIL: Exit was sent while the question was up, and the exe kept waiting")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    print(f"ok: Exit during the question ended it in {time.time() - gone:.1f} s")
+
+    saved = json.loads((folder / "settings.json").read_text(encoding="utf-8")) if (folder / "settings.json").exists() else {}
+    if saved.get("autostart_ignored") or saved.get("autostart_asked"):
+        print(f"FAIL: quitting during the question was recorded as an answer: {saved}")
+        return 1
+    print("ok: quitting during the question was not counted as an answer")
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print(__doc__)
@@ -116,6 +175,10 @@ def main() -> int:
     if not exe.exists():
         print(f"no exe at {exe}")
         return 2
+
+    first = first_run_then_exit(exe)
+    if first:
+        return first
 
     # --quiet: no message box, which would wait for a click nobody will make.
     installed = subprocess.run([str(exe), "--install-autostart", "--quiet"], timeout=120)

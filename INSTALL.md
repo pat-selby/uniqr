@@ -21,8 +21,9 @@ need Python or anything else.
 1. Put it somewhere permanent, like `C:\Users\you\UniQR\`.
 2. Double-click it. The first start takes a few seconds, because the file
    unpacks itself.
-3. A card says UniQR is running. It sits in the system tray, next to the clock.
-   Press **Win+Shift+Q** on a QR code.
+3. A card says UniQR is running, and asks whether to start it when you log in.
+   Click **Yes, start at login** if you want that, or **Not now**. It sits in the
+   system tray, next to the clock. Press **Win+Shift+Q** on a QR code.
 
 The first time, Windows may say **"Windows protected your PC"** and name an
 unknown publisher. That is because the file isn't code-signed, which costs money
@@ -38,9 +39,14 @@ To quit, right-click the tray icon and choose Exit.
 
 ### Start it when you log in
 
-UniQR does not start by itself after a restart. To start it every time you log in
-to Windows, open PowerShell in the folder where you saved the file and run this
-once:
+The first time you run the file, the card asks whether to start UniQR when you log
+in. It asks once, and it never turns anything on unless you click Yes. If you
+ignore the card three times it stops asking. You can change your mind at any time:
+right-click the tray icon and click **Start at login**. A tick next to it means
+it is on. This needs **version 0.1.6 or newer**.
+
+The same thing from a command line, which works on version 0.1.4 and newer: open
+PowerShell in the folder where you saved the file and run this once:
 
 ```
 .\UniQR.exe --install-autostart
@@ -58,13 +64,13 @@ again. To remove the entry:
 .\UniQR.exe --uninstall-autostart
 ```
 
-This needs **version 0.1.4 or newer**. An older file ignores options it does not
-know, so it would just start normally. The older way still works: press `Win+R`,
+An older file ignores options it does not know, so it would just start normally.
+The older way still works: press `Win+R`,
 type `shell:startup`, press Enter, and drop a shortcut to UniQR.exe in that folder.
 
-GitHub tests that the entry is written correctly and that the command stored in
-it starts UniQR. It cannot test a real login, so if UniQR does not start after you
-log in, tell me.
+GitHub tests that the entry is written correctly, that the command stored in it
+starts UniQR, and that quitting while the question is on screen works. It cannot
+test a real login, so if UniQR does not start after you log in, tell me.
 
 ### Or run it from the source
 
@@ -234,6 +240,9 @@ chmod +x UniQR-linux-x86_64
 ./UniQR-linux-x86_64
 ```
 
+The first time, a card asks whether to start UniQR when you log in. Click **Yes,
+start at login** or press **Y**, or click **Not now** or press **N**.
+
 Press **Ctrl+Alt+Q** on a QR code. A card appears under it and the link is
 copied. To quit, press Ctrl+C in that terminal, or run `pkill UniQR-linux`.
 Closing the terminal usually stops it too. Some desktops show no tray icon, and the
@@ -316,8 +325,15 @@ then Ctrl+Alt+Q, then Ctrl+Shift+9.
 
 ### Start it at login
 
-UniQR does not start by itself after a restart. To start it every time you log
-in, run this once, from the same folder as the file:
+The first time you run the downloaded file, the card asks whether to start UniQR
+when you log in. It asks once, and it never turns anything on unless you say yes.
+If you ignore it three times it stops asking. If your desktop shows a tray icon,
+right-click it and click **Start at login** to change your mind later. This needs
+**version 0.1.6 or newer**, and only the downloaded file asks: a copy run from
+the source does not.
+
+The same thing from a terminal, which works on version 0.1.3 and newer. Run this
+once, from the same folder as the file:
 
 ```
 ./UniQR-linux-x86_64 --install-autostart

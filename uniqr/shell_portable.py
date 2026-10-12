@@ -86,11 +86,15 @@ class PortableShell:
         on_hotkey: Callable[[], None],
         on_notification_click: Callable[[], None] | None = None,
         tooltip: str = "UniQR",
+        autostart_enabled: Callable[[], bool] | None = None,
+        on_autostart_toggle: Callable[[], None] | None = None,
     ) -> None:
         from uniqr import overlay
 
         self.on_hotkey = on_hotkey
         self.on_notification_click = on_notification_click
+        self.autostart_enabled = autostart_enabled
+        self.on_autostart_toggle = on_autostart_toggle
         self.tooltip = tooltip
         self.hotkey_label = ""
         self.tray_available = False
@@ -151,7 +155,7 @@ class PortableShell:
         try:
             import pystray
 
-            menu = pystray.Menu(
+            items = [
                 pystray.MenuItem(
                     lambda _item: (
                         f"Scan now ({self.hotkey_label})"
@@ -161,9 +165,20 @@ class PortableShell:
                     lambda: self._queue.put("scan"),
                     default=True,
                 ),
+            ]
+            if self.autostart_enabled and self.on_autostart_toggle:
+                items.append(
+                    pystray.MenuItem(
+                        "Start at login",
+                        lambda: self.on_autostart_toggle(),
+                        checked=lambda _item: bool(self.autostart_enabled()),
+                    )
+                )
+            items += [
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit UniQR", lambda: self._queue.put("quit")),
-            )
+            ]
+            menu = pystray.Menu(*items)
             self._icon = pystray.Icon(
                 "UniQR", icon_image(64), self.tooltip, menu=menu
             )

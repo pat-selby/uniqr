@@ -24,7 +24,7 @@ HOTKEY_BLOCKED = (
 )
 
 
-def build_shell(on_hotkey, on_notification_click):
+def build_shell(on_hotkey, on_notification_click, autostart_enabled=None, on_autostart_toggle=None):
     """Pick the shell that matches the capture backend.
 
     The Win32 shell reserves its hotkey and owns a real message loop; the
@@ -34,23 +34,48 @@ def build_shell(on_hotkey, on_notification_click):
     if backends.NAME == "windows":
         from uniqr.shell import Shell
 
-        return Shell(on_hotkey=on_hotkey, on_notification_click=on_notification_click)
+        return Shell(
+            on_hotkey=on_hotkey,
+            on_notification_click=on_notification_click,
+            autostart_enabled=autostart_enabled,
+            on_autostart_toggle=on_autostart_toggle,
+        )
 
     from uniqr.shell_portable import PortableShell
 
     return PortableShell(
-        on_hotkey=on_hotkey, on_notification_click=on_notification_click
+        on_hotkey=on_hotkey,
+        on_notification_click=on_notification_click,
+        autostart_enabled=autostart_enabled,
+        on_autostart_toggle=on_autostart_toggle,
     )
 
 
 class UniQR:
-    def __init__(self, quiet: bool = False) -> None:
+    def __init__(self, quiet: bool = False, restarted: bool = False) -> None:
         self.quiet = quiet
+        self.restarted = restarted
         capture.set_dpi_aware()
         self.scanner = Scanner()
         self.last_payload: str | None = None
         self._scanning = False
-        self.shell = build_shell(self.scan, self.open_last)
+        can_toggle = autostart.supported()
+        self.shell = build_shell(
+            self.scan,
+            self.open_last,
+            autostart.is_enabled if can_toggle else None,
+            self.toggle_autostart if can_toggle else None,
+        )
+
+    def toggle_autostart(self) -> None:
+        """The tray menu's "Start at login": flip it. A choice made here counts
+        as an answer, so the first-run question is not asked afterward."""
+        turn_on = not autostart.is_enabled()
+        if autostart.set_enabled(turn_on):
+            autostart.record_answer(turn_on)
+            print(f"start at login is now {'on' if turn_on else 'off'}")
+        else:
+            print("could not change start at login")
 
     def scan(self) -> None:
         # The overlay runs its own event loop inside this handler, so a second
@@ -191,9 +216,47 @@ class UniQR:
         )
         screen = capture.monitor_at(0, 0)  # the monitor holding the origin
         try:
-            overlay.toast("", message, (screen.right - 360, screen.bottom - 130))
+            if autostart.should_ask(self.quiet, self.restarted):
+                self._greet_and_ask(message, screen)
+            else:
+                overlay.toast("", message, (screen.right - 360, screen.bottom - 130))
         except Exception as exc:  # noqa: BLE001 - a greeting must not stop startup
             print(f"could not show the startup card: {exc}")
+
+    def _greet_and_ask(self, message: str, screen) -> None:
+        """The first run: the same card, with one question on it.
+
+        It does not turn anything on by itself. A program that adds itself to
+        the start-up list without asking is behaving like malware, and this one
+        reads the screen.
+        """
+        print("asking whether to start at login")
+        answer = overlay.ask(
+            message,
+            "Start UniQR automatically when you log in?",
+            ("Yes, start at login", "Not now"),
+            (screen.right - 400, screen.bottom - 175),
+            # Quitting from the tray while the question is up must not wait for it.
+            until=lambda: self.shell.stopping,
+        )
+        autostart.record_answer(answer, stopping=self.shell.stopping)
+        if not answer:
+            print("start at login: not now" if answer is False else "start at login: no answer")
+            return
+        if autostart.set_enabled(True):
+            how = (
+                "Turn it off from the tray menu."
+                if getattr(self.shell, "tray_available", True)
+                else "Turn it off with --uninstall-autostart."
+            )
+            overlay.toast("", "UniQR will start when you log in.", self._corner(screen), 3500)
+            print(f"start at login: on. {how}")
+        else:
+            overlay.toast("", "Could not set up start at login. See the log.", self._corner(screen), 4500)
+
+    @staticmethod
+    def _corner(screen) -> tuple[int, int]:
+        return (screen.right - 360, screen.bottom - 130)
 
 
 def _claim_instance(restarted: bool) -> bool:
@@ -246,7 +309,7 @@ def main() -> int:
         print("UniQR is already running - check the system tray.")
         return 1
     try:
-        return UniQR(quiet=quiet).run()
+        return UniQR(quiet=quiet, restarted=restarted).run()
     except KeyboardInterrupt:
         print("\nstopped")
         return 0
