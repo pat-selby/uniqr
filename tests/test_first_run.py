@@ -275,7 +275,14 @@ def test_the_tray_switch_leaves_the_answer_alone_when_it_fails(monkeypatch):
 
 @pytest.fixture
 def root():
-    """A real Tk root, or skip where there is no display (a bare CI machine)."""
+    """A real Tk root, on Windows only.
+
+    A shared Tk window left alive inside the test process hung the macOS test run
+    in CI, and Linux has no display there. The card is covered on Linux by the
+    packaged-program smoke test, which answers it with a real key press.
+    """
+    if sys.platform != "win32":
+        pytest.skip("real Tk windows in the test process are only run on Windows")
     try:
         shared = overlay.shared_root()
         shared.winfo_exists()
