@@ -233,6 +233,41 @@ uniqr
 
 The hotkey is **Ctrl+Alt+Q**.
 
+### Choosing a different hotkey
+
+If **Ctrl+Alt+Q** is already used by something else on your desktop, pick another
+combination. On Linux UniQR listens to the keyboard but cannot reserve a key, so
+it cannot tell that another program has the combination. Both react when you
+press it.
+
+Set `UNIQR_HOTKEY` when you start UniQR, and put the whole combination in quotes
+so the terminal leaves the angle brackets alone:
+
+```
+UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q' ./UniQR-linux-x86_64
+```
+
+If you installed from the source, it is the same, with `uniqr` at the end instead.
+
+How to write one:
+
+- Modifier keys go in angle brackets: `<ctrl>`, `<alt>`, `<shift>`, `<super>` (the
+  Windows key). Join keys with `+`.
+- Letters and digits go bare, in lowercase.
+- Two to try: `<ctrl>+<shift>+9` and `<ctrl>+<alt>+<shift>+q`. Avoid
+  **Ctrl+Shift+U**, which many Linux desktops use for typing special characters.
+
+To keep it, add this line to `~/.bashrc` and open a new terminal:
+
+```
+export UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q'
+```
+
+The log shows which hotkey UniQR took, on the line that says it is running (see
+"When something is wrong" below). `UNIQR_HOTKEY` works on Linux and on a Mac. It
+does nothing on Windows, which has its own fallbacks: Win+Shift+Q, then
+Ctrl+Alt+Q, then Ctrl+Shift+9.
+
 ---
 
 ## When something is wrong
@@ -265,7 +300,9 @@ the browser redraw the code larger, which is not the same as enlarging a
 picture of it.
 
 **Nothing happens at all when I press the hotkey.** Another app may have the
-same combination, or on macOS the Accessibility permission is missing. Press
+same combination (on Linux or a Mac, pick another with `UNIQR_HOTKEY`: see
+"Choosing a different hotkey" in that section), or on macOS the Accessibility
+permission is missing. Press
 the hotkey with no QR code on screen: if you get a short "No QR code found"
 card, UniQR heard you fine and the problem is the code, not the key.
 
