@@ -187,14 +187,15 @@ source .venv/bin/activate
 uniqr
 ```
 
-**4. Use it.** Put a QR code on screen and press **Control+Option+Q**.
+**4. Use it.** Put a QR code on screen and press **Command+Shift+8**. (Versions
+before 0.1.9 used **Control+Option+Q**, which is easy to mistake for Command+Q.)
 
 ### Choosing a different hotkey
 
 macOS has claimed most shortcuts, and unlike Windows it cannot tell you a
 combination is already taken: both actions simply fire. Avoid **Cmd+Q** (quits
 the app you are in), **Cmd+Shift+Q** (logs you out) and **Cmd+Ctrl+Q** (locks
-the screen).
+the screen), and anything one slip away from them.
 
 To use your own:
 

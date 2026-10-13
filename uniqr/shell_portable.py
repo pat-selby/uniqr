@@ -51,10 +51,13 @@ TRAY_UNSUPPORTED = {
 # Screen - that last one was in this list and would have locked the Mac on
 # every scan. cmd+shift+8 is free; 3, 4 and 5 are the screenshot shortcuts.
 HOTKEY_CHOICES = {
+    # Not Control+Option+Q first: it sits next to Command+Q, which quits the app
+    # you are in, and a Mac user closed their browser with it on the first try.
+    # macOS cannot say a combination is taken, so only the first one is ever used.
     "darwin": [
-        ("<ctrl>+<alt>+q", "Control+Option+Q"),
-        ("<ctrl>+<shift>+q", "Control+Shift+Q"),
         ("<cmd>+<shift>+8", "Command+Shift+8"),
+        ("<ctrl>+<shift>+q", "Control+Shift+Q"),
+        ("<ctrl>+<alt>+q", "Control+Option+Q"),
     ],
     "default": [
         ("<ctrl>+<alt>+q", "Ctrl+Alt+Q"),
