@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uniqr"
-version = "0.1.9"
+version = "0.2.0"
 description = "System-wide QR code recognition: scan any code on screen with a hotkey"
 readme = "README.md"
 license = { text = "MIT" }
