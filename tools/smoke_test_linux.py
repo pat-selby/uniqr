@@ -15,6 +15,9 @@ Then it checks the Open button's path: it runs the program with --open-url and a
 fake xdg-open first on the PATH, and checks the link arrives and that the program
 hands the launcher the user's own library path, not its unpacked folder's.
 
+Then it checks that the program can ask GitHub for the newest version over a
+secure connection (--check-updates).
+
 Then it checks the first-run question: a fresh start with no saved settings asks
 whether to start at login, the keypress "y" answers yes, and the autostart file
 appears. A second start asks nothing.
@@ -134,6 +137,29 @@ def check_open_link(program: Path) -> int:
         return 1
     print("ok: --open-url reached the launcher, with the user's own library path")
     return 0
+
+
+def check_updates(program: Path) -> int:
+    """The packaged program can ask GitHub over a secure connection.
+
+    A build that cannot (no certificates, a missing module) fails here, not on a
+    friend's computer. GitHub may refuse a CI machine that has asked too often
+    (an HTTP error): that still proves the secure connection worked, so it
+    passes. Anything else, such as a certificate problem, fails.
+    """
+    result = subprocess.run(
+        [str(program), "--check-updates"], capture_output=True, text=True, timeout=120
+    )
+    out = result.stdout + result.stderr
+    if result.returncode == 0 and ("up to date" in out or "is available" in out):
+        print("ok: --check-updates reached GitHub: " + out.strip().splitlines()[0])
+        return 0
+    if "HTTPError" in out:
+        print("ok: --check-updates reached GitHub, which refused it for now: " + out.strip())
+        return 0
+    print("FAIL: --check-updates could not make a secure connection:")
+    print(out)
+    return 1
 
 
 def check_first_run(program: Path) -> int:
@@ -334,7 +360,12 @@ def main() -> int:
         qr_window.terminate()
         app.terminate()
         app.wait(timeout=30)
-        return check_open_link(program) or check_first_run(program) or check_autostart(program)
+        return (
+            check_open_link(program)
+            or check_updates(program)
+            or check_first_run(program)
+            or check_autostart(program)
+        )
     finally:
         for proc in (qr_window, app):
             if proc is not None:

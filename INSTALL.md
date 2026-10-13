@@ -393,6 +393,32 @@ does not start after you log in, tell me which desktop you use.
 
 ---
 
+## Updates
+
+UniQR can tell you when a newer version is out. It only tells you: it never
+downloads or installs anything by itself.
+
+This is the one thing UniQR does over the internet, so it is off until you say
+yes. On a start after the one that asks about starting at login, the card asks
+"Check for new versions once a day?" Click **Yes, check daily** or **No thanks**.
+It asks once. You can change your mind at any time from the tray menu: tick or
+untick **Check for updates automatically**, or click **Check for updates now**
+to look right away. This needs **version 0.1.8 or newer**, and only the
+downloaded Windows and Linux programs ask.
+
+When a newer version exists, a card says so, with **Open download page** and
+**Later**. It says so once per version.
+
+What is sent: one HTTPS request to GitHub asking for the newest release of this
+project. GitHub can see your address and the name `UniQR/` plus your version.
+Nothing about your screen, your scans or your computer is sent. The reply is read
+only for a version number, and the page the card opens is built by UniQR, not
+taken from the reply.
+
+To try it from a terminal, run `UniQR.exe --check-updates` (Windows) or
+`./UniQR-linux-x86_64 --check-updates` (Linux). It prints whether you are up to
+date and exits.
+
 ## When something is wrong
 
 **Run the check.** It tests everything in order and says what failed and why:

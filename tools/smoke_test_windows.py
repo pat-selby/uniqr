@@ -6,6 +6,8 @@ Used by the Windows build workflow, so a build that starts and dies is caught
 before anyone signs or downloads it. It checks what can be checked on a build
 machine with nobody at the keyboard:
 
+  updates     --check-updates asks GitHub for the newest version over a secure
+              connection, so a build without working certificates is caught here.
   first run   a start with no saved settings puts the start-at-login question
               on the greeting card. Turning nothing on, and choosing Exit while
               the question is up, must end the exe at once and not leave it
@@ -139,6 +141,29 @@ def start_and_exit(exe: Path, command_line: str) -> int:
     return 0
 
 
+def check_updates(exe: Path) -> int:
+    """The packaged program can ask GitHub over a secure connection.
+
+    A build that cannot (no certificates, a missing module) fails here, not on a
+    friend's computer. GitHub may refuse a CI machine that has asked too often
+    (an HTTP error): that still proves the secure connection worked, so it
+    passes. Anything else, such as a certificate problem, fails.
+    """
+    result = subprocess.run(
+        [str(exe), "--check-updates"], capture_output=True, text=True, timeout=120
+    )
+    out = result.stdout + result.stderr
+    if result.returncode == 0 and ("up to date" in out or "is available" in out):
+        print("ok: --check-updates reached GitHub: " + out.strip().splitlines()[0])
+        return 0
+    if "HTTPError" in out:
+        print("ok: --check-updates reached GitHub, which refused it for now: " + out.strip())
+        return 0
+    print("FAIL: --check-updates could not make a secure connection:")
+    print(out)
+    return 1
+
+
 def first_run_then_exit(exe: Path) -> int:
     """A first run asks about start at login. Exit while it is up must not wait."""
     folder = Path(tempfile.mkdtemp(prefix="uniqr-first-"))  # empty: a first run
@@ -200,6 +225,10 @@ def main() -> int:
     if not exe.exists():
         print(f"no exe at {exe}")
         return 2
+
+    asked = check_updates(exe)
+    if asked:
+        return asked
 
     first = first_run_then_exit(exe)
     if first:

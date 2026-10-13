@@ -88,6 +88,9 @@ class PortableShell:
         tooltip: str = "UniQR",
         autostart_enabled: Callable[[], bool] | None = None,
         on_autostart_toggle: Callable[[], None] | None = None,
+        update_enabled: Callable[[], bool] | None = None,
+        on_update_toggle: Callable[[], None] | None = None,
+        on_update_check: Callable[[], None] | None = None,
     ) -> None:
         from uniqr import overlay
 
@@ -95,6 +98,9 @@ class PortableShell:
         self.on_notification_click = on_notification_click
         self.autostart_enabled = autostart_enabled
         self.on_autostart_toggle = on_autostart_toggle
+        self.update_enabled = update_enabled
+        self.on_update_toggle = on_update_toggle
+        self.on_update_check = on_update_check
         self.tooltip = tooltip
         self.hotkey_label = ""
         self.tray_available = False
@@ -174,6 +180,17 @@ class PortableShell:
                         checked=lambda _item: bool(self.autostart_enabled()),
                     )
                 )
+            if self.update_enabled and self.on_update_toggle and self.on_update_check:
+                items += [
+                    pystray.MenuItem(
+                        "Check for updates now", lambda: self.on_update_check()
+                    ),
+                    pystray.MenuItem(
+                        "Check for updates automatically",
+                        lambda: self.on_update_toggle(),
+                        checked=lambda _item: bool(self.update_enabled()),
+                    ),
+                ]
             items += [
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit UniQR", lambda: self._queue.put("quit")),
@@ -213,8 +230,11 @@ class PortableShell:
         def tick() -> None:
             if self._stopping:
                 return
-            beat()
+            # Scheduled before the beat, not after. A beat can show a card, which
+            # runs a nested loop, in which this timer keeps firing. Scheduling
+            # afterwards would start a second chain, and then a third.
             self._tick_id = self.root.after(HEARTBEAT_MS, tick)
+            beat()
 
         self._tick_id = self.root.after(HEARTBEAT_MS, tick)
 

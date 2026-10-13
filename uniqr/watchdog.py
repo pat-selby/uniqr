@@ -265,8 +265,13 @@ class Watchdog:
             self._marker.clean()
 
 
-def start(shell) -> Watchdog:
-    """Watch this process. The shell's own loop is what supplies the heartbeat."""
+def start(shell, on_tick: Callable[[], None] | None = None) -> Watchdog:
+    """Watch this process. The shell's own loop is what supplies the heartbeat.
+
+    `on_tick`, if given, is called on that same loop right after each heartbeat:
+    a safe place to do main-thread work, such as showing a card for a result
+    that a background thread has finished. A fault in it never stops the beat.
+    """
     marker = AliveMarker(logbook.log_path().with_name("uniqr.alive"))
     earlier = marker.previous_unclean()
     if earlier:
@@ -275,6 +280,17 @@ def start(shell) -> Watchdog:
             "A shutdown, a crash or a freeze would all look like this."
         )
     dog = Watchdog(handle=logbook.handle(), marker=marker)
-    shell.set_heartbeat(dog.beat)
+    if on_tick is None:
+        shell.set_heartbeat(dog.beat)
+    else:
+
+        def beat_and_tick() -> None:
+            dog.beat()
+            try:
+                on_tick()
+            except Exception as exc:  # noqa: BLE001 - the heartbeat must go on
+                print(f"a periodic task failed: {exc}")
+
+        shell.set_heartbeat(beat_and_tick)
     dog.start()
     return dog
