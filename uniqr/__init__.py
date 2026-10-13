@@ -1,3 +1,3 @@
 """UniQR — system-wide QR code recognition for desktop."""
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
