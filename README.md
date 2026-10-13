@@ -33,6 +33,10 @@ it. No Python needed. Windows will warn about an unknown publisher the first tim
 because the file isn't code-signed. [INSTALL.md](INSTALL.md) explains. The project's
 [code signing policy](CODE_SIGNING_POLICY.md) says where that stands.
 
+**Found a problem?** Right-click the tray icon and click **Report a problem**, or
+[open an issue](https://github.com/pat-selby/uniqr/issues/new?template=bug_report.md).
+It opens a pre-filled GitHub page in your browser. UniQR sends nothing itself.
+
 **From source,** on any system, you need Python 3.11 or newer.
 
 ```bash
