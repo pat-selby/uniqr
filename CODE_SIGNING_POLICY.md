@@ -53,9 +53,17 @@ are merged, and only the approver can approve signing.
 
 UniQR does not send information anywhere. It looks at your screen only when you
 press the hotkey, decodes any codes it finds on your own computer, and copies the
-result to your clipboard. It makes no network connections. The one exception is
-yours to choose: if you click **Open** on a web link, your browser opens that
-link.
+result to your clipboard. By default it makes no network connections. There are
+two exceptions, and both are yours to choose:
+
+- If you click **Open** on a web link, your browser opens that link.
+- Update checks. If you say yes to "Check for new versions once a day?", or click
+  **Check for updates now** in the tray menu, or run `--check-updates`, UniQR asks
+  GitHub for the newest release of this project, over HTTPS. GitHub can see your
+  address and the name `UniQR/` plus the version. Nothing else is sent: nothing
+  about your screen, your scans or your computer. The reply is read only for a
+  version number. UniQR never downloads or installs anything by itself. You can
+  turn automatic checks off in the tray menu.
 
 UniQR writes a log file on your own computer, so you can see what it did:
 

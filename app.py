@@ -7,6 +7,7 @@
     python app.py --install-autostart                  # Linux: start at login
     python app.py --uninstall-autostart
     python app.py --open-url https://example.com       # test opening a link, then exit
+    python app.py --check-updates                      # ask GitHub for a newer version, then exit
 
 Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
@@ -14,9 +15,20 @@ code visible anywhere on screen gets decoded and copied to the clipboard.
 
 import os
 import sys
+import threading
 import time
 
-from uniqr import actions, autostart, backends, capture, logbook, overlay, watchdog
+from uniqr import (
+    __version__,
+    actions,
+    autostart,
+    backends,
+    capture,
+    logbook,
+    overlay,
+    updates,
+    watchdog,
+)
 from uniqr.decode import Scanner, payload_kind
 
 HOTKEY_BLOCKED = (
@@ -25,7 +37,15 @@ HOTKEY_BLOCKED = (
 )
 
 
-def build_shell(on_hotkey, on_notification_click, autostart_enabled=None, on_autostart_toggle=None):
+def build_shell(
+    on_hotkey,
+    on_notification_click,
+    autostart_enabled=None,
+    on_autostart_toggle=None,
+    update_enabled=None,
+    on_update_toggle=None,
+    on_update_check=None,
+):
     """Pick the shell that matches the capture backend.
 
     The Win32 shell reserves its hotkey and owns a real message loop; the
@@ -40,6 +60,9 @@ def build_shell(on_hotkey, on_notification_click, autostart_enabled=None, on_aut
             on_notification_click=on_notification_click,
             autostart_enabled=autostart_enabled,
             on_autostart_toggle=on_autostart_toggle,
+            update_enabled=update_enabled,
+            on_update_toggle=on_update_toggle,
+            on_update_check=on_update_check,
         )
 
     from uniqr.shell_portable import PortableShell
@@ -49,6 +72,9 @@ def build_shell(on_hotkey, on_notification_click, autostart_enabled=None, on_aut
         on_notification_click=on_notification_click,
         autostart_enabled=autostart_enabled,
         on_autostart_toggle=on_autostart_toggle,
+        update_enabled=update_enabled,
+        on_update_toggle=on_update_toggle,
+        on_update_check=on_update_check,
     )
 
 
@@ -60,13 +86,106 @@ class UniQR:
         self.scanner = Scanner()
         self.last_payload: str | None = None
         self._scanning = False
+        # Update checks: a worker thread does the one request and leaves its answer
+        # here. The main thread picks it up on the next heartbeat (see _on_tick),
+        # because only that thread may draw a card.
+        self._update_enabled = updates.enabled()
+        self._update_due = updates.next_check_at()
+        self._update_result: tuple[updates.Outcome, bool] | None = None
+        self._update_thread: threading.Thread | None = None
+        self._update_showing = False
         can_toggle = autostart.supported()
+        can_update = updates.supported()
         self.shell = build_shell(
             self.scan,
             self.open_last,
             autostart.is_enabled if can_toggle else None,
             self.toggle_autostart if can_toggle else None,
+            (lambda: self._update_enabled) if can_update else None,
+            self.toggle_updates if can_update else None,
+            self.check_updates_now if can_update else None,
         )
+
+    # -- update checks -----------------------------------------------------------
+
+    def toggle_updates(self) -> None:
+        """The tray menu's "Check for updates automatically". A choice made here
+        counts as an answer, so the first-run question is not asked afterward."""
+        turn_on = not self._update_enabled
+        if updates.set_enabled(turn_on):
+            self._update_enabled = turn_on
+            self._update_due = 0.0  # turned on: check at the next heartbeat
+            updates.record_answer(turn_on)
+            print(f"automatic update checks are now {'on' if turn_on else 'off'}")
+        else:
+            print("could not change automatic update checks")
+
+    def check_updates_now(self) -> None:
+        """The tray menu's "Check for updates now". Asked for, so it always answers."""
+        self._start_update_check(manual=True)
+
+    def _start_update_check(self, manual: bool) -> None:
+        thread = self._update_thread
+        if thread is not None and thread.is_alive():
+            return  # one at a time
+
+        def work() -> None:
+            self._update_result = (updates.check(__version__), manual)
+
+        self._update_thread = threading.Thread(target=work, name="update-check", daemon=True)
+        self._update_thread.start()
+
+    def _on_tick(self) -> None:
+        """Once a second on the main thread: start a check that is due, and show
+        the result of one that has finished."""
+        if self.shell.stopping:
+            return
+        if self._update_enabled and time.time() >= self._update_due:
+            self._update_due = time.time() + updates.CHECK_EVERY_S
+            updates.record_check()
+            self._start_update_check(manual=False)
+        if self._update_result is None or self._update_showing or self._scanning:
+            return
+        outcome, manual = self._update_result
+        self._update_result = None
+        self._update_showing = True
+        try:
+            self._show_update(outcome, manual)
+        finally:
+            self._update_showing = False
+
+    def _show_update(self, outcome: updates.Outcome, manual: bool) -> None:
+        screen = capture.monitor_at(0, 0)
+        if outcome.status == "newer" and outcome.release is not None:
+            version = outcome.release.version
+            if not manual and updates.already_told(version):
+                return  # once per version, not once a day
+            updates.record_told(version)
+            print(f"update available: {version}")
+            answer = overlay.ask(
+                f"UniQR {version} is available.",
+                f"You have {__version__}. Open the download page?",
+                ("Open download page", "Later"),
+                (screen.right - 400, screen.bottom - 175),
+                timeout_ms=20000,
+                until=lambda: self.shell.stopping,
+            )
+            if answer:
+                actions.open_url(outcome.release.url)
+        elif outcome.status == "current":
+            print(f"update check: UniQR {__version__} is up to date")
+            if manual:
+                overlay.toast(
+                    "", f"UniQR is up to date ({__version__}).", self._corner(screen), 2500,
+                    hover_pause=False,
+                )
+        else:
+            print(f"update check failed: {outcome.detail}")
+            if manual:
+                overlay.toast(
+                    "", "Could not check for updates. See the log.", self._corner(screen), 3500,
+                    hover_pause=False,
+                )
 
     def toggle_autostart(self) -> None:
         """The tray menu's "Start at login": flip it. A choice made here counts
@@ -188,7 +307,7 @@ class UniQR:
             # start-up with "Invalid window handle".
             return 0
 
-        dog = watchdog.start(self.shell)
+        dog = watchdog.start(self.shell, self._on_tick)
         clean = False
         try:
             self.shell.run()
@@ -219,6 +338,10 @@ class UniQR:
         try:
             if autostart.should_ask(self.quiet, self.restarted):
                 self._greet_and_ask(message, screen)
+            elif updates.should_ask(self.quiet, self.restarted):
+                # One question per start. This one waits for a start where the
+                # login question is not being asked.
+                self._greet_and_ask_updates(message, screen)
             else:
                 overlay.toast("", message, (screen.right - 360, screen.bottom - 130))
         except Exception as exc:  # noqa: BLE001 - a greeting must not stop startup
@@ -263,6 +386,27 @@ class UniQR:
                 hover_pause=False,
             )
 
+    def _greet_and_ask_updates(self, message: str, screen) -> None:
+        """The same card with the other question. Nothing is sent unless it is yes."""
+        print("asking whether to check for updates")
+        answer = overlay.ask(
+            message,
+            "Check for new versions once a day? UniQR asks GitHub and sends nothing else.",
+            ("Yes, check daily", "No thanks"),
+            (screen.right - 400, screen.bottom - 175),
+            until=lambda: self.shell.stopping,
+        )
+        updates.record_answer(answer, stopping=self.shell.stopping)
+        if not answer:
+            print("update checks: no thanks" if answer is False else "update checks: no answer")
+            return
+        if updates.set_enabled(True):
+            self._update_enabled = True
+            self._update_due = 0.0  # check at the first heartbeat
+            print("update checks: on. Turn them off from the tray menu.")
+        else:
+            print("update checks: could not be saved")
+
     @staticmethod
     def _corner(screen) -> tuple[int, int]:
         return (screen.right - 360, screen.bottom - 130)
@@ -292,6 +436,17 @@ def main() -> int:
         return done
     # Opens one link the way the Open button does, says whether it worked, and
     # exits. For finding out why Open does nothing on a given machine.
+    if "--check-updates" in sys.argv:
+        outcome = updates.check(__version__)
+        if outcome.status == "newer" and outcome.release is not None:
+            print(f"UniQR {outcome.release.version} is available. You have {__version__}.")
+            print(outcome.release.url)
+            return 0
+        if outcome.status == "current":
+            print(f"UniQR is up to date ({__version__}).")
+            return 0
+        print(f"Could not check for updates: {outcome.detail}")
+        return 1
     link = autostart.option(sys.argv, "--open-url")
     if link:
         opened = actions.open_url(link)

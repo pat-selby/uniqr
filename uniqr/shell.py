@@ -26,6 +26,8 @@ MOD_NOREPEAT = 0x4000
 IDM_SCAN = 1001
 IDM_EXIT = 1002
 IDM_AUTOSTART = 1003
+IDM_UPDATE_NOW = 1004
+IDM_UPDATE_AUTO = 1005
 
 HOTKEY_ID = 1
 HEARTBEAT_ID = 2
@@ -55,12 +57,20 @@ class Shell:
         tooltip: str = "UniQR",
         autostart_enabled: Callable[[], bool] | None = None,
         on_autostart_toggle: Callable[[], None] | None = None,
+        update_enabled: Callable[[], bool] | None = None,
+        on_update_toggle: Callable[[], None] | None = None,
+        on_update_check: Callable[[], None] | None = None,
     ) -> None:
         self.on_hotkey = on_hotkey
         self.on_notification_click = on_notification_click
         # Both given: the tray menu gets a "Start at login" item, checked when on.
         self.autostart_enabled = autostart_enabled
         self.on_autostart_toggle = on_autostart_toggle
+        # All three given: the menu gets "Check for updates now" and a tick box
+        # for checking automatically.
+        self.update_enabled = update_enabled
+        self.on_update_toggle = on_update_toggle
+        self.on_update_check = on_update_check
         self.tooltip = tooltip
         self.hotkey_label = ""
         self._hicon = None
@@ -229,6 +239,15 @@ class Shell:
             win32gui.AppendMenu(
                 menu, win32con.MF_STRING | checked, IDM_AUTOSTART, "Start at login"
             )
+        if self.update_enabled and self.on_update_toggle and self.on_update_check:
+            win32gui.AppendMenu(
+                menu, win32con.MF_STRING, IDM_UPDATE_NOW, "Check for updates now"
+            )
+            ticked = win32con.MF_CHECKED if self.update_enabled() else 0
+            win32gui.AppendMenu(
+                menu, win32con.MF_STRING | ticked, IDM_UPDATE_AUTO,
+                "Check for updates automatically",
+            )
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 0, "")
         win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_EXIT, "Exit UniQR")
 
@@ -248,6 +267,10 @@ class Shell:
             self.on_hotkey()
         elif item == IDM_AUTOSTART and self.on_autostart_toggle:
             self.on_autostart_toggle()
+        elif item == IDM_UPDATE_NOW and self.on_update_check:
+            self.on_update_check()
+        elif item == IDM_UPDATE_AUTO and self.on_update_toggle:
+            self.on_update_toggle()
         elif item == IDM_EXIT:
             self.stop()
         return 0
