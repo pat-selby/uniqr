@@ -26,7 +26,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from uniqr import settings
+from uniqr import hotkeys, settings
 
 ENTRY_NAME = "uniqr.desktop"
 
@@ -225,15 +225,22 @@ def install_windows(
     command: list[str] | None = None,
 ) -> int:
     store = store or _Registry()
-    line = run_command(command or program_command())
+    chosen = None
+    if hotkey:
+        try:
+            chosen = hotkeys.canonical(hotkey)
+        except ValueError as exc:
+            _tell(f"That hotkey will not work: {exc}", ok=False, quiet=quiet)
+            return 1
+    # Windows has no per-entry environment, so the hotkey goes on the command line.
+    parts = [*(command or program_command()), *(["--hotkey", chosen] if chosen else [])]
+    line = run_command(parts)
     try:
         store.write(name, line)
     except OSError as exc:
         _tell(f"UniQR could not be set to start at login: {exc}", ok=False, quiet=quiet)
         return 1
-    note = ""
-    if hotkey:
-        note = "\n\nThe hotkey option is ignored on Windows, which uses Win+Shift+Q, then Ctrl+Alt+Q."
+    note = f"\n\nIt will use the hotkey {chosen}." if chosen else ""
     _tell(
         "Done. UniQR will start the next time you log in to Windows.\n\n"
         f"It starts: {line}\n\n"
@@ -298,7 +305,14 @@ def set_enabled(on: bool, store: _Registry | None = None, config: Path | None = 
     """Turn start-at-login on or off. True if it now matches what was asked."""
     if sys.platform == "win32":
         if on:
-            return install_windows(quiet=True, store=store) == 0
+            # Keep a hotkey chosen for this run, if it is one UniQR can read.
+            wanted = os.environ.get("UNIQR_HOTKEY") or None
+            try:
+                if wanted:
+                    hotkeys.canonical(wanted)
+            except ValueError:
+                wanted = None
+            return install_windows(wanted, quiet=True, store=store) == 0
         return uninstall_windows(quiet=True, store=store) == 0
     if _on_linux():
         if on:

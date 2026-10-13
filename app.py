@@ -3,6 +3,7 @@
     python app.py            # run it
     python app.py --quiet    # no card on startup
     python app.py --hotkey '<ctrl>+<alt>+<shift>+q'   # Linux and macOS: another hotkey
+    python app.py --hotkey ctrl+alt+k                  # Windows: another hotkey
     python app.py --install-autostart                  # Linux: start at login
     python app.py --uninstall-autostart
     python app.py --open-url https://example.com       # test opening a link, then exit
@@ -298,7 +299,7 @@ def main() -> int:
         return 0 if opened else 1
     # The same setting as the UNIQR_HOTKEY environment variable, without needing
     # to know it exists. Read when the hotkey is registered, so setting it here is
-    # early enough. Windows has its own fixed list and ignores it.
+    # early enough. Windows reads it too, in its own plain form: ctrl+alt+k.
     hotkey = autostart.option(sys.argv, "--hotkey")
     if hotkey:
         os.environ["UNIQR_HOTKEY"] = hotkey

@@ -72,6 +72,33 @@ GitHub tests that the entry is written correctly, that the command stored in it
 starts UniQR, and that quitting while the question is on screen works. It cannot
 test a real login, so if UniQR does not start after you log in, tell me.
 
+### Choosing a different hotkey
+
+UniQR uses **Win+Shift+Q**. If another program already has it, UniQR tries
+Ctrl+Alt+Q, then Ctrl+Shift+9. To use your own, start it with `--hotkey`. In
+PowerShell, in the folder where you saved the file:
+
+```
+.\UniQR.exe --hotkey ctrl+alt+k
+```
+
+Write one or more of `ctrl`, `alt`, `shift` and `win`, then one letter, digit or
+F1 to F24, joined by plus signs. Capital letters don't matter. You need at least
+one of ctrl, alt, shift or win, so a plain letter can't be taken from every other
+program.
+
+To keep it every time you log in, add the same option when you set up start at
+login:
+
+```
+.\UniQR.exe --install-autostart --hotkey ctrl+alt+k
+```
+
+If your hotkey is already used by another program, or can't be read, UniQR says so
+in its log and uses one of the usual ones instead. The card on startup names the
+hotkey it took. Starting without `--hotkey` goes back to Win+Shift+Q. This needs
+**version 0.1.7 or newer**.
+
 ### Or run it from the source
 
 **1. Get it.**
@@ -319,9 +346,9 @@ export UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q'
 ```
 
 The log shows which hotkey UniQR took, on the line that says it is running (see
-"When something is wrong" below). `UNIQR_HOTKEY` and `--hotkey` work on Linux and
-on a Mac. They do nothing on Windows, which has its own fallbacks: Win+Shift+Q,
-then Ctrl+Alt+Q, then Ctrl+Shift+9.
+"When something is wrong" below). `UNIQR_HOTKEY` and `--hotkey` work on Linux, on a
+Mac and on Windows. On Windows they are written differently: see "Choosing a
+different hotkey" in the Windows section.
 
 ### Start it at login
 

@@ -197,9 +197,35 @@ def test_windows_install_says_so_when_the_registry_refuses(capsys):
     assert "could not be set to start at login" in capsys.readouterr().err
 
 
-def test_a_hotkey_is_said_to_be_ignored_on_windows(capsys):
-    autostart.install_windows("<ctrl>+q", store=FakeRegistry(), command=["x"], quiet=True)
-    assert "ignored on Windows" in capsys.readouterr().out
+def test_a_windows_hotkey_is_stored_on_the_command_line():
+    """The Run list has no environment, so the choice must ride on the command."""
+    store = FakeRegistry()
+    autostart.install_windows("Ctrl+Alt+K", store=store, command=[r"C:\Apps\UniQR.exe"], quiet=True)
+    assert store.values["UniQR"] == r"C:\Apps\UniQR.exe --hotkey ctrl+alt+k"
+
+
+def test_the_linux_style_hotkey_is_stored_in_the_plain_windows_form():
+    store = FakeRegistry()
+    autostart.install_windows("<ctrl>+<alt>+k", store=store, command=["x.exe"], quiet=True)
+    assert store.values["UniQR"] == "x.exe --hotkey ctrl+alt+k"
+
+
+def test_no_hotkey_adds_nothing_to_the_windows_command():
+    store = FakeRegistry()
+    autostart.install_windows(store=store, command=["x.exe"], quiet=True)
+    assert store.values["UniQR"] == "x.exe"
+
+
+def test_a_windows_hotkey_that_cannot_work_is_refused_and_nothing_is_written(capsys):
+    store = FakeRegistry()
+    assert autostart.install_windows("k", store=store, command=["x.exe"], quiet=True) == 1
+    assert store.values == {}
+    assert "will not work" in capsys.readouterr().err
+
+
+def test_the_windows_confirmation_names_the_hotkey(capsys):
+    autostart.install_windows("ctrl+alt+k", store=FakeRegistry(), command=["x.exe"], quiet=True)
+    assert "ctrl+alt+k" in capsys.readouterr().out
 
 
 def _fake_ctypes(opened):

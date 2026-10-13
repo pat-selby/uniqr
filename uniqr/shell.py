@@ -6,6 +6,7 @@ shows one. This module creates that window and routes what arrives at it.
 """
 
 import ctypes
+import os
 from ctypes import wintypes
 from typing import Callable
 
@@ -14,15 +15,12 @@ import win32con
 import win32event
 import win32gui
 
+from uniqr.hotkeys import windows_choices
 from uniqr.icon import ensure_icon
 
 WM_TRAYICON = win32con.WM_USER + 20
 NIN_BALLOONUSERCLICK = win32con.WM_USER + 5
 
-MOD_ALT = 0x0001
-MOD_CONTROL = 0x0002
-MOD_SHIFT = 0x0004
-MOD_WIN = 0x0008
 MOD_NOREPEAT = 0x4000
 
 IDM_SCAN = 1001
@@ -33,13 +31,6 @@ HOTKEY_ID = 1
 HEARTBEAT_ID = 2
 HEARTBEAT_MS = 1000
 
-# Tried in order. Win+Shift+Q is the one we want; the rest are escape hatches
-# for when another app already claimed it.
-HOTKEY_CHOICES = [
-    (MOD_WIN | MOD_SHIFT, ord("Q"), "Win+Shift+Q"),
-    (MOD_CONTROL | MOD_ALT, ord("Q"), "Ctrl+Alt+Q"),
-    (MOD_CONTROL | MOD_SHIFT, ord("9"), "Ctrl+Shift+9"),
-]
 
 
 class SingleInstance:
@@ -128,12 +119,25 @@ class Shell:
         )
 
     def register_hotkey(self) -> str | None:
-        """Claim the first hotkey combination Windows will give us."""
-        for mods, vk, label in HOTKEY_CHOICES:
+        """Claim the first hotkey combination Windows will give us.
+
+        The person's own choice (--hotkey, or UNIQR_HOTKEY) goes first. If it
+        is unreadable or already taken, UniQR says so in the log and falls back
+        to its usual list, so it still starts.
+        """
+        choices, wanted, problem = windows_choices(os.environ.get("UNIQR_HOTKEY"))
+        if problem:
+            print(f"The hotkey you asked for was not used. {problem}")
+        for mods, vk, label in choices:
             try:
                 win32gui.RegisterHotKey(self.hwnd, HOTKEY_ID, mods | MOD_NOREPEAT, vk)
             except win32gui.error:
                 continue
+            if wanted and (mods, vk, label) != wanted:
+                print(
+                    f"{wanted[2]} is already used by another program, so UniQR is using "
+                    f"{label} instead."
+                )
             self.hotkey_label = label
             self.set_tooltip(f"UniQR - press {label} to scan")
             return label

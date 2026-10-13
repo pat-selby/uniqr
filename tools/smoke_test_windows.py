@@ -10,6 +10,9 @@ machine with nobody at the keyboard:
               on the greeting card. Turning nothing on, and choosing Exit while
               the question is up, must end the exe at once and not leave it
               waiting for an answer.
+  hotkey      the entry is written with a hotkey of the tester's own, the exe is
+              started with the stored command, says it took that hotkey, and
+              Windows refuses a second claim on it, so the exe holds it.
   login       it asks the exe to add itself to Windows' list of programs to start
               at login, reads the command back out of the registry, and starts
               the exe with exactly that command, as a login would. A quoting
@@ -41,6 +44,12 @@ LOG = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "UniQR" / "uniqr.log"
 DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 WM_COMMAND = 0x0111
 IDM_EXIT = 1002  # what the tray menu's Exit sends
+# A hotkey of the tester's own, to check that --hotkey works on Windows. Unlikely
+# to be taken, and written the way a person would type it.
+CUSTOM_HOTKEY = "ctrl+alt+shift+k"
+CUSTOM_LABEL = "Ctrl+Alt+Shift+K"
+CUSTOM_MODS = 0x0001 | 0x0002 | 0x0004  # alt, control, shift
+ERROR_HOTKEY_ALREADY_REGISTERED = 1409
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
@@ -91,9 +100,25 @@ def start_and_exit(exe: Path, command_line: str) -> int:
         subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
         return 1
     print(f"ok: started in {time.time() - started:.1f} s")
-    print("    " + [ln for ln in log_lines()[before:] if "UniQR is running" in ln][-1])
+    running_line = [ln for ln in log_lines()[before:] if "UniQR is running" in ln][-1]
+    print("    " + running_line)
 
     user32 = ctypes.windll.user32
+    if CUSTOM_LABEL not in running_line:
+        print(f"FAIL: it was started with --hotkey {CUSTOM_HOTKEY}, and did not take {CUSTOM_LABEL}")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    # Windows refuses a second claim on a hotkey, so a refusal here means the exe holds it.
+    if user32.RegisterHotKey(None, 99, CUSTOM_MODS, ord("K")):
+        user32.UnregisterHotKey(None, 99)
+        print(f"FAIL: {CUSTOM_LABEL} was free, so the exe does not hold it")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    if ctypes.GetLastError() != ERROR_HOTKEY_ALREADY_REGISTERED:
+        print("FAIL: the hotkey could not be claimed for some other reason")
+        subprocess.run(["taskkill", "/F", "/IM", exe.name], capture_output=True)
+        return 1
+    print(f"ok: it started with {CUSTOM_LABEL}, and holds it")
     hwnd = user32.FindWindowW("UniQRHiddenWindow", "UniQR")
     if not hwnd:
         print("FAIL: started, but its hidden window is missing, so Exit cannot be sent")
@@ -181,13 +206,19 @@ def main() -> int:
         return first
 
     # --quiet: no message box, which would wait for a click nobody will make.
-    installed = subprocess.run([str(exe), "--install-autostart", "--quiet"], timeout=120)
+    installed = subprocess.run(
+        [str(exe), "--install-autostart", "--quiet", "--hotkey", CUSTOM_HOTKEY], timeout=120
+    )
     stored = run_entry()
     if installed.returncode != 0 or not stored:
         print("FAIL: --install-autostart did not add the entry to the registry")
         return 1
     if str(exe).lower() not in stored.lower():
         print(f"FAIL: the stored command does not point at the exe: {stored}")
+        subprocess.run([str(exe), "--uninstall-autostart", "--quiet"], timeout=120)
+        return 1
+    if f"--hotkey {CUSTOM_HOTKEY}" not in stored:
+        print(f"FAIL: the stored command does not carry the hotkey: {stored}")
         subprocess.run([str(exe), "--uninstall-autostart", "--quiet"], timeout=120)
         return 1
     print(f"ok: --install-autostart stored: {stored}")

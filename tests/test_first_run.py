@@ -371,3 +371,19 @@ def test_a_report_card_closes_on_time_even_when_hovered(root):
     bound.append(card.win.bind("<Enter>"))
     card.show()
     assert bound == [""]  # nothing is bound to Enter, so nothing can pause the timer
+
+
+def test_the_switch_on_windows_keeps_a_hotkey_chosen_for_this_run(monkeypatch):
+    monkeypatch.setattr(autostart.sys, "platform", "win32")
+    monkeypatch.setenv("UNIQR_HOTKEY", "ctrl+alt+k")
+    store = FakeRegistry()
+    autostart.set_enabled(True, store=store)
+    assert store.values[autostart.RUN_VALUE].endswith("--hotkey ctrl+alt+k")
+
+
+def test_the_switch_on_windows_drops_a_hotkey_it_cannot_read(monkeypatch):
+    monkeypatch.setattr(autostart.sys, "platform", "win32")
+    monkeypatch.setenv("UNIQR_HOTKEY", "<ctrl>+<alt>+<shift>+nonsense")
+    store = FakeRegistry()
+    assert autostart.set_enabled(True, store=store) is True
+    assert "--hotkey" not in store.values[autostart.RUN_VALUE]
