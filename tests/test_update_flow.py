@@ -64,6 +64,7 @@ def make_app(stopping=False):
     uniqr._update_result = None
     uniqr._update_thread = None
     uniqr._update_showing = False
+    uniqr._report_failed = None
     return uniqr
 
 

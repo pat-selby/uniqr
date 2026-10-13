@@ -15,6 +15,9 @@ Then it checks the Open button's path: it runs the program with --open-url and a
 fake xdg-open first on the PATH, and checks the link arrives and that the program
 hands the launcher the user's own library path, not its unpacked folder's.
 
+Then it checks --report-problem, with a stand-in xdg-open: the address it opens is
+a pre-filled new issue on this project.
+
 Then it checks that the program can ask GitHub for the newest version over a
 secure connection (--check-updates).
 
@@ -136,6 +139,39 @@ def check_open_link(program: Path) -> int:
         print(f"FAIL: the launcher got LD_LIBRARY_PATH={got_libs!r}, not the user's {users_libs!r}")
         return 1
     print("ok: --open-url reached the launcher, with the user's own library path")
+    return 0
+
+
+def check_report_problem(program: Path) -> int:
+    """--report-problem opens a pre-filled GitHub issue, and sends nothing itself.
+
+    A stand-in xdg-open catches the address, as in check_open_link.
+    """
+    folder = Path(tempfile.mkdtemp(prefix="uniqr-report-"))
+    record = folder / "record"
+    launcher = folder / "xdg-open"
+    launcher.write_text(
+        "#!/bin/sh\n"
+        f'printf "%s" "$1" > "{record}"\n',
+        encoding="utf-8",
+    )
+    launcher.chmod(0o755)
+    env = {**os.environ, "PATH": f"{folder}:{os.environ['PATH']}"}
+    result = subprocess.run(
+        [str(program), "--report-problem"], capture_output=True, text=True, env=env, timeout=120
+    )
+    if result.returncode != 0 or not record.exists():
+        print("FAIL: --report-problem did not reach the launcher:")
+        print(result.stdout, result.stderr)
+        return 1
+    url = record.read_text(encoding="utf-8")
+    if not url.startswith("https://github.com/pat-selby/uniqr/issues/new?body="):
+        print(f"FAIL: it opened {url[:100]!r}, not a new issue on this project")
+        return 1
+    if "UniQR%20" not in url or "uniqr.log" not in url:
+        print("FAIL: the pre-filled report is missing the version or where the log is")
+        return 1
+    print("ok: --report-problem opened a pre-filled issue on this project")
     return 0
 
 
@@ -362,6 +398,7 @@ def main() -> int:
         app.wait(timeout=30)
         return (
             check_open_link(program)
+            or check_report_problem(program)
             or check_updates(program)
             or check_first_run(program)
             or check_autostart(program)

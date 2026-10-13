@@ -28,6 +28,7 @@ IDM_EXIT = 1002
 IDM_AUTOSTART = 1003
 IDM_UPDATE_NOW = 1004
 IDM_UPDATE_AUTO = 1005
+IDM_REPORT = 1006
 
 HOTKEY_ID = 1
 HEARTBEAT_ID = 2
@@ -60,6 +61,7 @@ class Shell:
         update_enabled: Callable[[], bool] | None = None,
         on_update_toggle: Callable[[], None] | None = None,
         on_update_check: Callable[[], None] | None = None,
+        on_report: Callable[[], None] | None = None,
     ) -> None:
         self.on_hotkey = on_hotkey
         self.on_notification_click = on_notification_click
@@ -71,6 +73,7 @@ class Shell:
         self.update_enabled = update_enabled
         self.on_update_toggle = on_update_toggle
         self.on_update_check = on_update_check
+        self.on_report = on_report  # the menu's "Report a problem"
         self.tooltip = tooltip
         self.hotkey_label = ""
         self._hicon = None
@@ -248,6 +251,8 @@ class Shell:
                 menu, win32con.MF_STRING | ticked, IDM_UPDATE_AUTO,
                 "Check for updates automatically",
             )
+        if self.on_report:
+            win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_REPORT, "Report a problem")
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 0, "")
         win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_EXIT, "Exit UniQR")
 
@@ -271,6 +276,8 @@ class Shell:
             self.on_update_check()
         elif item == IDM_UPDATE_AUTO and self.on_update_toggle:
             self.on_update_toggle()
+        elif item == IDM_REPORT and self.on_report:
+            self.on_report()
         elif item == IDM_EXIT:
             self.stop()
         return 0

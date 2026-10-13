@@ -420,6 +420,26 @@ To try it from a terminal, run `UniQR.exe --check-updates` (Windows) or
 `./UniQR-linux-x86_64 --check-updates` (Linux). It prints whether you are up to
 date and exits.
 
+## Reporting a problem
+
+If something doesn't work, or does something odd, please tell me. Right-click the
+tray icon and click **Report a problem**. It opens a GitHub page in your own
+browser, with a short form already started. You read it, change it and press
+**Submit** yourself, so nothing is sent until you do. GitHub asks you to sign in
+first, and a free account is enough.
+
+What is filled in for you is only the version of UniQR, whether it is the
+downloaded file or run from the source, and the name of your operating system.
+It does not include your log, because the log can contain links you scanned. The
+form only says where the log is and asks you to look through it and paste what you
+are happy to share.
+
+The tray item needs **version 0.2.0 or newer**. With no tray icon, run
+`UniQR.exe --report-problem` (Windows) or `./UniQR-linux-x86_64 --report-problem`
+(Linux), which does the same. On an older version, or any time, you can
+[open a new issue](https://github.com/pat-selby/uniqr/issues/new?template=bug_report.md)
+yourself.
+
 ## When something is wrong
 
 **Run the check.** It tests everything in order and says what failed and why:

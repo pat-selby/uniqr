@@ -94,6 +94,7 @@ class PortableShell:
         update_enabled: Callable[[], bool] | None = None,
         on_update_toggle: Callable[[], None] | None = None,
         on_update_check: Callable[[], None] | None = None,
+        on_report: Callable[[], None] | None = None,
     ) -> None:
         from uniqr import overlay
 
@@ -104,6 +105,7 @@ class PortableShell:
         self.update_enabled = update_enabled
         self.on_update_toggle = on_update_toggle
         self.on_update_check = on_update_check
+        self.on_report = on_report
         self.tooltip = tooltip
         self.hotkey_label = ""
         self.tray_available = False
@@ -194,6 +196,8 @@ class PortableShell:
                         checked=lambda _item: bool(self.update_enabled()),
                     ),
                 ]
+            if self.on_report:
+                items.append(pystray.MenuItem("Report a problem", lambda: self.on_report()))
             items += [
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Exit UniQR", lambda: self._queue.put("quit")),

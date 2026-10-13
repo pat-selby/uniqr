@@ -8,6 +8,7 @@
     python app.py --uninstall-autostart
     python app.py --open-url https://example.com       # test opening a link, then exit
     python app.py --check-updates                      # ask GitHub for a newer version, then exit
+    python app.py --report-problem                     # open a pre-filled GitHub issue, then exit
 
 Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
@@ -26,6 +27,7 @@ from uniqr import (
     capture,
     logbook,
     overlay,
+    report,
     updates,
     watchdog,
 )
@@ -45,6 +47,7 @@ def build_shell(
     update_enabled=None,
     on_update_toggle=None,
     on_update_check=None,
+    on_report=None,
 ):
     """Pick the shell that matches the capture backend.
 
@@ -63,6 +66,7 @@ def build_shell(
             update_enabled=update_enabled,
             on_update_toggle=on_update_toggle,
             on_update_check=on_update_check,
+            on_report=on_report,
         )
 
     from uniqr.shell_portable import PortableShell
@@ -75,6 +79,7 @@ def build_shell(
         update_enabled=update_enabled,
         on_update_toggle=on_update_toggle,
         on_update_check=on_update_check,
+        on_report=on_report,
     )
 
 
@@ -94,6 +99,9 @@ class UniQR:
         self._update_result: tuple[updates.Outcome, bool] | None = None
         self._update_thread: threading.Thread | None = None
         self._update_showing = False
+        # Set when the browser would not open the report page, so the next
+        # heartbeat can put the address on the clipboard and say so.
+        self._report_failed: str | None = None
         can_toggle = autostart.supported()
         can_update = updates.supported()
         self.shell = build_shell(
@@ -104,7 +112,21 @@ class UniQR:
             (lambda: self._update_enabled) if can_update else None,
             self.toggle_updates if can_update else None,
             self.check_updates_now if can_update else None,
+            self.report_problem,
         )
+
+    def report_problem(self) -> None:
+        """The tray menu's "Report a problem": open a pre-filled GitHub issue.
+
+        Nothing is sent. The person reads it, edits it and presses Submit in
+        their own browser. This can run on a thread that may not draw, so a
+        failure is left for the heartbeat to report.
+        """
+        url = report.issue_url(__version__)
+        print("opening the report page")
+        if not actions.open_url(url):
+            print("the browser would not open the report page")
+            self._report_failed = url
 
     # -- update checks -----------------------------------------------------------
 
@@ -140,6 +162,9 @@ class UniQR:
         the result of one that has finished."""
         if self.shell.stopping:
             return
+        if self._report_failed is not None and not self._scanning:
+            url, self._report_failed = self._report_failed, None
+            self._tell_report_failed(url)
         if self._update_enabled and time.time() >= self._update_due:
             self._update_due = time.time() + updates.CHECK_EVERY_S
             updates.record_check()
@@ -153,6 +178,17 @@ class UniQR:
             self._show_update(outcome, manual)
         finally:
             self._update_showing = False
+
+    def _tell_report_failed(self, url: str) -> None:
+        """The browser would not open: leave the address where it can be pasted."""
+        try:
+            actions.copy(url)
+            message = "Could not open your browser. The report page address is on your clipboard."
+        except Exception as exc:  # noqa: BLE001
+            print(f"could not copy the report address either: {exc}")
+            message = "Could not open your browser. See the log."
+        screen = capture.monitor_at(0, 0)
+        overlay.toast("", message, self._corner(screen), 4500, hover_pause=False)
 
     def _show_update(self, outcome: updates.Outcome, manual: bool) -> None:
         screen = capture.monitor_at(0, 0)
@@ -436,6 +472,15 @@ def main() -> int:
         return done
     # Opens one link the way the Open button does, says whether it worked, and
     # exits. For finding out why Open does nothing on a given machine.
+    if "--report-problem" in sys.argv:
+        url = report.issue_url(__version__)
+        print("Opening a pre-filled report page in your browser. Nothing is sent:")
+        print("you read it, change it and press Submit yourself.")
+        if actions.open_url(url):
+            return 0
+        print("Could not open a browser. Open this address yourself:")
+        print(url)
+        return 1
     if "--check-updates" in sys.argv:
         outcome = updates.check(__version__)
         if outcome.status == "newer" and outcome.release is not None:
