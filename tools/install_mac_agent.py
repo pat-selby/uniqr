@@ -46,8 +46,8 @@ def build_plist(repo: Path, home: Path, hotkey: str | None = None) -> dict:
     data["StandardOutPath"] = str(log)
     data["StandardErrorPath"] = str(log)
 
-    # The default hotkey is Control+Option+Q. A virtual machine often swallows
-    # Ctrl+Alt, which is the only reason to override it.
+    # The default hotkey is Command+Shift+8. Override it only if another program
+    # already uses it, or in a virtual machine, which can swallow some keys.
     if hotkey:
         data["EnvironmentVariables"] = {"UNIQR_HOTKEY": hotkey}
     else:

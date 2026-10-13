@@ -61,7 +61,7 @@ def test_it_keeps_the_settings_that_are_not_paths(installer, repo, tmp_path):
 
 
 def test_the_default_hotkey_is_left_alone(installer, repo, tmp_path):
-    """Control+Option+Q is the documented default; the template's override was
+    """Command+Shift+8 is the documented default; the template's override was
     for a virtual machine and must not leak onto a real Mac."""
     assert "EnvironmentVariables" not in installer.build_plist(repo, tmp_path / "home")
 
