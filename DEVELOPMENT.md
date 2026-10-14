@@ -188,7 +188,20 @@ pixels and any miss can be reproduced from its metadata.
   off in turn, and were removed. Check by turning a change off and replaying.
 - **Cost matters.** The scan runs on a hotkey press. `uniqr/decode.py` keeps
   the extra formats to one pass per scan, and the expensive recoveries to
-  frames small enough to afford them.
+  frames small enough to afford them. The one thing a screen-sized frame does get
+  is a 2x enlargement read by zxing alone (`BIG_FRAME_FACTORS`), which costs about
+  0.2 s on a 1080p screen with no code. A 3x step on top read one more code of 24
+  and cost another 0.4 s, so it was left out.
+- **A small code on a screen is its own condition.** `small_scene` puts a code
+  about two pixels per module wide on a 1080p page. It exists because a real
+  screen is always bigger than the old enlargement limit, so a small code that
+  read when cropped on its own was missed on the screen. It is built after every
+  other condition, so older seeds still make exactly the cases they always did.
+  `tests/fixtures/small_poster_code.png` is a real code that was missed this way.
+- **A screen full of a regular pattern is slow, and that is not new.** A 1080p
+  checkerboard takes about 100 seconds to scan, with or without the big-screen
+  step: OpenCV's detectors choke on it. The watchdog restarts UniQR after 45
+  seconds without a heartbeat, so a scan that long would restart it.
 
 `benchmarks/failures/` holds saved misses and is ignored by git. Do not commit
 screenshots of a real screen: they hold whatever was open at the time.

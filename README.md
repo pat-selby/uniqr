@@ -172,6 +172,18 @@ that a reader could read at all, 99.4% decode. Most of the rest were damaged
 past recovery: each miss is retried with the same code enlarged, and if even
 that fails it counts as unreadable rather than as UniQR's fault.
 
+**Small codes on a big screen.** A code only about two pixels per module wide can
+be read only when enlarged, and a whole screen is too big to enlarge with every
+reader, so UniQR used to miss them: the same code read when cropped on its own and
+failed on a 1080p page. A screen-sized frame is now also enlarged twice and read by
+zxing alone. On two seeds that were not used to design this (12 and 13), small QR
+codes on a 1080p page went from 98.1% and 96.2% to 100% on both, and the other
+kinds of code from 37.5% and 54.2% to 62.5% and 66.7%. Wrong answers: 0, and false
+alarms: 0 of 48. The price is about 0.2 seconds longer on a 1080p screen with no
+code on it. `benchmarks/RESULTS.md` now includes these cases too, so its overall
+figure (96.8% of 1,064 codes on seed 7) is a little lower than the average above,
+which was measured on the earlier 988.
+
 The full table, with every style and condition, is in
 [benchmarks/RESULTS.md](benchmarks/RESULTS.md). To reproduce it:
 
@@ -270,8 +282,10 @@ Scans run cheapest-first; hard cases escalate through a retry ladder:
 3. **Locate → rectify → decode** — perspective warp for tilted codes
 4. **Destylise pass** — morphological ops rebuild dotted/rounded marketing grids
 5. **Contrast variants** — CLAHE, Otsu, adaptive threshold, red-channel split
-6. **Upscale retry** — 2×/4× for codes under ~60 px (capped at 1200 px frame)
-7. **Tiled exhaustive mode** — 3×3 overlapping grid at 2× scale (CLI opt-in)
+6. **Upscale retry** — 2×/4× for codes under ~60 px (on frames up to 1200 px)
+7. **Big-screen enlargement** — a screen-sized frame is enlarged 2× and read by
+   zxing alone, in overlapping pieces on very wide desktops
+8. **Tiled exhaustive mode** — 3×3 overlapping grid at 2× scale (CLI opt-in)
 
 Typical latency: **~140 ms**. Full ladder when cheap passes miss: **~900 ms**.
 

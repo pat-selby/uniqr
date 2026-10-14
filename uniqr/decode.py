@@ -133,9 +133,39 @@ ZXING_ONLY_FACTORS = (3.0,)
 # default threshold. See Scanner._robust_read.
 ROBUST_MAX_PX = 2600
 
+# A real screen is bigger than UPSCALE_MAX_DIM, so a small code on it never got
+# the enlarging steps that the same code on its own does, and about two pixels
+# per module is readable only when enlarged. Enlarging a whole screen is only
+# affordable for zxing: it reads a screen enlarged twice in about a tenth of a
+# second, where OpenCV's detectors take most of a second. So a big frame gets
+# zxing alone, and nothing enlarged past the cap below.
+#
+# Twice, not three times. Measured on small codes on 1080p pages: enlarging twice
+# read every QR code and added about 190 ms to a screen with no code; adding a
+# threefold step read one more code of 24 other kinds and added another 400 ms.
+BIG_FRAME_FACTORS = (2.0,)
+BIG_FRAME_MAX_PX = 8000
+# A frame that would pass the cap enlarged (two monitors side by side) is read in
+# overlapping pieces instead. A code on a boundary lies whole in one of them as
+# long as the overlap is bigger than a code, and this is.
+BIG_FRAME_OVERLAP = 400
+
 # The softening pass: a blur of about a quarter of a module on a typical
 # on-screen code, a few pixels at most. See Scanner._softened_pass.
 SOFTEN_SIGMA = 1.2
+
+
+def _spans(length: int, limit: int, overlap: int) -> list[tuple[int, int]]:
+    """Overlapping (start, end) runs that cover `length`, none longer than `limit`."""
+    if length <= limit:
+        return [(0, length)]
+    step = max(1, limit - overlap)
+    runs, start = [], 0
+    while start + limit < length:
+        runs.append((start, start + limit))
+        start += step
+    runs.append((length - limit, length))  # the last run ends exactly at the edge
+    return runs
 
 
 def _quad_span(quad: np.ndarray) -> float:
@@ -610,7 +640,7 @@ class Scanner:
         # 1920x1080 screen up to 4x costs seconds, and "no code on screen" is
         # the common case, so a whole-screen miss must stay cheap.
         if max(image.shape[:2]) > UPSCALE_MAX_DIM:
-            return []
+            return self._enlarged_big_frame(image)
 
         for factor in UPSCALE_FACTORS:
             big = cv2.resize(
@@ -638,6 +668,27 @@ class Scanner:
             hits = self._robust_read(big, factor)
             if hits:
                 return hits
+        return []
+
+    def _enlarged_big_frame(self, image: np.ndarray) -> list[Detection]:
+        """Enlarge a screen-sized frame and let zxing read it.
+
+        Only for frames too big for the full enlarging steps, and only after
+        everything else found nothing. See BIG_FRAME_FACTORS.
+        """
+        height, width = image.shape[:2]
+        for factor in BIG_FRAME_FACTORS:
+            limit = int(BIG_FRAME_MAX_PX / factor)
+            hits: list[Detection] = []
+            for y0, y1 in _spans(height, limit, BIG_FRAME_OVERLAP):
+                for x0, x1 in _spans(width, limit, BIG_FRAME_OVERLAP):
+                    piece = image[y0:y1, x0:x1]
+                    big = cv2.resize(
+                        piece, None, fx=factor, fy=factor, interpolation=cv2.INTER_LANCZOS4
+                    )
+                    hits += [d.offset(x0, y0) for d in self._robust_read(big, factor)]
+            if hits:
+                return _merge([hits])
         return []
 
     def _destylized_pass(self, image: np.ndarray) -> list[Detection]:
