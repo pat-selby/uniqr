@@ -43,7 +43,12 @@ HERE = Path(__file__).parent
 FAILURES = HERE / "failures"
 RESULTS = HERE / "RESULTS.md"
 
-TAGS = ["clean", "small", *distort.DISTORTIONS, "combined", "scene"]
+# A small code (about 2 pixels per module) sitting on a screen-sized page. A real
+# screen is always bigger than the scanner's enlargement limit, so a small code on
+# it never got the enlarging steps that a small code on its own does. Cases for
+# these tags are built last, so the ids and seeds of every older case are unchanged.
+EXTRA_TAGS = ["small_scene"]
+TAGS = ["clean", "small", *distort.DISTORTIONS, "combined", "scene", *EXTRA_TAGS]
 FORMATS = ["qr", *OTHER_FORMATS]
 PAGE = (1920, 1080)
 ORACLE_PPM = 12.0
@@ -68,28 +73,32 @@ def build_cases(
     per_cell: int, seed: int, formats: list[str], tags: list[str], styles: list[str]
 ) -> list[Case]:
     cases: list[Case] = []
-    for fmt in formats:
-        for style in styles if fmt == "qr" else ["plain"]:
-            for tag in tags:
-                for _ in range(per_cell):
-                    i = len(cases)
-                    rng = np.random.default_rng(seed * 1_000_003 + i)
-                    ec = str(rng.choice(list(generate.EC_LEVELS)))
-                    ppm = float(rng.uniform(1.6, 2.4) if tag == "small" else rng.uniform(3.0, 6.0))
-                    if fmt == "maxicode":
-                        ppm *= 1.5  # its modules are hexagons drawn far larger
-                    cases.append(
-                        Case(
-                            id=f"{i:05d}",
-                            fmt=fmt,
-                            style=style,
-                            ec=ec,
-                            ppm=ppm,
-                            payload=generate.make_payload(rng, fmt),
-                            tags=[tag],
-                            seed=seed * 1_000_003 + i,
+    # The older tags first and the extra ones after, so adding a tag never moves
+    # the id, and so the seed, of a case that already existed.
+    for group in ([t for t in tags if t not in EXTRA_TAGS], [t for t in tags if t in EXTRA_TAGS]):
+        for fmt in formats:
+            for style in styles if fmt == "qr" else ["plain"]:
+                for tag in group:
+                    for _ in range(per_cell):
+                        i = len(cases)
+                        rng = np.random.default_rng(seed * 1_000_003 + i)
+                        ec = str(rng.choice(list(generate.EC_LEVELS)))
+                        small = tag in ("small", "small_scene")
+                        ppm = float(rng.uniform(1.6, 2.4) if small else rng.uniform(3.0, 6.0))
+                        if fmt == "maxicode":
+                            ppm *= 1.5  # its modules are hexagons drawn far larger
+                        cases.append(
+                            Case(
+                                id=f"{i:05d}",
+                                fmt=fmt,
+                                style=style,
+                                ec=ec,
+                                ppm=ppm,
+                                payload=generate.make_payload(rng, fmt),
+                                tags=[tag],
+                                seed=seed * 1_000_003 + i,
+                            )
                         )
-                    )
     return cases
 
 
@@ -110,7 +119,7 @@ def make_image(case: Case) -> np.ndarray:
         img = distort.apply(img, names, rng, case.ppm, ec, 0.5)
     elif tag in distort.DISTORTIONS:
         img = distort.apply(img, [tag], rng, case.ppm, ec, 1.0)
-    if tag == "scene":
+    if tag in ("scene", "small_scene"):
         img = distort.on_page(img, PAGE, rng)
     return img
 
