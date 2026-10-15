@@ -58,6 +58,11 @@ uniqr-scan = "scan:main"
 Homepage = "https://github.com/pat-selby/uniqr"
 Repository = "https://github.com/pat-selby/uniqr"
 
+# The two commands above run app.py and scan.py, which sit beside the package,
+# so they are listed here for pip to install.
+[tool.setuptools]
+py-modules = ["app", "scan"]
+
 [tool.setuptools.packages.find]
 include = ["uniqr*"]
 
