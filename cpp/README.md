@@ -71,8 +71,8 @@ needs no OpenCV. Big images are split across CPU threads by rows.
 
 The Python scanner also runs OpenCV's two QR detectors and a "locate, then
 straighten" pass. The C++ version leaves those out and uses zxing-cpp for
-every read. On the benchmark below that cost no accuracy, and it is most of
-the speed difference.
+every read. On the benchmark below that cost one code in 1,064, and it takes
+work out of every step of the ladder.
 
 ### Not ported yet
 
