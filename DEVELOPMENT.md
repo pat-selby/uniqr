@@ -54,6 +54,16 @@ To test the macOS and Linux code path without a Mac, force the backend:
 UNIQR_BACKEND=portable python tests/test_real_photos.py
 ```
 
+### The C++ version
+
+`cpp/` holds a C++20 port of the scanner and the Windows app. Its own README
+covers building it. If you change the ladder in `uniqr/decode.py`, make the
+same change in `cpp/src/core/scanner.cpp`, then check both still agree:
+
+```bash
+python -m benchmarks.compare_cpp --exe cpp/build/uniqr-scan.exe
+```
+
 ## Building UniQR.exe
 
 ```powershell

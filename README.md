@@ -309,3 +309,9 @@ python tools/diagnose.py
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for platform caveats and benchmark history.
+
+### The C++ version
+
+[`cpp/`](cpp/README.md) is a port of the scanner and the Windows app to C++20,
+with no OpenCV and no Python. It is a single 1.9 MB exe. It is new and not
+released yet.
