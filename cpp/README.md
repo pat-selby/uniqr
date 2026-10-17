@@ -82,10 +82,24 @@ the speed difference.
 
 ## How it compares
 
-RESULTS_TABLE
+1,064 generated codes from the benchmark lab (seed 11, which neither scanner
+was tuned on), plus 48 images with no code in them:
 
-Both scanners saw the same images, one at a time, on one process each. To
-run it yourself:
+| | decoded | wrong | false alarms | median ms per image | total seconds |
+|---|---:|---:|---:|---:|---:|
+| Python | 1,027 | 0 | 0 | 115 | 344 |
+| C++ | 1,026 | 0 | 0 | 5 | 94 |
+
+Both read the same 1,026 codes. The one only Python read is a tilted,
+inverted QR code that zxing-cpp cannot read and OpenCV's QR detector can.
+That is the cost of leaving OpenCV out. The biggest gap is plain QR codes,
+at a median of 111 ms against 3 ms. MaxiCode is slow in both (406 ms against
+371 ms). Both make the same zxing-cpp reads there, so there is little for
+C++ to save.
+
+"Not decoded" here includes codes damaged past reading, which the main lab
+report counts separately. Both scanners saw the same images, one at a time,
+on one process each, on one Windows laptop. To run it yourself:
 
 ```bash
 python -m benchmarks.compare_cpp --exe cpp/build/uniqr-scan.exe --per-cell 4 --seed 11
