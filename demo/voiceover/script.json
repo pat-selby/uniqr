@@ -1,0 +1,159 @@
+{
+  "voices": {
+    "A": {
+      "voice": "en-US-AvaMultilingualNeural",
+      "rate": "+4%",
+      "pitch": "+0Hz"
+    },
+    "B": {
+      "voice": "en-US-AndrewMultilingualNeural",
+      "rate": "+2%",
+      "pitch": "-2Hz"
+    }
+  },
+  "_note": "A two-person conversation. `who` picks the voice. `text` is what the line says (shown nowhere: the video has no captions). `say`, when given, is how the voice reads it. `pause` is extra frames of silence after a line.",
+  "scenes": {
+    "opener": [
+      {
+        "who": "B",
+        "text": "QR codes are everywhere now. Slides, tickets, posters. Your screen.",
+        "pause": 8
+      }
+    ],
+    "talk": [
+      {
+        "who": "A",
+        "text": "The speaker's slides are a QR code. And my phone is dead."
+      },
+      {
+        "who": "B",
+        "text": "You don't need it. Win, Shift, Q.",
+        "pause": 4
+      },
+      {
+        "who": "A",
+        "text": "Wait. It's already copied?"
+      },
+      {
+        "who": "B",
+        "text": "And it shows where the link really goes.",
+        "pause": 10
+      }
+    ],
+    "title": [
+      {
+        "who": "B",
+        "text": "That's UniQR. One keypress, any QR code on your screen.",
+        "pause": 6
+      }
+    ],
+    "call": [
+      {
+        "who": "A",
+        "text": "Three codes on one slide?"
+      },
+      {
+        "who": "B",
+        "text": "Each one gets a number. Press one. Done."
+      }
+    ],
+    "ticket": [
+      {
+        "who": "A",
+        "text": "On my Mac, my ticket's one of those long barcodes."
+      },
+      {
+        "who": "B",
+        "text": "Command, Shift, 8. It reads seven kinds of code, not just QR."
+      }
+    ],
+    "trap": [
+      {
+        "who": "A",
+        "text": "Ooh. Win a free pass?"
+      },
+      {
+        "who": "B",
+        "text": "Look closer. That link really goes somewhere else.",
+        "pause": 4
+      },
+      {
+        "who": "A",
+        "text": "Sneaky."
+      }
+    ],
+    "more": [
+      {
+        "who": "A",
+        "text": "What else?"
+      },
+      {
+        "who": "B",
+        "text": "Two screens? It scans both at once."
+      },
+      {
+        "who": "B",
+        "text": "A page full of codes? Every one gets a number."
+      },
+      {
+        "who": "B",
+        "text": "Dots, logos, dark mode. It still reads them."
+      },
+      {
+        "who": "A",
+        "text": "And if Win+Shift+Q is already taken?",
+        "say": "And if Win, Shift, Q is already taken?"
+      },
+      {
+        "who": "B",
+        "text": "On Windows, it moves to the next free one, and tells you. Or pick your own."
+      },
+      {
+        "who": "A",
+        "text": "Does it start on its own?"
+      },
+      {
+        "who": "B",
+        "text": "At login, if you say yes. And your scans never leave your machine.",
+        "pause": 6
+      }
+    ],
+    "real": [
+      {
+        "who": "A",
+        "text": "Okay. But is it real?"
+      },
+      {
+        "who": "B",
+        "text": "Here's the actual app."
+      }
+    ],
+    "proof": [
+      {
+        "who": "A",
+        "text": "Does it actually hold up?"
+      },
+      {
+        "who": "B",
+        "text": "96.8% of 1,064 test codes decoded. Zero wrong answers.",
+        "say": "Ninety-six point eight percent of a thousand sixty-four test codes. Zero wrong answers."
+      },
+      {
+        "who": "B",
+        "text": "And the C++ version scans in a median of 5 milliseconds.",
+        "say": "And the C plus plus version scans in a median of five milliseconds."
+      }
+    ],
+    "outro": [
+      {
+        "who": "A",
+        "text": "Where do I get it?"
+      },
+      {
+        "who": "B",
+        "text": "It's free. Try it out.",
+        "pause": 10
+      }
+    ]
+  }
+}

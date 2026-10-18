@@ -1,0 +1,204 @@
+{
+  "voices": {
+    "A": {
+      "voice": "en-US-AvaMultilingualNeural",
+      "rate": "+4%",
+      "pitch": "+0Hz"
+    },
+    "B": {
+      "voice": "en-US-AndrewMultilingualNeural",
+      "rate": "+2%",
+      "pitch": "-2Hz"
+    }
+  },
+  "scenes": {
+    "opener": [
+      {
+        "text": "QR codes are everywhere now. Slides, tickets, posters. Your screen.",
+        "file": "opener-1.mp3",
+        "seconds": 4.703,
+        "pause": 8
+      }
+    ],
+    "talk": [
+      {
+        "text": "The speaker's slides are a QR code. And my phone is dead.",
+        "file": "talk-1.mp3",
+        "seconds": 4.255,
+        "pause": 0
+      },
+      {
+        "text": "You don't need it. Win, Shift, Q.",
+        "file": "talk-2.mp3",
+        "seconds": 2.228,
+        "pause": 4
+      },
+      {
+        "text": "Wait. It's already copied?",
+        "file": "talk-3.mp3",
+        "seconds": 2.019,
+        "pause": 0
+      },
+      {
+        "text": "And it shows where the link really goes.",
+        "file": "talk-4.mp3",
+        "seconds": 2.252,
+        "pause": 10
+      }
+    ],
+    "title": [
+      {
+        "text": "That's UniQR. One keypress, any QR code on your screen.",
+        "file": "title-1.mp3",
+        "seconds": 4.225,
+        "pause": 6
+      }
+    ],
+    "call": [
+      {
+        "text": "Three codes on one slide?",
+        "file": "call-1.mp3",
+        "seconds": 1.767,
+        "pause": 0
+      },
+      {
+        "text": "Each one gets a number. Press one. Done.",
+        "file": "call-2.mp3",
+        "seconds": 2.743,
+        "pause": 0
+      }
+    ],
+    "ticket": [
+      {
+        "text": "On my Mac, my ticket's one of those long barcodes.",
+        "file": "ticket-1.mp3",
+        "seconds": 3.461,
+        "pause": 0
+      },
+      {
+        "text": "Command, Shift, 8. It reads seven kinds of code, not just QR.",
+        "file": "ticket-2.mp3",
+        "seconds": 4.483,
+        "pause": 0
+      }
+    ],
+    "trap": [
+      {
+        "text": "Ooh. Win a free pass?",
+        "file": "trap-1.mp3",
+        "seconds": 1.936,
+        "pause": 0
+      },
+      {
+        "text": "Look closer. That link really goes somewhere else.",
+        "file": "trap-2.mp3",
+        "seconds": 2.816,
+        "pause": 4
+      },
+      {
+        "text": "Sneaky.",
+        "file": "trap-3.mp3",
+        "seconds": 0.805,
+        "pause": 0
+      }
+    ],
+    "more": [
+      {
+        "text": "What else?",
+        "file": "more-1.mp3",
+        "seconds": 0.806,
+        "pause": 0
+      },
+      {
+        "text": "Two screens? It scans both at once.",
+        "file": "more-2.mp3",
+        "seconds": 2.706,
+        "pause": 0
+      },
+      {
+        "text": "A page full of codes? Every one gets a number.",
+        "file": "more-3.mp3",
+        "seconds": 2.779,
+        "pause": 0
+      },
+      {
+        "text": "Dots, logos, dark mode. It still reads them.",
+        "file": "more-4.mp3",
+        "seconds": 3.208,
+        "pause": 0
+      },
+      {
+        "text": "And if Win+Shift+Q is already taken?",
+        "file": "more-5.mp3",
+        "seconds": 3.449,
+        "pause": 0
+      },
+      {
+        "text": "On Windows, it moves to the next free one, and tells you. Or pick your own.",
+        "file": "more-6.mp3",
+        "seconds": 4.568,
+        "pause": 0
+      },
+      {
+        "text": "Does it start on its own?",
+        "file": "more-7.mp3",
+        "seconds": 1.25,
+        "pause": 0
+      },
+      {
+        "text": "At login, if you say yes. And your scans never leave your machine.",
+        "file": "more-8.mp3",
+        "seconds": 4.385,
+        "pause": 6
+      }
+    ],
+    "real": [
+      {
+        "text": "Okay. But is it real?",
+        "file": "real-1.mp3",
+        "seconds": 1.731,
+        "pause": 0
+      },
+      {
+        "text": "Here's the actual app.",
+        "file": "real-2.mp3",
+        "seconds": 1.198,
+        "pause": 0
+      }
+    ],
+    "proof": [
+      {
+        "text": "Does it actually hold up?",
+        "file": "proof-1.mp3",
+        "seconds": 1.382,
+        "pause": 0
+      },
+      {
+        "text": "96.8% of 1,064 test codes decoded. Zero wrong answers.",
+        "file": "proof-2.mp3",
+        "seconds": 6.162,
+        "pause": 0
+      },
+      {
+        "text": "And the C++ version scans in a median of 5 milliseconds.",
+        "file": "proof-3.mp3",
+        "seconds": 4.899,
+        "pause": 0
+      }
+    ],
+    "outro": [
+      {
+        "text": "Where do I get it?",
+        "file": "outro-1.mp3",
+        "seconds": 0.95,
+        "pause": 0
+      },
+      {
+        "text": "It's free. Try it out.",
+        "file": "outro-2.mp3",
+        "seconds": 1.713,
+        "pause": 10
+      }
+    ]
+  }
+}

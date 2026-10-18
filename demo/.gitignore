@@ -1,0 +1,18 @@
+node_modules/
+
+# Rendered output. Videos and stills are big; share them as release files
+# or uploads, not in git.
+out/
+*.mp4
+*.mov
+*.webm
+*.gif
+
+# Voice clips. tools/make_voiceover.py makes them again from the script.
+public/vo/
+
+# The sound bed. tools/make_music.py makes it again.
+public/sfx/
+
+# A real screen recording for the "Is it real?" scene. It stays on this machine.
+public/real.mp4
