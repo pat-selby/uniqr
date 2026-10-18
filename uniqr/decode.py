@@ -338,20 +338,49 @@ def _run(detector, image: np.ndarray) -> list[Detection]:
     return out
 
 
+def _inside(point: tuple[int, int], det: Detection) -> bool:
+    left, top, w, h = det.bbox
+    return left <= point[0] <= left + w and top <= point[1] <= top + h
+
+
+def _same_code(a: Detection, b: Detection) -> bool:
+    """Two reads of one code: same text, and in the same place.
+
+    "Same place" can't just mean nearby centres. The locator sometimes joins
+    the corner squares of two or three different codes into one big square,
+    and reading that square finds the real code inside it - so the text is
+    right but the box is far too big, and its centre lands well away from the
+    real one. Either centre inside the other's box catches that. Two copies of
+    one code side by side still count twice: neither box holds the other's
+    centre.
+    """
+    if a.text != b.text:
+        return False
+    near = abs(a.center[0] - b.center[0]) < 40 and abs(a.center[1] - b.center[1]) < 40
+    return near or _inside(a.center, b) or _inside(b.center, a)
+
+
+def _area(det: Detection) -> int:
+    _, _, w, h = det.bbox
+    return w * h
+
+
 def _merge(groups: list[list[Detection]]) -> list[Detection]:
-    """Combine detector results, dropping the same code found twice."""
+    """Combine detector results, dropping the same code found twice.
+
+    The first read of a code is kept, unless a later one has a box less than
+    half the size. A real read hugs the code, and the wrong box described in
+    _same_code is always much bigger. The picker draws its outline and badge
+    from this box, so the tight one matters.
+    """
     merged: list[Detection] = []
     for group in groups:
         for det in group:
-            cx, cy = det.center
-            duplicate = any(
-                other.text == det.text
-                and abs(other.center[0] - cx) < 40
-                and abs(other.center[1] - cy) < 40
-                for other in merged
-            )
-            if not duplicate:
+            match = next((i for i, other in enumerate(merged) if _same_code(other, det)), None)
+            if match is None:
                 merged.append(det)
+            elif 2 * _area(det) < _area(merged[match]):
+                merged[match] = det
     return merged
 
 
