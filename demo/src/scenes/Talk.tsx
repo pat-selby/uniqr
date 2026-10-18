@@ -9,7 +9,8 @@ import { SceneProps, cue, within } from "../timeline";
 export const TALK = 150;
 
 // Use case: a conference livestream on a Windows laptop. The speaker's last
-// slide is a QR code, and the viewer's phone is dead.
+// slide is a QR code, and the viewer is already on their laptop: the phone is
+// the long way round.
 
 const S = 1.5;
 const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
@@ -22,14 +23,15 @@ const CODE = { left: PLAYER.x + 790, top: PLAYER.y + 150, size: 300 };
 export const Talk: React.FC<SceneProps> = ({ t }) => {
   const frame = useCurrentFrame();
   // "Win, Shift, Q" is the end of the second line; the card follows the keys.
-  const KEYS_AT = within(t, 1, 0.35, 140);
+  const KEYS_AT = within(t, 1, 0.72, 140);
   const CARD_IN = KEYS_AT + 26;
   const ZOOM_AT = cue(t, 3, 220);
   const zoom = interpolate(frame, [ZOOM_AT - 6, ZOOM_AT + 26], [1, 1.5], {
     ...clamp,
     easing: Easing.inOut(Easing.cubic),
   });
-  const phone = interpolate(frame, [cue(t, 0, 6) + 30, cue(t, 0, 6) + 42, KEYS_AT - 10, KEYS_AT], [0, 1, 1, 0], clamp);
+  const phoneIn = interpolate(frame, [cue(t, 0, 6) + 20, cue(t, 0, 6) + 34], [0, 1], clamp);
+  const phoneAway = interpolate(frame, [cue(t, 1, 120), cue(t, 1, 120) + 16], [0, 1], clamp);
 
   return (
     <AbsoluteFill>
@@ -59,7 +61,7 @@ export const Talk: React.FC<SceneProps> = ({ t }) => {
           ) : null}
         </WinDesktop>
       </AbsoluteFill>
-      <DeadPhone opacity={phone} />
+      <Phone show={phoneIn} away={phoneAway} />
       <Keys keys={["Win", "Shift", "Q"]} from={KEYS_AT - 10} hold={26} size={80} style={{ left: 0, right: 0, top: 120, justifyContent: "center" }} />
       <UseCase label="Conference livestream" opacity={interpolate(frame, [4, 14, ZOOM_AT - 10, ZOOM_AT], [0, 1, 1, 0], clamp)} />
     </AbsoluteFill>
@@ -129,7 +131,7 @@ const Page: React.FC = () => (
         ["Sam", "Great talk!"],
         ["Priya", "Where are the slides?"],
         ["Leo", "QR on screen now"],
-        ["Mia", "my phone is upstairs..."],
+        ["Mia", "can someone paste the link?"],
       ].map(([who, msg]) => (
         <div key={who}>
           <span style={{ color: "#7fb4ff", fontWeight: 700 }}>{who} </span>
@@ -140,23 +142,24 @@ const Page: React.FC = () => (
   </div>
 );
 
-// A phone with an empty battery, for "my phone is dead".
-const DeadPhone: React.FC<{ opacity: number }> = ({ opacity }) => (
+// The phone, aimed at the screen: in while she lists the steps it takes, then
+// down and out of frame on "Leave the phone".
+const Phone: React.FC<{ show: number; away: number }> = ({ show, away }) => (
   <div
     style={{
       position: "absolute",
       left: 70,
-      top: 380,
-      opacity,
-      transform: `translateX(${(1 - opacity) * -40}px) rotate(-8deg)`,
+      top: 360,
+      opacity: show * (1 - away),
+      transform: `translate(${(1 - show) * -40}px, ${away * 420}px) rotate(${-8 + away * -14}deg)`,
       zIndex: 50,
     }}
   >
     <div
       style={{
-        width: 170,
-        height: 330,
-        borderRadius: 30,
+        width: 180,
+        height: 350,
+        borderRadius: 32,
         background: "#0c0d10",
         border: "6px solid #2a2d35",
         boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
@@ -164,10 +167,17 @@ const DeadPhone: React.FC<{ opacity: number }> = ({ opacity }) => (
         placeItems: "center",
       }}
     >
-      <svg width={84} height={44} viewBox="0 0 84 44">
-        <rect x="3" y="3" width="70" height="38" rx="7" fill="none" stroke="#e5383b" strokeWidth="5" />
-        <rect x="76" y="14" width="6" height="16" rx="2" fill="#e5383b" />
-        <rect x="9" y="9" width="7" height="26" rx="2" fill="#e5383b" />
+      {/* a camera viewfinder, aimed at the code on the laptop */}
+      <svg width={120} height={120} viewBox="0 0 120 120">
+        {[
+          "M8 34V8h26",
+          "M86 8h26v26",
+          "M112 86v26H86",
+          "M34 112H8V86",
+        ].map((d) => (
+          <path key={d} d={d} fill="none" stroke="#ffffff" strokeWidth={6} strokeLinecap="round" />
+        ))}
+        <rect x="38" y="38" width="44" height="44" rx="4" fill="none" stroke="#8fa3c8" strokeWidth={4} strokeDasharray="6 6" />
       </svg>
     </div>
   </div>

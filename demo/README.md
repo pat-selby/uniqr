@@ -1,6 +1,6 @@
 # UniQR demo video
 
-A 90-second pitch for UniQR, sized for a LinkedIn post or a hackathon page,
+A 100-second pitch for UniQR, sized for a LinkedIn post or a hackathon page,
 written as code with [Remotion](https://www.remotion.dev). Remotion draws each
 frame as a React web page and stitches the frames into a video.
 
@@ -43,8 +43,8 @@ release files, not commits.
 The "Is it real?" scene plays a real screen recording of UniQR, and only
 appears once there is one. Record the app on a clean desktop with nothing
 private on screen, save it as `public/real.mp4` (git ignores it), and render
-again. It plays muted for 8 seconds; change `REAL_SECONDS` in
-`src/scenes/Real.tsx` for more.
+again. It plays muted, for `REAL_FRAMES` frames, set in
+`src/scenes/Real.tsx` to match the clip.
 
 ## Landing page
 

@@ -58,7 +58,13 @@ function shots(): Shot[] {
     { at: more.start - 6, scale: WIDE, x: 1200 },
     { at: more.start + 6, scale: FULL, x: WIDTH / 2 },
     // the real recording, if there is one, and the proof: pull back
-    ...(real ? [{ at: real.start, scale: FULL, x: WIDTH / 2 }] : []),
+    ...(real
+      ? [
+          { at: real.start, scale: FULL, x: WIDTH / 2 },
+          { at: real.start + 20, scale: 0.68, x: WIDTH / 2 },
+          { at: proof.start - 18, scale: 0.68, x: WIDTH / 2 },
+        ]
+      : []),
     { at: proof.start - 6, scale: FULL, x: WIDTH / 2 },
     { at: proof.start + 6, scale: 0.62, x: WIDTH / 2 },
     { at: outro.start - 6, scale: 0.62, x: WIDTH / 2 },

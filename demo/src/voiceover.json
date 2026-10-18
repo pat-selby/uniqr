@@ -22,15 +22,15 @@
     ],
     "talk": [
       {
-        "text": "The speaker's slides are a QR code. And my phone is dead.",
+        "text": "QR code on the slides again. Phone out, unlock, scan, then send the link back to my laptop.",
         "file": "talk-1.mp3",
-        "seconds": 4.255,
+        "seconds": 6.346,
         "pause": 0
       },
       {
-        "text": "You don't need it. Win, Shift, Q.",
+        "text": "Leave the phone. You're already on your laptop. Win, Shift, Q.",
         "file": "talk-2.mp3",
-        "seconds": 2.228,
+        "seconds": 3.809,
         "pause": 4
       },
       {

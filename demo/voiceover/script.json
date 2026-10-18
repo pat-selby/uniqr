@@ -23,11 +23,11 @@
     "talk": [
       {
         "who": "A",
-        "text": "The speaker's slides are a QR code. And my phone is dead."
+        "text": "QR code on the slides again. Phone out, unlock, scan, then send the link back to my laptop."
       },
       {
         "who": "B",
-        "text": "You don't need it. Win, Shift, Q.",
+        "text": "Leave the phone. You're already on your laptop. Win, Shift, Q.",
         "pause": 4
       },
       {
