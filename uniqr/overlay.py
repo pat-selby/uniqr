@@ -54,6 +54,8 @@ OK_FG = "#3fb27f"
 WARN_FG = "#e0a33e"
 TIP_BG = "#0b1220"
 HIGHLIGHT_PAD = 10
+# How often the picker looks at the pointer on a Mac. See Picker._poll_pointer.
+POINTER_POLL_MS = 50
 
 # Hover pop-up for the full link: a short pause so it doesn't flicker as the
 # pointer passes over, and a width after which long links wrap.
@@ -454,6 +456,8 @@ class Picker:
         show_window(self.win)
         self.win.focus_force()
         self.canvas.focus_set()
+        if sys.platform == "darwin":
+            self.win.after(POINTER_POLL_MS, self._poll_pointer)
 
     def _draw_markers(self) -> None:
         self._marker_ids = []
@@ -502,7 +506,34 @@ class Picker:
         return None
 
     def _on_motion(self, event) -> None:
-        hit = self._hit(event.x, event.y)
+        self._hover_at(event.x, event.y)
+
+    def _poll_pointer(self) -> None:
+        """Hover on a Mac, from where the pointer is rather than from moves.
+
+        On a tester's Mac (Tk 9.0.4) the picker heard the mouse only while a
+        button was held down, so hovering over a code showed nothing. Asked
+        where the pointer is, Tk always knows, so on a Mac the picker asks
+        twenty times a second. A test window doing this showed the cards on
+        plain hovering.
+        """
+        try:
+            if not self.win.winfo_exists():
+                return
+            x = self.win.winfo_pointerx() - self.canvas.winfo_rootx()
+            y = self.win.winfo_pointery() - self.canvas.winfo_rooty()
+        except tk.TclError:
+            return  # the picker closed between two looks
+        self._hover_at(x, y)
+        self.win.after(POINTER_POLL_MS, self._poll_pointer)
+
+    def _hover_at(self, x: int, y: int) -> None:
+        """Show the card of the code under (x, y), canvas points."""
+        if self._card is not None:
+            box = self.canvas.bbox(self._card)
+            if box and box[0] <= x <= box[2] and box[1] <= y <= box[3]:
+                return  # on the card itself: keep it, so its buttons can be pressed
+        hit = self._hit(x, y)
         if hit != self._active:
             self._active = hit
             self._show_card(hit)
