@@ -7,7 +7,8 @@ Also reads Data Matrix, Aztec, PDF417 and other 2D codes.
 
 [![CI](https://github.com/pat-selby/uniqr/actions/workflows/ci.yml/badge.svg)](https://github.com/pat-selby/uniqr/actions/workflows/ci.yml)
 
-Press **Win+Shift+Q**. UniQR finds every QR code on your screen and decodes it.
+Press **⊞+Shift+Q**: hold the Windows logo key (⊞) and Shift, then press Q.
+UniQR finds every QR code on your screen and decodes it.
 Works in a browser, a PDF, a Zoom call, a paused video, a photo of a flyer.
 
 - One code found: it goes straight to your clipboard.
@@ -59,9 +60,10 @@ python app.py
 
 UniQR sits in the system tray. Right-click the tray icon to quit.
 
-The hotkey on Windows is `Win+Shift+Q`. If another app already owns it, UniQR
-tries `Ctrl+Alt+Q`, then `Ctrl+Shift+9`. On macOS and Linux it uses
-`Ctrl+Alt+Q`. It prints the one it got when it starts.
+The hotkey on Windows is **⊞+Shift+Q**, where ⊞ is the Windows logo key. If
+another app already owns it, UniQR tries `Ctrl+Alt+Q`, then `Ctrl+Shift+9`. On
+macOS it uses **Command+Shift+8**, and on Linux `Ctrl+Alt+Q`. It shows the one
+it got when it starts.
 
 To pick your own hotkey, set `UNIQR_HOTKEY`. Useful inside a virtual machine,
 where the hypervisor often steals `Ctrl+Alt`:

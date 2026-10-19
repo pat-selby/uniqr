@@ -10,7 +10,7 @@
     python app.py --check-updates                      # ask GitHub for a newer version, then exit
     python app.py --report-problem                     # open a pre-filled GitHub issue, then exit
 
-Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
+Runs in the system tray. Press the hotkey (⊞+Shift+Q by default, ⊞ being the Windows logo key) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
 """
 

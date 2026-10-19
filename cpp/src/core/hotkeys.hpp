@@ -29,6 +29,11 @@ std::optional<Hotkey> parse_hotkey(std::string_view text, std::string* problem =
 // The same hotkey written one plain way, such as "ctrl+alt+k".
 std::string canonical_hotkey(const Hotkey& hotkey);
 
+// A label as a person sees it, with the Windows logo key as "⊞" (⊞) rather
+// than the word Win. The label itself keeps the word, because canonical_hotkey()
+// turns it into the stored --hotkey setting, which has to read back.
+std::string shown_hotkey(std::string_view label);
+
 // Tried in order when no hotkey was asked for, or the one asked for is taken.
 const std::vector<Hotkey>& default_hotkeys();
 

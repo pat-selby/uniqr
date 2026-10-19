@@ -94,7 +94,7 @@ Things that are not obvious:
   4.13 the benchmark first ran on. The tests pass on both.
 
 To check a build the way it was checked here: start it, put a QR code on screen,
-press Win+Shift+Q, and look for the link on the clipboard and a line in
+press ⊞+Shift+Q, and look for the link on the clipboard and a line in
 `%LOCALAPPDATA%\UniQR\uniqr.log`. Then choose Exit from the tray and confirm no
 `_MEI...` folder is left in your temp folder.
 

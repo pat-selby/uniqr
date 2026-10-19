@@ -23,7 +23,8 @@ need Python or anything else.
    unpacks itself.
 3. A card says UniQR is running, and asks whether to start it when you log in.
    Click **Yes, start at login** if you want that, or **Not now**. It sits in the
-   system tray, next to the clock. Press **Win+Shift+Q** on a QR code.
+   system tray, next to the clock. Press **⊞+Shift+Q** on a QR code: hold the
+   Windows logo key (⊞) and Shift, then press Q.
 
 The first time, Windows may say **"Windows protected your PC"** and name an
 unknown publisher. That is because the file isn't code-signed, which costs money
@@ -65,7 +66,7 @@ again. To remove the entry:
 ```
 
 An older file ignores options it does not know, so it would just start normally.
-The older way still works: press `Win+R`,
+The older way still works: press **⊞+R** (the Windows logo key and R),
 type `shell:startup`, press Enter, and drop a shortcut to UniQR.exe in that folder.
 
 GitHub tests that the entry is written correctly, that the command stored in it
@@ -74,7 +75,7 @@ test a real login, so if UniQR does not start after you log in, tell me.
 
 ### Choosing a different hotkey
 
-UniQR uses **Win+Shift+Q**. If another program already has it, UniQR tries
+UniQR uses **⊞+Shift+Q**. If another program already has it, UniQR tries
 Ctrl+Alt+Q, then Ctrl+Shift+9. To use your own, start it with `--hotkey`. In
 PowerShell, in the folder where you saved the file:
 
@@ -96,7 +97,7 @@ login:
 
 If your hotkey is already used by another program, or can't be read, UniQR says so
 in its log and uses one of the usual ones instead. The card on startup names the
-hotkey it took. Starting without `--hotkey` goes back to Win+Shift+Q. This needs
+hotkey it took. Starting without `--hotkey` goes back to ⊞+Shift+Q. This needs
 **version 0.1.7 or newer**.
 
 ### Or run it from the source
@@ -118,13 +119,14 @@ uniqr
 A card appears saying UniQR is running and which hotkey it took. The app then
 sits in the system tray, next to the clock.
 
-**3. Use it.** Put a QR code on screen and press **Win+Shift+Q**.
+**3. Use it.** Put a QR code on screen and press **⊞+Shift+Q** (the Windows
+logo key, Shift and Q).
 
 - One code: copied to your clipboard, with a card showing where the link goes
 - Several: the screen dims and each code is numbered, so you pick
 - Right-click the tray icon to quit
 
-If another app already owns Win+Shift+Q, UniQR takes Ctrl+Alt+Q instead, then
+If another app already owns ⊞+Shift+Q, UniQR takes Ctrl+Alt+Q instead, then
 Ctrl+Shift+9. The startup card tells you which one it got.
 
 ### Start it with Windows
@@ -136,7 +138,7 @@ at `pythonw.exe` for you, so no console window opens:
 python app.py --install-autostart
 ```
 
-Or by hand: press `Win+R`, type `shell:startup`, press Enter. Put a shortcut in
+Or by hand: press **⊞+R**, type `shell:startup`, press Enter. Put a shortcut in
 that folder pointing to:
 
 ```

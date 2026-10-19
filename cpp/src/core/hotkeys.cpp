@@ -82,6 +82,22 @@ std::optional<Hotkey> parse_hotkey(std::string_view text, std::string* problem) 
 
 std::string canonical_hotkey(const Hotkey& hotkey) { return ascii_lower(hotkey.label); }
 
+constexpr char kWindowsKey[] = "\xE2\x8A\x9E";  // U+229E, the Windows logo key, in UTF-8
+
+std::string shown_hotkey(std::string_view label) {
+    std::string out;
+    size_t start = 0;
+    while (start <= label.size()) {
+        const size_t plus = label.find('+', start);
+        const std::string_view part = label.substr(start, plus == std::string_view::npos ? label.npos : plus - start);
+        if (!out.empty()) out += '+';
+        out += part == "Win" ? std::string(kWindowsKey) : std::string(part);
+        if (plus == std::string_view::npos) break;
+        start = plus + 1;
+    }
+    return out;
+}
+
 const std::vector<Hotkey>& default_hotkeys() {
     static const std::vector<Hotkey> list = {
         {MOD_WIN_FLAG | MOD_SHIFT_FLAG, 'Q', "Win+Shift+Q"},
