@@ -454,8 +454,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   }
   function paint() {
     var dark = current() === "dark";
-    moon.hidden = dark;
-    sun.hidden = !dark;
+    // SVG icons have no .hidden property, so set the attribute itself.
+    moon.toggleAttribute("hidden", dark);
+    sun.toggleAttribute("hidden", !dark);
     button.setAttribute("aria-pressed", String(dark));
     button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
   }
