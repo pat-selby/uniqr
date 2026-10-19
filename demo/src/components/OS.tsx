@@ -39,8 +39,8 @@ const AppIcon: React.FC<{ color: string; glyph?: React.ReactNode; size?: number 
   </div>
 );
 
-const TrayGlyph: React.FC<{ d: string }> = ({ d }) => (
-  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round">
+const TrayGlyph: React.FC<{ d: string; color?: string }> = ({ d, color = "#fff" }) => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round">
     <path d={d} />
   </svg>
 );
@@ -56,11 +56,13 @@ export const WinDesktop: React.FC<{ children?: React.ReactNode; active?: number 
   <AbsoluteFill
     style={{
       fontFamily: WIN_FONT,
+      // A warm, photo-like landscape: evening sky, sun, and dunes.
       background:
-        "radial-gradient(ellipse at 30% 70%, #4f8ff7 0%, transparent 45%)," +
-        "radial-gradient(ellipse at 70% 40%, #1d4fbf 0%, transparent 55%)," +
-        "radial-gradient(ellipse at 55% 55%, #9cc3ff 0%, transparent 30%)," +
-        "linear-gradient(160deg, #0b2a6b 0%, #071a45 100%)",
+        "radial-gradient(ellipse 60% 40% at 78% 112%, #9c6045 0%, #9c6045 60%, transparent 61%)," +
+        "radial-gradient(ellipse 80% 45% at 18% 118%, #b8734f 0%, #b8734f 60%, transparent 61%)," +
+        "radial-gradient(ellipse 120% 50% at 50% 125%, #d99a6c 0%, #d99a6c 60%, transparent 61%)," +
+        "radial-gradient(circle at 70% 46%, #fff4d6 0%, #ffe2a8 5%, transparent 12%)," +
+        "linear-gradient(180deg, #f3c9a0 0%, #f5d8b5 45%, #f2b98c 100%)",
     }}
   >
     {children}
@@ -71,8 +73,8 @@ export const WinDesktop: React.FC<{ children?: React.ReactNode; active?: number 
         right: 0,
         bottom: 0,
         height: WIN_TASKBAR,
-        background: "rgba(28, 30, 38, 0.86)",
-        borderTop: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(243, 243, 245, 0.92)",
+        borderTop: "1px solid rgba(0,0,0,0.08)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -92,8 +94,8 @@ export const WinDesktop: React.FC<{ children?: React.ReactNode; active?: number 
           width: 230,
           height: 44,
           borderRadius: 22,
-          background: "rgba(255,255,255,0.08)",
-          color: "#c9d1e3",
+          background: "rgba(0,0,0,0.05)",
+          color: "#4a4f5a",
           fontSize: 19,
           display: "flex",
           alignItems: "center",
@@ -102,7 +104,7 @@ export const WinDesktop: React.FC<{ children?: React.ReactNode; active?: number 
           boxSizing: "border-box",
         }}
       >
-        <TrayGlyph d="M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zM15.5 15.5 20 20" />
+        <TrayGlyph d="M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zM15.5 15.5 20 20" color="#4a4f5a" />
         Search
       </div>
       {[
@@ -112,10 +114,10 @@ export const WinDesktop: React.FC<{ children?: React.ReactNode; active?: number 
         ["#6264a7", "▶"],
         ["#d35230", "▤"],
       ].map(([color, glyph], i) => (
-        <div key={i} style={{ width: 54, height: 54, borderRadius: 8, display: "grid", placeItems: "center", background: i === active ? "rgba(255,255,255,0.1)" : "transparent", position: "relative" }}>
+        <div key={i} style={{ width: 54, height: 54, borderRadius: 8, display: "grid", placeItems: "center", background: i === active ? "rgba(0,0,0,0.06)" : "transparent", position: "relative" }}>
           <AppIcon color={color} glyph={glyph} />
           {i === active ? (
-            <div style={{ position: "absolute", bottom: 2, width: 18, height: 4, borderRadius: 2, background: "#7cc4ff" }} />
+            <div style={{ position: "absolute", bottom: 2, width: 18, height: 4, borderRadius: 2, background: "#2f7cf6" }} />
           ) : null}
         </div>
       ))}
@@ -126,14 +128,14 @@ export const WinDesktop: React.FC<{ children?: React.ReactNode; active?: number 
           display: "flex",
           alignItems: "center",
           gap: 16,
-          color: "#fff",
+          color: "#1b1d22",
         }}
       >
-        <span style={{ fontSize: 18, opacity: 0.8 }}>⌃</span>
-        <Icon size={22} />
-        <TrayGlyph d={WIFI} />
-        <TrayGlyph d={SPEAKER} />
-        <TrayGlyph d={BATTERY} />
+        <span style={{ fontSize: 18, opacity: 0.7 }}>⌃</span>
+        <Icon size={22} color="#1b1d22" />
+        <TrayGlyph d={WIFI} color="#1b1d22" />
+        <TrayGlyph d={SPEAKER} color="#1b1d22" />
+        <TrayGlyph d={BATTERY} color="#1b1d22" />
         <div style={{ textAlign: "right", fontSize: 17, lineHeight: 1.25, marginLeft: 6 }}>
           10:24 AM
           <br />
@@ -397,6 +399,38 @@ export const MacWindow: React.FC<{
     </div>
     <div style={{ position: "relative", flex: 1 }}>{children}</div>
   </div>
+);
+
+// -- Linux --------------------------------------------------------------------
+
+// A generic Linux desktop: a dark top bar with the clock in the middle, a dock
+// down the left side, and a calm wallpaper. No distribution's branding.
+export const LinuxDesktop: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <AbsoluteFill
+    style={{
+      fontFamily: '"Ubuntu", "Cantarell", "DejaVu Sans", system-ui, sans-serif',
+      background:
+        "radial-gradient(ellipse at 75% 80%, #e8a463 0%, transparent 45%)," +
+        "radial-gradient(ellipse at 20% 30%, #3f8f8a 0%, transparent 55%)," +
+        "linear-gradient(160deg, #24575a 0%, #1d3b4a 100%)",
+    }}
+  >
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, background: "#1b1b1d", color: "#f2f2f2", display: "flex", alignItems: "center", padding: "0 22px", fontSize: 20, zIndex: 5 }}>
+      <span style={{ fontWeight: 600 }}>Activities</span>
+      <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontWeight: 600 }}>Sat 10:24</span>
+      <span style={{ marginLeft: "auto", display: "flex", gap: 14 }}>
+        <TrayGlyph d={WIFI} />
+        <TrayGlyph d={SPEAKER} />
+        <TrayGlyph d={BATTERY} />
+      </span>
+    </div>
+    <div style={{ position: "absolute", top: 44, left: 0, bottom: 0, width: 92, background: "rgba(20,20,22,0.7)", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, zIndex: 4 }}>
+      {["#e95420", "#3584e4", "#2ec27e", "#9141ac", "#f6d32d"].map((c, i) => (
+        <AppIcon key={i} color={c} size={58} />
+      ))}
+    </div>
+    {children}
+  </AbsoluteFill>
 );
 
 // -- shared -----------------------------------------------------------------

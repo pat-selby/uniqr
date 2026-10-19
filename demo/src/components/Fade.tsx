@@ -1,10 +1,11 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 
-// Fades a whole scene in from black and out again at its end.
-export const Fade: React.FC<{ duration: number; edge?: number; children: React.ReactNode }> = ({
+// Fades a whole scene in from a plain color and out again at its end.
+export const Fade: React.FC<{ duration: number; edge?: number; color?: string; children: React.ReactNode }> = ({
   duration,
   edge = 10,
+  color = "#000",
   children,
 }) => {
   const frame = useCurrentFrame();
@@ -12,5 +13,9 @@ export const Fade: React.FC<{ duration: number; edge?: number; children: React.R
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  return <AbsoluteFill style={{ opacity, background: "#000" }}>{children}</AbsoluteFill>;
+  return (
+    <AbsoluteFill style={{ background: color }}>
+      <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>
+    </AbsoluteFill>
+  );
 };

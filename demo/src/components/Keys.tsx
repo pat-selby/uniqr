@@ -1,6 +1,7 @@
 import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { C, UI } from "../theme";
+import { L, UI } from "../theme";
+import { KeyFace } from "./WinLogo";
 
 // A row of keycaps that appear at `from` and press down one after another,
 // to show the hotkey being pressed. This is a video annotation, not app UI.
@@ -41,7 +42,7 @@ export const Keys: React.FC<{
         return (
           <React.Fragment key={k}>
             {i > 0 ? (
-              <span style={{ color: C.cardFg, fontSize: size * 0.5, opacity: 0.7 }}>+</span>
+              <span style={{ color: L.sub, fontSize: size * 0.5, opacity: 0.7 }}>+</span>
             ) : null}
             <span
               style={{
@@ -53,17 +54,17 @@ export const Keys: React.FC<{
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: size * 0.18,
-                background: down ? C.accent : "#f2f5fb",
-                color: down ? C.badgeText : "#1a2233",
+                background: down ? L.ink : "#ffffff",
+                color: down ? "#ffffff" : L.ink,
                 fontSize: size * 0.42,
                 fontWeight: 700,
                 boxShadow: down
-                  ? `0 ${size * 0.03}px 0 #2b6fc0, 0 0 ${size * 0.5}px ${C.accent}66`
-                  : `0 ${size * 0.1}px 0 #9aa6bd`,
+                  ? `0 ${size * 0.03}px 0 #000000, 0 ${size * 0.2}px ${size * 0.5}px rgba(20,24,32,0.25)`
+                  : `0 ${size * 0.1}px 0 #c3c8d2`,
                 transform: `translateY(${down ? size * 0.07 : 0}px)`,
               }}
             >
-              {k}
+              <KeyFace k={k} size={size * 0.42} />
             </span>
           </React.Fragment>
         );

@@ -6,8 +6,8 @@ import voiceover from "./voiceover.json";
 // speaks, then a short gap. Scenes use the start of each line ("cues") to
 // time their animations, so the picture moves with the words.
 
-const LEAD = 6; // frames of quiet before the first line in a scene
-const GAP = 5; // frames between lines
+const LEAD = 10; // frames of quiet before the first line in a scene
+const GAP = 9; // frames between lines
 const TAIL = 10; // frames after the last line, before the scene fades
 
 export type Clip = { file: string; from: number };

@@ -1,181 +1,75 @@
 import React from "react";
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { Icon } from "./components/Icon";
 import { InSquare } from "./components/OS";
-import { C, HEIGHT, MONO, UI, WIDTH } from "./theme";
-import { cue, within } from "./timeline";
-import { RELEASES } from "./scenes/Outro";
+import { SITE } from "./scenes/Outro";
+import { C, HEIGHT, L, MONO, UI, WIDTH } from "./theme";
 import { PLACED, Video } from "./Video";
 
-// The same video in a square, for the LinkedIn feed. A "camera" shows a slice
-// of the wide frame, panned to where the action is, and pulls back when a
-// scene needs the full width. Bands above and below carry the name and link.
+// The same video in a square, for the LinkedIn feed. Every scene keeps its
+// subject in the middle, so the wide frame is shown at one steady size, with
+// bands above and below for the name, the use case, and the link.
 
 export const SQUARE = 1080;
+const SCALE = 0.7; // shows 1543 of the frame's 1920 pixels: the whole laptop
+const WIDE_SCALE = 0.56; // the three laptops side by side need the full width
+const WIDE_SCENES = ["platforms", "monitors"];
 
-// One camera position: `scale` is how much of the wide frame shows (0.75
-// shows 1440 of its 1920 pixels), and `x` is the centre of that slice.
-type Shot = { at: number; scale: number; x: number };
-
-const WIDE = 0.75;
-const FULL = SQUARE / WIDTH; // the whole width: 0.5625
-
-function shots(): Shot[] {
-  const at = (name: string) => PLACED.find((s) => s.name === name)!;
-  const opener = at("opener");
-  const talk = at("talk");
-  const title = at("title");
-  const call = at("call");
-  const ticket = at("ticket");
-  const trap = at("trap");
-  const more = at("more");
-  const real = PLACED.find((s) => s.name === "real");
-  const proof = at("proof");
-  const outro = at("outro");
-  const seven = ticket.start + within(ticket.t, 1, 0.5, 100);
-  return [
-    // the cold open: the whole wall of codes
-    { at: opener.start, scale: FULL, x: WIDTH / 2 },
-    { at: talk.start - 6, scale: FULL, x: WIDTH / 2 },
-    // the livestream: the dead phone on the left and the code on the right
-    { at: talk.start + 6, scale: WIDE, x: 760 },
-    { at: title.start - 8, scale: WIDE, x: 760 },
-    { at: title.start + 4, scale: WIDE, x: WIDTH / 2 },
-    // the call: centred on the middle code, which gets picked
-    { at: call.start - 6, scale: WIDE, x: WIDTH / 2 },
-    { at: call.start + 6, scale: WIDE, x: 820 },
-    // the ticket: on the barcode and its card, then all seven formats
-    { at: ticket.start - 6, scale: WIDE, x: 820 },
-    { at: ticket.start + 6, scale: WIDE, x: 960 },
-    { at: seven - 4, scale: WIDE, x: 960 },
-    { at: seven + 10, scale: FULL, x: WIDTH / 2 },
-    // the poster: on the code, then right with the zoom onto the warning
-    { at: trap.start - 6, scale: FULL, x: WIDTH / 2 },
-    { at: trap.start + 6, scale: WIDE, x: 1010 },
-    { at: trap.start + cue(trap.t, 1, 80) - 4, scale: WIDE, x: 1010 },
-    { at: trap.start + cue(trap.t, 1, 80) + 26, scale: WIDE, x: 1200 },
-    // the features: the two screens and the page of codes need the full width
-    { at: more.start - 6, scale: WIDE, x: 1200 },
-    { at: more.start + 6, scale: FULL, x: WIDTH / 2 },
-    // the real recording, if there is one, and the proof: pull back
-    ...(real
-      ? [
-          { at: real.start, scale: FULL, x: WIDTH / 2 },
-          { at: real.start + 20, scale: 0.68, x: WIDTH / 2 },
-          { at: proof.start - 18, scale: 0.68, x: WIDTH / 2 },
-        ]
-      : []),
-    { at: proof.start - 6, scale: FULL, x: WIDTH / 2 },
-    { at: proof.start + 6, scale: 0.62, x: WIDTH / 2 },
-    { at: outro.start - 6, scale: 0.62, x: WIDTH / 2 },
-    { at: outro.start + 6, scale: 0.62, x: WIDTH / 2 },
-  ];
-}
-
-const SHOTS = shots();
-
-// What the bottom band says: the use case or feature while one plays, else
-// the link.
+// What the bottom band says: the use case while one plays, else the link.
 const BAND: Record<string, [string, string]> = {
-  talk: ["USE CASE", "Conference livestream"],
-  call: ["USE CASE", "Video call"],
-  ticket: ["USE CASE", "Ticket in a PDF, on a Mac"],
-  trap: ["USE CASE", "A poster with a trap"],
-  more: ["FEATURES", "Two screens · pages of codes · styled codes · private"],
-  real: ["PROOF", "The real app, recorded"],
+  platforms: ["RUNS ON", "Windows, Mac and Linux"],
+  class: ["USE CASE", "Online class"],
+  call: ["USE CASE", "Team call"],
+  monitors: ["WORKS ON", "Every monitor at once"],
+  scam: ["USE CASE", "A scam email"],
+  real: ["PROOF", "Real recording, on Windows"],
 };
-function useCaseAt(frame: number): [string, string] | null {
+function bandAt(frame: number): [string, string] | null {
   const scene = [...PLACED].reverse().find((s) => frame >= s.start);
   return scene ? BAND[scene.name] ?? null : null;
 }
-// The outro shows the link large, so the band stays empty there.
-const inOutro = (frame: number) => frame >= (PLACED.find((s) => s.name === "outro")?.start ?? Infinity);
-
-function camera(frame: number): { scale: number; x: number } {
-  const frames = SHOTS.map((s) => s.at);
-  const opts = {
-    extrapolateLeft: "clamp" as const,
-    extrapolateRight: "clamp" as const,
-    easing: Easing.inOut(Easing.cubic),
-  };
-  return {
-    scale: interpolate(frame, frames, SHOTS.map((s) => s.scale), opts),
-    x: interpolate(frame, frames, SHOTS.map((s) => s.x), opts),
-  };
-}
+const outroStart = PLACED.find((s) => s.name === "outro")?.start ?? Infinity;
 
 export const Square: React.FC = () => {
   const frame = useCurrentFrame();
-  const { scale, x } = camera(frame);
-  const shown = HEIGHT * scale; // height of the picture in the square
-  const band = (SQUARE - shown) / 2;
-  // Keep the slice inside the wide frame.
-  const half = SQUARE / scale / 2;
-  const cx = Math.min(Math.max(x, half), WIDTH - half);
-  const useCase = useCaseAt(frame);
+  const band = bandAt(frame);
+  // The switch lands on a scene change, while the picture is faded out.
+  const scene = [...PLACED].reverse().find((s) => frame >= s.start)?.name ?? "";
+  const scale = WIDE_SCENES.includes(scene) ? WIDE_SCALE : SCALE;
+  const BAND_H = (SQUARE - HEIGHT * scale) / 2;
 
   return (
-    <AbsoluteFill style={{ background: C.stage }}>
+    <AbsoluteFill style={{ background: L.stage }}>
       <div
         style={{
           position: "absolute",
-          left: 0,
-          top: band,
+          left: SQUARE / 2 - (WIDTH * scale) / 2,
+          top: BAND_H,
           width: WIDTH,
           height: HEIGHT,
           transformOrigin: "0 0",
-          transform: `translateX(${SQUARE / 2 - cx * scale}px) scale(${scale})`,
+          transform: `scale(${scale})`,
         }}
       >
         <InSquare.Provider value={true}>
           <Video />
         </InSquare.Provider>
       </div>
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: band,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 18,
-          background: C.stage,
-          fontFamily: UI,
-          color: C.cardFg,
-          overflow: "hidden",
-        }}
-      >
-        <Icon size={46} />
-        <span style={{ fontSize: 46, fontWeight: 800, letterSpacing: -1 }}>UniQR</span>
-        <span style={{ fontSize: 28, color: C.muted, marginLeft: 8 }}>read any QR code on your screen</span>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: BAND_H, display: "flex", alignItems: "center", justifyContent: "center", gap: 16, background: L.stage, fontFamily: UI, color: L.ink }}>
+        <div style={{ padding: 8, borderRadius: 10, background: L.ink, display: "grid" }}>
+          <Icon size={34} />
+        </div>
+        <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>UniQR</span>
+        <span style={{ fontSize: 26, color: L.sub, marginLeft: 6 }}>read any QR code on your screen</span>
       </div>
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: band,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: C.stage,
-          fontFamily: MONO,
-          fontSize: 32,
-          color: C.accent,
-          overflow: "hidden",
-        }}
-      >
-        {useCase ? (
-          <span style={{ fontFamily: UI, color: C.cardFg, fontSize: 32, fontWeight: 600, display: "flex", gap: 16, alignItems: "center" }}>
-            <span style={{ color: C.accent, fontWeight: 800, letterSpacing: 3, fontSize: 22 }}>{useCase[0]}</span>
-            {useCase[1]}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: BAND_H, display: "flex", alignItems: "center", justifyContent: "center", background: L.stage, fontFamily: UI, fontSize: 30 }}>
+        {band ? (
+          <span style={{ color: L.ink, fontWeight: 600, display: "flex", gap: 14, alignItems: "center" }}>
+            <span style={{ color: C.accent, fontWeight: 800, letterSpacing: 3, fontSize: 20 }}>{band[0]}</span>
+            {band[1]}
           </span>
-        ) : inOutro(frame) ? null : (
-          RELEASES
+        ) : frame >= outroStart ? null : (
+          <span style={{ fontFamily: MONO, color: L.sub }}>{SITE}</span>
         )}
       </div>
     </AbsoluteFill>

@@ -1,11 +1,13 @@
 # Voiceover
 
 A conversation between two neural text-to-speech voices from Microsoft,
-through the open-source `edge-tts` package: Ava (A) runs into the problems and
-Andrew (B) answers with UniQR. Each line is its own clip, and the video times
-itself to them: a scene lasts as long as its lines, and the key moments land
-on the words. The keys go down on "Win, Shift, Q", the picker opens on "Each
-one gets a number", and the warning lights up on "Look closer".
+through the open-source `edge-tts` package: Jenny (A) lives the everyday
+moments and Andrew (B) shows the faster way. Both voices are dry, with no room
+echo, and both speak a little slower than normal. Each line is its own clip,
+and the video times itself to them: a scene lasts as long as its lines, and
+the key moments land on the words. The keys go down on "Win, Shift, Q", the
+picker opens on "Each one gets a number", and the warning lights up on "Look
+at the card".
 
 ## Change a line
 
@@ -33,9 +35,11 @@ Each speaker has a `voice`, `rate` and `pitch` under `voices` in
 
 | Voice | Feel |
 |---|---|
-| `en-US-AvaMultilingualNeural` | expressive, friendly (A) |
+| `en-US-JennyNeural` | friendly, clear (A) |
 | `en-US-AndrewMultilingualNeural` | warm, confident (B) |
 | `en-US-EmmaMultilingualNeural` | cheerful, clear |
 | `en-US-ChristopherNeural` | steady, authoritative |
 
-`python -m edge_tts --list-voices` lists them all.
+`python -m edge_tts --list-voices` lists them all. Before switching, listen for
+a room tail after short words like "Wait.": some voices (Ava, Aria, Michelle)
+carry one, and it sounds like an echo.

@@ -1,34 +1,33 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence, Series, getStaticFiles, staticFile } from "remotion";
 import { Fade } from "./components/Fade";
-import { Call, CALL } from "./scenes/Call";
-import { Intro, INTRO } from "./scenes/Intro";
-import { More, MORE } from "./scenes/More";
-import { Numbers, NUMBERS } from "./scenes/Numbers";
-import { Opener, OPENER } from "./scenes/Opener";
+import { CallScene, CALL } from "./scenes/CallScene";
+import { ClassScene, CLASS } from "./scenes/ClassScene";
+import { Hook, HOOK } from "./scenes/Hook";
+import { Monitors, MONITORS } from "./scenes/Monitors";
 import { Outro, OUTRO } from "./scenes/Outro";
+import { Platforms, PLATFORMS } from "./scenes/Platforms";
 import { Real, REAL, REAL_FILE } from "./scenes/Real";
-import { Talk, TALK } from "./scenes/Talk";
-import { Ticket, TICKET } from "./scenes/Ticket";
-import { Trap, TRAP } from "./scenes/Trap";
+import { Reveal, REVEAL } from "./scenes/Reveal";
+import { Scam, SCAM } from "./scenes/Scam";
 import { Placed, Soundtrack } from "./Soundtrack";
+import { L } from "./theme";
 import { SceneProps, timing } from "./timeline";
 
 // Each scene, its name in voiceover/script.json, and its shortest length in
 // frames. The voiceover can make a scene longer than this, never shorter.
-// The "Is it real?" scene joins only once a real recording is in public/.
+// The "Is this real?" scene joins only once a real recording is in public/.
 const HAS_REAL = getStaticFiles().some((f) => f.name === REAL_FILE);
 
 const SCENES: [React.FC<SceneProps>, string, number][] = [
-  [Opener, "opener", OPENER],
-  [Talk, "talk", TALK],
-  [Intro, "title", INTRO],
-  [Call, "call", CALL],
-  [Ticket, "ticket", TICKET],
-  [Trap, "trap", TRAP],
-  [More, "more", MORE],
+  [Hook, "hook", HOOK],
+  [Reveal, "reveal", REVEAL],
+  [Platforms, "platforms", PLATFORMS],
+  [ClassScene, "class", CLASS],
+  [CallScene, "call", CALL],
+  [Monitors, "monitors", MONITORS],
+  [Scam, "scam", SCAM],
   ...(HAS_REAL ? [[Real, "real", REAL] as [React.FC<SceneProps>, string, number]] : []),
-  [Numbers, "proof", NUMBERS],
   [Outro, "outro", OUTRO],
 ];
 
@@ -44,17 +43,17 @@ export const PLACED: Placed[] = SCENES.map(([, name], i) => ({
 }));
 
 // The voice clips live in public/vo; tools/make_voiceover.py makes them.
-// Without them the video is silent and the captions carry it.
+// Without them the video is silent.
 const present = new Set(getStaticFiles().map((f) => f.name));
 
 export const Video: React.FC = () => (
-  <AbsoluteFill style={{ background: "#000" }}>
+  <AbsoluteFill style={{ background: L.stage }}>
     <Series>
       {SCENES.map(([Scene], i) => {
         const t = TIMINGS[i];
         return (
           <Series.Sequence key={i} durationInFrames={t.duration}>
-            <Fade duration={t.duration}>
+            <Fade duration={t.duration} color={L.stage} edge={8}>
               <Scene t={t} />
             </Fade>
             {t.clips

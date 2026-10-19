@@ -18,6 +18,16 @@ export const C = {
   stage: "#0b1220",
 };
 
+// The light look: a soft off-white stage with dark type. UniQR's own blue
+// stays on its card and badges only.
+export const L = {
+  stage: "#f1f2f4",
+  stageEdge: "#e2e4e9",
+  ink: "#15171c",
+  sub: "#5c6370",
+  line: "#d5d8de",
+};
+
 // The fonts the app asks for on Windows, with the macOS and Linux ones after.
 export const UI = '"Segoe UI", "SF Pro Text", "DejaVu Sans", system-ui, sans-serif';
 export const MONO = 'Consolas, Menlo, "DejaVu Sans Mono", monospace';

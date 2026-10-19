@@ -8,7 +8,7 @@ src/Soundtrack.tsx); this script only makes the pieces.
     pad_bright  a slow A minor, F, C, G progression with soft plucks, for UniQR
     pulse       a low heartbeat, for tension
     riser       four seconds of rising noise and tone, into the reveal
-    impact      a deep hit with a tail, for the reveal and the last word
+    impact      a deep, clean hit (no echoes), for the reveal and the last word
     whoosh      a short air sweep, between scenes
 
 Needs numpy and scipy:  pip install numpy scipy
@@ -65,21 +65,6 @@ def fade(x: np.ndarray, fade_in: float, fade_out: float) -> np.ndarray:
     if b:
         env[-b:] = np.minimum(env[-b:], np.linspace(1, 0, b))
     return x * env
-
-
-def tail(x: np.ndarray, seconds: float = 2.5, feedback: float = 0.55) -> np.ndarray:
-    """A cheap reverb: a few spread-out echoes that fade, then smoothed."""
-    out = np.concatenate([x, np.zeros(int(seconds * RATE))])
-    dry = out.copy()
-    for delay_ms, gain in ((37, 0.6), (53, 0.5), (79, 0.45), (113, 0.4), (167, 0.35)):
-        d = int(delay_ms / 1000 * RATE)
-        echo = np.zeros_like(out)
-        for k in range(1, 12):
-            if k * d >= len(out):
-                break
-            echo[k * d:] += dry[: len(out) - k * d] * (gain * feedback ** (k - 1))
-        out += echo * 0.35
-    return lowpass(out, 5000)
 
 
 def save(name: str, x: np.ndarray, peak: float = 0.9) -> None:
@@ -167,12 +152,13 @@ def riser(seconds: float = 4.0) -> np.ndarray:
     return fade(x, 0.05, 0.03)
 
 
-def impact(seconds: float = 1.2) -> np.ndarray:
+def impact(seconds: float = 2.5) -> np.ndarray:
+    # No echo taps: repeated copies of the hit read as an echo under the voice.
     t = times(seconds)
     f = 90 * np.exp(-t * 3) + 32
-    boom = np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.exp(-t * 2.6)
-    crack = lowpass(RNG.standard_normal(len(t)), 2500) * np.exp(-t * 18) * 0.5
-    return tail(boom + crack, 3.0)
+    boom = np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.exp(-t * 2.2)
+    crack = lowpass(RNG.standard_normal(len(t)), 2000) * np.exp(-t * 22) * 0.35
+    return fade(lowpass(boom + crack, 3000), 0.0, 0.4)
 
 
 def whoosh(seconds: float = 0.9) -> np.ndarray:
@@ -194,4 +180,4 @@ if __name__ == "__main__":
     save("pulse", pulse())
     save("riser", riser())
     save("impact", impact())
-    save("whoosh", whoosh(), peak=0.7)
+    save("whoosh", whoosh(0.6), peak=0.6)

@@ -1,16 +1,18 @@
 # UniQR demo video
 
-A 100-second pitch for UniQR, sized for a LinkedIn post or a hackathon page,
+A 59-second pitch for UniQR, sized for a LinkedIn post or a hackathon page,
 written as code with [Remotion](https://www.remotion.dev). Remotion draws each
 frame as a React web page and stitches the frames into a video.
 
-It opens on a wall of QR codes and ends on "Try it out." with the
-latest-release link. In between, two voices talk it through over use cases on
-Windows and Mac screens: a conference livestream when your phone is dead, a video call with three codes,
-a PDF ticket on a Mac, and a giveaway poster hiding the @ trick. Then a fast
-run of features (two screens at once, a page full of codes, styled codes,
-a taken hotkey, start at login, privacy), the benchmark, and where to get it. There are no captions; a small "use case"
-tag names each scene.
+The hook is a question: how often do you grab your phone to scan something
+that's already on your laptop? After the title, three laptops show it on
+Windows, Mac and Linux, each with its hotkey. Their codes keep changing
+style (dark mode, dots, a logo, colors, a gradient, tilted), and each one is read again. Two voices then walk through
+real moments on a laptop: an attendance code in an online class, three codes on a team call, and
+two monitors read in one scan, and a "package on hold" scam email whose code
+hides where it really goes. A real
+screen recording proves it, and it ends on "Try it out." with the
+latest-release link. The look is light: a drawn laptop on an off-white stage.
 
 Nothing in it is a recording of a real screen. The desktops are drawn from
 plain shapes in the style of Windows 11 and macOS, with no logos. Every link is
@@ -64,11 +66,11 @@ silent.
 ## Sound bed
 
 Every sound besides the voice is synthesized by `tools/make_music.py` from sine
-waves and noise, so there is nothing to license: a dark drone and a heartbeat
-while the phone is dead, a riser and an impact for the reveal, a brighter
-progression once UniQR arrives, the drone again for the trap poster, and
-whooshes between scenes. `src/Soundtrack.tsx` places
-each piece on a story beat and dips it whenever the voice speaks.
+waves and noise, so there is nothing to license: a soft heartbeat while the
+phone keeps coming out, a riser and one clean hit for the reveal, a bright,
+quiet progression after that, and short whooshes between scenes.
+`src/Soundtrack.tsx` places each piece on a story beat, dips it whenever
+anyone speaks, and ends every whoosh before a line starts.
 
 ```bash
 pip install numpy scipy
@@ -97,7 +99,7 @@ rendered frame and missed the MaxiCode.
 
 ```
 src/theme.ts          the app's palette and fonts
-src/components/       card, picker, icon, codes, keycaps, pointer, OS screens
+src/components/       card, picker, icon, codes, keycaps, pointer, laptop, OS screens
 src/scenes/           one file per scene, in the order they play
 src/timeline.ts       scene lengths, captions and cue frames from the voiceover
 src/voiceover.json    each line's text and length, made by tools/make_voiceover.py
