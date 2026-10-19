@@ -180,8 +180,8 @@ def _resize_max(image: np.ndarray, target: int) -> np.ndarray:
     return cv2.resize(image, None, fx=scale, fy=scale, interpolation=interp)
 
 
-def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
-    """The upright rectangle around a quad, with a small quiet-zone margin."""
+def _bbox_bounds(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
+    """(x0, y0, x1, y1) of the upright rectangle around a quad, plus a margin."""
     pad = max(8, int(_quad_span(quad) * margin))
     h, w = image.shape[:2]
     x0 = max(0, int(quad[:, 0].min()) - pad)
@@ -190,7 +190,36 @@ def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
     y1 = min(h, int(quad[:, 1].max()) + pad)
     if x1 <= x0 or y1 <= y0:
         return None
+    return x0, y0, x1, y1
+
+
+def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
+    """The upright rectangle around a quad, with a small quiet-zone margin."""
+    bounds = _bbox_bounds(image, quad, margin)
+    if bounds is None:
+        return None
+    x0, y0, x1, y1 = bounds
     return image[y0:y1, x0:x1]
+
+
+def _true_outline(image: np.ndarray, quad: np.ndarray, text: str) -> np.ndarray:
+    """Where the code reading `text` really is, near a rough outline.
+
+    The locators' outline can be a shape stitched from several codes' corners,
+    or reach well past the code. zxing reports the corners of what it reads, so
+    the area around the rough outline is read again and, if the same text is
+    there, its corners are used. Otherwise the rough outline stays.
+    """
+    bounds = _bbox_bounds(image, quad, margin=0.25)
+    if bounds is None:
+        return quad
+    x0, y0, x1, y1 = bounds
+    rough = quad.mean(axis=0)
+    same = [d for d in _zxing_detect(image[y0:y1, x0:x1]) if d.text == text]
+    if not same:
+        return quad
+    best = min(same, key=lambda d: float(np.linalg.norm(d.quad.mean(axis=0) + (x0, y0) - rough)))
+    return best.quad + np.array([x0, y0], dtype=np.float32)
 
 
 def _zxing_detect(
@@ -338,16 +367,33 @@ def _run(detector, image: np.ndarray) -> list[Detection]:
     return out
 
 
+def _inside(point, quad: np.ndarray) -> bool:
+    return cv2.pointPolygonTest(
+        quad.reshape(-1, 1, 2).astype(np.float32), (float(point[0]), float(point[1])), False
+    ) >= 0
+
+
 def _merge(groups: list[list[Detection]]) -> list[Detection]:
-    """Combine detector results, dropping the same code found twice."""
+    """Combine detector results, dropping the same code found twice.
+
+    The same text counts as the same code when the centres are close, or when
+    one outline contains the other's centre. The second case is a code found
+    again inside a larger shape the locators stitched from several codes' corners:
+    on a tester's busy screen it drew a long, skewed outline over other codes.
+    Two copies of one code side by side stay separate. The first found is kept,
+    and the whole-frame reads, which place codes best, come first.
+    """
     merged: list[Detection] = []
     for group in groups:
         for det in group:
             cx, cy = det.center
             duplicate = any(
                 other.text == det.text
-                and abs(other.center[0] - cx) < 40
-                and abs(other.center[1] - cy) < 40
+                and (
+                    (abs(other.center[0] - cx) < 40 and abs(other.center[1] - cy) < 40)
+                    or _inside(other.center, det.quad)
+                    or _inside(det.center, other.quad)
+                )
                 for other in merged
             )
             if not duplicate:
@@ -495,14 +541,14 @@ class Scanner:
         canvas[margin:-margin, margin:-margin] = patch
 
         text = self._read_patch(canvas)
-        if text:
-            return Detection(text, quad)
-
-        # Warping is the right move for a tilted code, but on a big flat one
-        # the padding drags in surrounding scenery and skews the threshold
-        # against the code itself. A straight rectangular cut avoids that.
-        text = self._read_patch(_bbox_crop(image, quad))
-        return Detection(text, quad) if text else None
+        if not text:
+            # Warping is the right move for a tilted code, but on a big flat one
+            # the padding drags in surrounding scenery and skews the threshold
+            # against the code itself. A straight rectangular cut avoids that.
+            text = self._read_patch(_bbox_crop(image, quad))
+        if not text:
+            return None
+        return Detection(text, _true_outline(image, quad, text))
 
     def _read_patch(self, patch: np.ndarray | None) -> str:
         """Try a patch at several sizes under several contrast treatments.
