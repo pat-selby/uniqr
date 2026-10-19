@@ -146,7 +146,8 @@ def finish_mac_app(app: Path) -> None:
             "CFBundleShortVersionString": __version__,
             "CFBundleVersion": __version__,
             "NSHumanReadableCopyright": "Copyright (c) 2026 Patrick Selby. MIT License.",
-            "LSMinimumSystemVersion": "11.0",
+            # numpy and OpenCV ship Mac builds for macOS 14 and newer only.
+            "LSMinimumSystemVersion": "14.0",
             "NSHighResolutionCapable": True,
         }
     )
