@@ -107,6 +107,8 @@ nav .wrap { display: flex; align-items: center; justify-content: space-between; 
 .btn:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* keycaps */
+.winlogo { vertical-align: -2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .keys { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .key { font-family: var(--mono); font-weight: 700; font-size: 15px; padding: 7px 12px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 3px 0 var(--line); color: var(--fg); }
 .plus { color: var(--muted); font-size: 14px; }
@@ -252,9 +254,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <span class="eyebrow">Free and open source</span>
       <h1>Your laptop can read <em>QR codes</em> now.</h1>
       <p class="lede">Press one key. UniQR finds every QR code on your screen, copies the link, and shows you where it really goes before you open anything. Your phone can stay in your pocket.</p>
-      <div class="keys" aria-label="The hotkey: Win plus Shift plus Q">
-        <span class="key">Win</span><span class="plus">+</span><span class="key">Shift</span><span class="plus">+</span><span class="key">Q</span>
-        <span class="plus" style="margin-left:8px">or Cmd+Shift+8 on a Mac</span>
+      <div class="keys" aria-label="The hotkey: Windows logo key plus Shift plus Q">
+        <span class="key" title="Windows logo key"><svg class="winlogo" viewBox="0 0 88 88" width="16" height="16" aria-hidden="true"><g fill="#0078D4"><rect width="41" height="41"/><rect x="47" width="41" height="41"/><rect y="47" width="41" height="41"/><rect x="47" y="47" width="41" height="41"/></g></svg></span><span class="plus">+</span><span class="key">Shift</span><span class="plus">+</span><span class="key">Q</span>
+        <span class="plus" style="margin-left:8px">or Command + Shift + 8 on a Mac</span>
       </div>
       <div class="actions">
         <a class="btn primary" id="download" href="https://github.com/pat-selby/uniqr/releases/latest">Get UniQR</a>
@@ -321,7 +323,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <h2>Press. Check. Paste.</h2>
     </div>
     <div class="steps">
-      <div class="step"><h3>Press the hotkey</h3><p>Win+Shift+Q on Windows, Cmd+Shift+8 on a Mac. If another app owns it on Windows, UniQR takes the next free one. Or pick your own.</p></div>
+      <div class="step"><h3>Press the hotkey</h3><p><span class="sr">Windows logo key</span><svg class="winlogo" viewBox="0 0 88 88" width="14" height="14" aria-hidden="true"><g fill="#0078D4"><rect width="41" height="41"/><rect x="47" width="41" height="41"/><rect y="47" width="41" height="41"/><rect x="47" y="47" width="41" height="41"/></g></svg> + Shift + Q on Windows. Command + Shift + 8 on a Mac. Ctrl + Alt + Q on Linux.</p></div>
       <div class="step"><h3>Read the card</h3><p>One code is copied right away. A card under it shows the real host in bold, the rest of the address dimmed, and any warning in amber.</p></div>
       <div class="step"><h3>Open it, or paste it</h3><p>Only plain web links get an Open button. Wi-Fi codes, contacts and app links are copy only.</p></div>
     </div>
@@ -421,9 +423,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <p class="lede">Free and open source, MIT licensed. Every release is at <a href="https://github.com/pat-selby/uniqr/releases/latest">github.com/pat-selby/uniqr/releases/latest</a>.</p>
     </div>
     <div class="get">
-      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> from the latest release and double-click it. No Python needed.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
-      <div class="os"><h3>Mac</h3><p>Run it from source with Python 3.11 or newer, then turn on Screen Recording and Accessibility for Terminal.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
-      <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code> for X11 desktops. Wayland blocks screen capture, so it needs an X11 session.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
+      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> and double-click it. If Windows warns you, click <strong>More info</strong>, then <strong>Run anyway</strong>.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
+      <div class="os"><h3>Mac</h3><p>No download yet. Run it from the source, and allow Terminal to record the screen. The install guide has five short steps.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
+      <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code>, make it runnable, and run it. It needs an X11 session, not Wayland.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
     </div>
   </div>
 </section>
