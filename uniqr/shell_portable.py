@@ -55,7 +55,8 @@ HOTKEY_CHOICES = {
     # you are in, and a Mac user closed their browser with it on the first try.
     # macOS cannot say a combination is taken, so only the first one is ever used.
     "darwin": [
-        ("<cmd>+<shift>+8", "Command+Shift+8"),
+        # Written as on the key: the ⌘ symbol and the short word.
+        ("<cmd>+<shift>+8", "⌘ Cmd+Shift+8"),
         ("<ctrl>+<shift>+q", "Control+Shift+Q"),
         ("<ctrl>+<alt>+q", "Control+Option+Q"),
     ],

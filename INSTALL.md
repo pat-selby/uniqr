@@ -60,7 +60,7 @@ There's no Mac download yet, so you run it from the source. You need Python 3.11
    ```
 
 2. Open **System Settings → Privacy & Security** and switch on **Terminal** under **Screen Recording** and **Accessibility**. If the hotkey still does nothing later, add it under **Input Monitoring** too.
-3. Quit Terminal fully with **Command + Q**, and open it again.
+3. Quit Terminal fully with **⌘ Cmd + Q**, and open it again.
 4. Start UniQR:
 
    ```
@@ -69,11 +69,11 @@ There's no Mac download yet, so you run it from the source. You need Python 3.11
    uniqr
    ```
 
-5. Press **Command + Shift + 8** on any QR code.
+5. Press **⌘ Cmd + Shift + 8** on any QR code.
 
 To quit, press **Control + C** in that Terminal window. There's no tray icon on a Mac.
 
-**Another hotkey:** `UNIQR_HOTKEY='<cmd>+<shift>+9' uniqr`. Avoid Command + Q, Command + Shift + Q and Command + Control + Q: they quit, log out and lock.
+**Another hotkey:** `UNIQR_HOTKEY='<cmd>+<shift>+9' uniqr`. Avoid ⌘ Cmd + Q, ⌘ Cmd + Shift + Q and ⌘ Cmd + Control + Q: they quit, log out and lock.
 
 **Start at login:** run `python3 tools/install_mac_agent.py` from the UniQR folder. It opens a Finder window showing the Python it uses: add that program under **Screen Recording** and **Accessibility** too.
 
@@ -124,7 +124,7 @@ Right-click the tray icon and choose **Report a problem**. It opens a pre-filled
 | macOS | `~/Library/Logs/UniQR/uniqr.log` |
 | Linux | `~/.local/state/uniqr/uniqr.log` |
 
-- **"No QR code found", but I can see one:** it's drawn too small. Zoom the page in (**Ctrl + +** or **Command + +**) and scan again.
+- **"No QR code found", but I can see one:** it's drawn too small. Zoom the page in (**Ctrl + +** or **⌘ Cmd + +**) and scan again.
 - **Nothing happens when I press the hotkey:** press it with no code on screen. If a "No QR code found" card appears, the hotkey works. If not, another app may have the same keys (pick another, above), or on a Mac a permission is missing.
 - **It stopped working:** check it's still running (the tray icon on Windows, the Terminal window on a Mac). UniQR restarts itself if it freezes, and the log says so.
 - **Running from the source:** `python tools/diagnose.py` checks everything in order and says what failed.
