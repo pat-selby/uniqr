@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="UniQR reads any QR code on your laptop screen with one keypress. Free and open source for Windows, Mac and Linux.">
+<style>body{margin:0}img,video{max-width:100%}[hidden]{display:none!important}</style>
+<title>UniQR</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Plain white in light mode, plain black in dark mode, no blue: the only blue
+   left is inside the copy of UniQR's card, because that is the real app.
+   Layout: one long column. The hero puts the keypress next to a real code and
+   the card it makes; every section after it is a short answer to "why use it". */
+:root {
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --sunk: #efeff1;
+  --line: #e2e2e5;
+  --fg: #0a0a0a;
+  --muted: #5b5d63;
+  --accent: #0a0a0a;
+  --accent-ink: #ffffff;
+  --ok: #1d8a5a;
+  --warn: #a5650a;
+  /* The app's own card colors (uniqr/overlay.py). The card is a copy of the
+     real UI, so it looks the same in both themes. */
+  --card-bg: #111826;
+  --card-fg: #e8eefc;
+  --card-muted: #8fa3c8;
+  --card-line: #2a3752;
+  --card-raised: #1c2740;
+  --card-button: #1f2a40;
+  --card-accent: #4ea1ff;
+  --card-ink: #0b1220;
+  --card-ok: #3fb27f;
+  --card-warn: #e0a33e;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --surface: #111111; --sunk: #0b0b0b; --line: #262626;
+    --fg: #f5f5f5; --muted: #a3a3a3; --accent: #f5f5f5; --accent-ink: #000000;
+    --ok: #3fb27f; --warn: #e0a33e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --surface: #111111; --sunk: #0b0b0b; --line: #262626;
+  --fg: #f5f5f5; --muted: #a3a3a3; --accent: #f5f5f5; --accent-ink: #000000;
+  --ok: #3fb27f; --warn: #e0a33e; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 18px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.08; }
+h2 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; letter-spacing: -0.02em; }
+h3 { font-size: 22px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.lede { color: var(--muted); max-width: 60ch; }
+section { padding-block: clamp(56px, 8vw, 96px); }
+section + section { border-top: 1px solid var(--line); }
+.head { display: grid; gap: 14px; margin-bottom: 36px; }
+
+/* nav */
+nav .wrap { display: flex; align-items: center; justify-content: space-between; padding-block: 18px; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--fg); text-decoration: none; }
+.brand svg { width: 26px; height: 26px; }
+.navlinks { display: flex; gap: 22px; align-items: center; font-size: 16px; }
+.navlinks a { color: var(--muted); text-decoration: none; }
+.navlinks a:hover, .navlinks a:focus-visible { color: var(--fg); }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 17px; border: 1px solid transparent; cursor: pointer; font-family: var(--body); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { border-color: var(--line); color: var(--fg); background: var(--surface); }
+.btn:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* keycaps */
+.keys { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.key { font-family: var(--mono); font-weight: 700; font-size: 15px; padding: 7px 12px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 3px 0 var(--line); color: var(--fg); }
+.plus { color: var(--muted); font-size: 14px; }
+
+/* hero */
+.hero { padding-block: clamp(28px, 6vw, 64px) clamp(56px, 8vw, 88px); border-top: 0; }
+.hero .wrap { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: clamp(28px, 5vw, 64px); align-items: center; }
+.hero h1 { font-size: clamp(42px, 7vw, 82px); font-weight: 800; letter-spacing: -0.035em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .copy { display: grid; gap: 22px; min-width: 0; }
+.hero .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero .platforms { font-size: 15px; color: var(--muted); }
+.scanbox { position: relative; display: grid; justify-items: start; gap: 14px; min-width: 0; }
+.qrframe { position: relative; background: #fff; padding: 18px; border-radius: 18px; border: 1px solid var(--line); width: min(260px, 100%); }
+.qr { display: block; width: 100%; height: auto; }
+.scanbox .hint { font-size: 14px; color: var(--muted); }
+
+/* the card: a copy of the app's result card */
+.card { background: var(--card-line); padding: 1px; border-radius: 9px; box-shadow: 0 14px 34px rgba(5, 10, 20, 0.35); width: min(100%, 440px); }
+.card-in { background: var(--card-bg); color: var(--card-fg); border-radius: 8px; padding: 16px 20px 18px; font-family: "Segoe UI", system-ui, sans-serif; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 9px; }
+.card-kind { background: var(--card-raised); color: var(--card-muted); font-size: 11px; font-weight: 700; padding: 2px 9px; letter-spacing: 0.04em; }
+.card-status { color: var(--card-ok); font-size: 13px; font-weight: 700; }
+.card-host { font-family: Consolas, Menlo, var(--mono); font-weight: 700; font-size: 18px; overflow-wrap: anywhere; }
+.card-rest { font-family: Consolas, Menlo, var(--mono); font-size: 13px; color: var(--card-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.card-body { font-size: 15px; overflow-wrap: anywhere; }
+.card-note { font-size: 13.5px; margin-top: 7px; color: var(--card-muted); line-height: 1.35; }
+.card-note.warn { color: var(--card-warn); }
+.card-buttons { display: flex; gap: 8px; margin-top: 15px; }
+.card-buttons span { font-size: 13px; font-weight: 700; padding: 7px 18px; background: var(--card-button); color: var(--card-fg); }
+.card-buttons span.primary { background: var(--card-accent); color: var(--card-ink); }
+
+/* hero load moment: the keys go down, then the card arrives */
+@media (prefers-reduced-motion: no-preference) {
+  .hero .key { animation: press 0.35s ease-out both; }
+  .hero .key:nth-of-type(1) { animation-delay: 0.5s; }
+  .hero .key:nth-of-type(2) { animation-delay: 0.62s; }
+  .hero .key:nth-of-type(3) { animation-delay: 0.74s; }
+  .hero .card { animation: rise 0.45s 1.05s ease-out both; }
+}
+@keyframes press { 50% { transform: translateY(3px); box-shadow: 0 0 0 var(--line); background: var(--accent); color: var(--accent-ink); } }
+@keyframes rise { from { transform: translateY(14px); opacity: 0.2; } }
+
+/* video */
+.film { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: #000; aspect-ratio: 16 / 9; max-width: 100%; }
+.film video { width: 100%; height: 100%; display: block; }
+.film .sound { position: absolute; right: 14px; bottom: 58px; }
+.film-note { margin-top: 12px; font-size: 15px; color: var(--muted); }
+
+/* use cases */
+.cases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.case { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 8px; align-content: start; }
+.case .where { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.case p { color: var(--muted); font-size: 16px; }
+
+/* steps: a real sequence, so numbered like the picker's badges */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; counter-reset: step; }
+.step { display: grid; gap: 10px; align-content: start; }
+.step::before { counter-increment: step; content: counter(step); width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; font-family: var(--body); }
+.step p { color: var(--muted); font-size: 16px; }
+
+/* try the card */
+.try { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+.try .controls { display: grid; gap: 14px; min-width: 0; }
+.try label { font-weight: 700; }
+.try input { width: 100%; font: 500 16px var(--mono); padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 600 14px var(--body); padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.try .out { min-width: 0; display: grid; gap: 12px; }
+.try .fine { font-size: 14px; color: var(--muted); }
+
+/* features */
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; }
+.feature { display: grid; grid-template-columns: 22px 1fr; gap: 14px; padding-block: 18px; border-bottom: 1px solid var(--line); min-width: 0; }
+.feature svg { width: 22px; height: 22px; margin-top: 3px; color: var(--accent); }
+.feature h3 { font-size: 19px; }
+.feature p { color: var(--muted); font-size: 16px; margin-top: 4px; }
+.formats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.formats span { font-family: var(--mono); font-size: 12.5px; padding: 3px 9px; border-radius: 6px; background: var(--sunk); color: var(--fg); }
+
+/* numbers */
+.numbers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.num { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: grid; gap: 6px; align-content: start; }
+.num b { font-family: var(--display); font-size: clamp(40px, 5vw, 56px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.num.good b { color: var(--ok); }
+.num.blue b { color: var(--accent); }
+.num span { color: var(--muted); font-size: 16px; }
+.speed { margin-top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: grid; gap: 14px; }
+.bar { display: grid; grid-template-columns: 80px 1fr auto; gap: 14px; align-items: center; font-variant-numeric: tabular-nums; }
+.bar .track { height: 18px; border-radius: 9px; background: var(--sunk); overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 9px; background: var(--muted); }
+.bar.cpp .fill { background: var(--accent); }
+.bar b { font-family: var(--mono); }
+.source { font-size: 14px; color: var(--muted); }
+
+/* privacy band */
+.private { display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: center; }
+.lock { width: 96px; height: 96px; border-radius: 24px; background: var(--fg); color: var(--bg); display: grid; place-items: center; }
+.private ul { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 19px; }
+.private li::before { content: "✓"; color: var(--ok); font-weight: 700; margin-right: 10px; }
+
+/* get it */
+.get { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
+.get .os { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.get code { font-family: var(--mono); font-size: 14px; background: var(--sunk); padding: 2px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+.get p { color: var(--muted); font-size: 16px; }
+footer { padding-block: 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+
+@media (max-width: 860px) {
+  .hero .wrap, .try, .private { grid-template-columns: 1fr; }
+  .cases, .steps, .numbers, .get { grid-template-columns: 1fr; }
+  .features { grid-template-columns: 1fr; }
+  .navlinks a.hide-sm { display: none; }
+  .film .sound { bottom: 14px; }
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="UniQR home">
+      <svg viewBox="0 0 8 8" aria-hidden="true"><g fill="currentColor"><path d="M.25.25h3v3h-3zM.97.97v1.56h1.56V.97zM4.75.25h3v3h-3zM5.47.97v1.56h1.56V.97zM.25 4.75h3v3h-3zM.97 5.47v1.56h1.56V5.47z" fill-rule="evenodd"/><rect x="5" y="5" width=".8" height=".8"/><rect x="6.25" y="5" width=".8" height=".8"/><rect x="5" y="6.25" width=".8" height=".8"/><rect x="6.25" y="6.25" width=".8" height=".8"/><rect x="5.6" y="5.6" width=".8" height=".8"/></g></svg>
+      UniQR
+    </a>
+    <div class="navlinks">
+      <a class="hide-sm" href="#uses">Uses</a>
+      <a class="hide-sm" href="#try">Try the card</a>
+      <a class="hide-sm" href="#numbers">Numbers</a>
+      <a class="btn ghost" href="https://github.com/pat-selby/uniqr">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="copy">
+      <span class="eyebrow">Free and open source</span>
+      <h1>Your laptop can read <em>QR codes</em> now.</h1>
+      <p class="lede">Press one key. UniQR finds every QR code on your screen, copies the link, and shows you where it really goes before you open anything. Your phone can stay in your pocket.</p>
+      <div class="keys" aria-label="The hotkey: Win plus Shift plus Q">
+        <span class="key">Win</span><span class="plus">+</span><span class="key">Shift</span><span class="plus">+</span><span class="key">Q</span>
+        <span class="plus" style="margin-left:8px">or Cmd+Shift+8 on a Mac</span>
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Download for Windows</a>
+        <a class="btn ghost" href="#film">Watch the demo</a>
+      </div>
+      <p class="platforms">Windows, Mac, and Linux (X11). Reads QR plus six other kinds of 2D code.</p>
+    </div>
+    <div class="scanbox">
+      <div class="qrframe">
+        <svg class="qr" role="img" aria-label="QR code for github.com/pat-selby/uniqr" viewBox="0 0 232 232" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 232L56 232L56 176L0 176ZM64 232L72 232L72 224L64 224ZM80 232L88 232L88 224L96 224L96 216L104 216L104 208L120 208L120 200L152 200L152 176L160 176L160 200L152 200L152 216L104 216L104 224L96 224L96 232L120 232L120 224L128 224L128 232L144 232L144 224L160 224L160 232L208 232L208 224L200 224L200 216L216 216L216 208L224 208L224 200L200 200L200 192L224 192L224 200L232 200L232 184L224 184L224 176L232 176L232 168L216 168L216 160L208 160L208 176L216 176L216 184L200 184L200 144L192 144L192 128L184 128L184 136L168 136L168 128L184 128L184 120L200 120L200 128L208 128L208 120L216 120L216 136L224 136L224 120L232 120L232 112L176 112L176 120L168 120L168 112L176 112L176 104L184 104L184 96L168 96L168 104L152 104L152 112L160 112L160 144L168 144L168 152L160 152L160 160L152 160L152 168L144 168L144 192L136 192L136 184L128 184L128 192L112 192L112 200L96 200L96 208L88 208L88 200L96 200L96 176L88 176L88 184L80 184L80 192L72 192L72 200L80 200ZM216 232L224 232L224 216L216 216ZM8 224L8 184L48 184L48 224ZM176 224L176 216L168 216L168 200L176 200L176 208L192 208L192 224ZM16 216L40 216L40 192L16 192ZM224 216L232 216L232 208L224 208ZM64 208L72 208L72 200L64 200ZM64 192L72 192L72 184L64 184ZM104 192L112 192L112 184L120 184L120 176L112 176L112 168L96 168L96 176L104 176ZM168 192L168 168L192 168L192 192ZM72 184L80 184L80 176L72 176ZM176 184L184 184L184 176L176 176ZM64 176L72 176L72 160L80 160L80 176L88 176L88 168L96 168L96 160L88 160L88 152L72 152L72 144L88 144L88 152L96 152L96 160L112 160L112 144L96 144L96 128L104 128L104 136L120 136L120 128L128 128L128 120L80 120L80 112L72 112L72 120L56 120L56 128L40 128L40 120L24 120L24 128L32 128L32 144L40 144L40 160L48 160L48 152L64 152L64 160L48 160L48 168L64 168ZM128 176L136 176L136 160L144 160L144 152L152 152L152 144L136 144L136 152L120 152L120 160L112 160L112 168L128 168ZM0 168L8 168L8 160L0 160ZM16 168L40 168L40 160L32 160L32 144L16 144ZM176 160L176 144L184 144L184 160ZM216 160L232 160L232 136L224 136L224 144L216 144ZM0 152L8 152L8 144L0 144ZM8 144L16 144L16 120L8 120ZM48 144L48 136L56 136L56 144ZM128 144L136 144L136 136L144 136L144 112L136 112L136 128L128 128ZM200 144L208 144L208 136L200 136ZM40 120L56 120L56 112L40 112ZM8 112L40 112L40 104L32 104L32 96L40 96L40 104L56 104L56 96L48 96L48 88L40 88L40 80L32 80L32 88L24 88L24 96L16 96L16 104L8 104ZM56 112L64 112L64 104L56 104ZM80 112L88 112L88 104L80 104ZM64 104L72 104L72 88L64 88ZM136 104L144 104L144 96L136 96ZM200 104L208 104L208 96L200 96ZM216 104L232 104L232 96L224 96L224 80L208 80L208 72L200 72L200 80L192 80L192 96L200 96L200 88L208 88L208 96L216 96ZM0 96L16 96L16 88L0 88ZM80 96L88 96L88 80L80 80ZM96 96L104 96L104 80L96 80ZM112 96L120 96L120 88L112 88ZM144 96L168 96L168 88L176 88L176 80L168 80L168 72L160 72L160 80L152 80L152 88L144 88ZM48 88L56 88L56 80L48 80ZM0 80L16 80L16 72L8 72L8 64L0 64ZM56 80L64 80L64 72L56 72ZM72 80L80 80L80 72L72 72ZM88 80L96 80L96 72L88 72ZM112 80L128 80L128 72L136 72L136 64L120 64L120 72L112 72ZM136 80L144 80L144 72L136 72ZM176 80L184 80L184 72L176 72ZM224 80L232 80L232 72L224 72ZM24 72L32 72L32 64L24 64ZM40 72L56 72L56 64L40 64ZM64 72L72 72L72 64L64 64ZM80 72L88 72L88 64L96 64L96 56L88 56L88 48L80 48ZM96 72L104 72L104 64L96 64ZM168 72L176 72L176 64L168 64ZM184 72L192 72L192 64L184 64ZM112 64L120 64L120 32L128 32L128 24L112 24L112 16L128 16L128 8L112 8L112 0L96 0L96 8L104 8L104 48L112 48ZM136 64L152 64L152 48L144 48L144 56L136 56ZM0 56L56 56L56 0L0 0ZM64 56L72 56L72 40L64 40ZM96 56L104 56L104 48L96 48ZM128 56L136 56L136 48L128 48ZM160 56L168 56L168 48L160 48ZM176 56L232 56L232 0L176 0ZM8 48L8 8L48 8L48 48ZM88 48L96 48L96 40L88 40ZM136 48L144 48L144 40L136 40ZM152 48L160 48L160 40L152 40ZM184 48L184 8L224 8L224 48ZM16 40L40 40L40 16L16 16ZM72 40L88 40L88 32L80 32L80 24L88 24L88 16L96 16L96 8L88 8L88 0L72 0ZM128 40L136 40L136 32L128 32ZM192 40L216 40L216 16L192 16ZM88 32L96 32L96 24L88 24ZM144 32L168 32L168 16L160 16L160 24L144 24ZM128 24L144 24L144 16L152 16L152 8L168 8L168 0L128 0L128 8L136 8L136 16L128 16Z" fill-rule="evenodd" fill="#0b1220" />
+</svg>
+
+      </div>
+      <div class="card" aria-label="The card UniQR shows after a scan">
+        <div class="card-in">
+          <div class="card-head"><span class="card-kind">LINK</span><span class="card-status">✓ Copied</span></div>
+          <div class="card-host">github.com</div>
+          <div class="card-rest">/pat-selby/uniqr</div>
+          <div class="card-buttons"><span class="primary">Open</span><span>Dismiss</span></div>
+        </div>
+      </div>
+      <p class="hint">A real code. With UniQR running, press the hotkey on this page.</p>
+    </div>
+  </div>
+</header>
+
+<section id="film">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">The demo</span>
+      <h2>See it in under a minute.</h2>
+    </div>
+    <div class="film">
+      <video id="demo" src="uniqr-demo.mp4" poster="poster.jpg" muted autoplay loop playsinline controls preload="metadata"></video>
+      <button class="btn primary sound" id="sound" type="button">Play with sound</button>
+    </div>
+    <p class="film-note">Every screen in the video is drawn in code with made-up content. The codes in it are real ones.</p>
+  </div>
+</section>
+
+<section id="uses">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Where it helps</span>
+      <h2>The code is on your screen. So is your hand on the keyboard.</h2>
+      <p class="lede">Your phone was made for codes on paper. These are on your laptop.</p>
+    </div>
+    <div class="cases">
+      <article class="case"><span class="where">Conference livestream</span><h3>The slides are a QR code</h3><p>The speaker puts the link up for ten seconds. Press the key and it's on your clipboard before the slide changes.</p></article>
+      <article class="case"><span class="where">Video call</span><h3>Three codes on one slide</h3><p>The screen dims and each code gets a number. Hover to check one, then press its number.</p></article>
+      <article class="case"><span class="where">Hackathon kickoff</span><h3>Sign-up, repo, team chat</h3><p>Grab each link from the shared screen without asking anyone to paste it in the chat.</p></article>
+      <article class="case"><span class="where">PDF on a Mac</span><h3>A ticket with a long barcode</h3><p>Some event passes use PDF417. UniQR reads it, copies the text, and does nothing else with it.</p></article>
+      <article class="case"><span class="where">Search results</span><h3>A page full of codes</h3><p>Every code on the page gets a number, so you take the one you want.</p></article>
+      <article class="case"><span class="where">A giveaway poster</span><h3>A link that hides where it goes</h3><p>The card shows the real site and warns you about the @ trick, before you click anything.</p></article>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">How it works</span>
+      <h2>Press. Check. Paste.</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Press the hotkey</h3><p>Win+Shift+Q on Windows, Cmd+Shift+8 on a Mac. If another app owns it on Windows, UniQR takes the next free one. Or pick your own.</p></div>
+      <div class="step"><h3>Read the card</h3><p>One code is copied right away. A card under it shows the real host in bold, the rest of the address dimmed, and any warning in amber.</p></div>
+      <div class="step"><h3>Open it, or paste it</h3><p>Only plain web links get an Open button. Wi-Fi codes, contacts and app links are copy only.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Try the card</span>
+      <h2>What would UniQR tell you?</h2>
+      <p class="lede">Paste anything a QR code might hold. This uses the same rules as the app's card.</p>
+    </div>
+    <div class="try">
+      <div class="controls">
+        <label for="payload">Code contents</label>
+        <input id="payload" type="text" autocomplete="off" spellcheck="false" value="https://freepass.example@prize-claim.example.net/login">
+        <div class="chips" role="group" aria-label="Examples">
+          <button class="chip" type="button" data-v="https://example.com/talks/keynote-slides">A normal link</button>
+          <button class="chip" type="button" data-v="https://freepass.example@prize-claim.example.net/login" aria-pressed="true">The @ trick</button>
+          <button class="chip" type="button" data-v="https://xn--exmple-4nf.com/login">Lookalike letters</button>
+          <button class="chip" type="button" data-v="http://192.0.2.10/login">Raw IP, over http</button>
+          <button class="chip" type="button" data-v="WIFI:T:WPA;S:CafeGuest;P:example-pass;;">Wi-Fi</button>
+        </div>
+        <p class="fine">Nothing you type leaves this page.</p>
+      </div>
+      <div class="out" aria-live="polite">
+        <div class="card" id="card"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Built in</span>
+      <h2>Small app. Lots of thought.</h2>
+    </div>
+    <div class="features">
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="9" height="7" rx="1"/><rect x="13" y="4" width="9" height="7" rx="1"/><path d="M6 15h1M17 15h1M4 19h6M14 19h6"/></svg><div><h3>Every screen at once</h3><p>A scan covers your whole desktop, every monitor. Each card appears on the screen its code is on.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 20h1"/></svg><div><h3>Seven kinds of code</h3><p>Not just QR.</p><div class="formats"><span>QR</span><span>Micro QR</span><span>rMQR</span><span>Data Matrix</span><span>Aztec</span><span>PDF417</span><span>MaxiCode</span></div></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg><div><h3>Styled codes</h3><p>Dots, rounded blocks, a logo in the middle, colors, dark mode, codes at an angle, and codes down to about 45 pixels.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v9l5 3"/><circle cx="12" cy="12" r="9"/></svg><div><h3>Start at login</h3><p>It asks once, on first run, and never turns anything on unless you say yes. Change it any time from the tray.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M7 11h2M11 11h2M15 11h2M8 15h8"/></svg><div><h3>Your hotkey</h3><p>Set your own with one option. On Windows, a taken key falls back to the next free one, and the startup card says which.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M4 4l16 16"/></svg><div><h3>Works with Do Not Disturb</h3><p>The card is UniQR's own window, not a notification, so focus modes can't hide it.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg><div><h3>Scan an image file</h3><p><code style="font-family:var(--mono);font-size:14px">uniqr-scan photo.png</code> reads codes from a picture, no screen needed.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div><h3>Report a problem</h3><p>One click in the tray opens a pre-filled GitHub issue. UniQR sends nothing itself.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Measured, not claimed</span>
+      <h2>A wrong link is worse than no link.</h2>
+      <p class="lede">So the benchmark counts wrong answers on their own. Codes are generated in 19 styles and code types, then damaged: rotated, blurred, tilted, compressed, in glare, or dropped onto a busy 1080p page.</p>
+    </div>
+    <div class="numbers">
+      <div class="num blue"><b>96.8%</b><span>decoded, of 1,064 generated test codes in 7 formats</span></div>
+      <div class="num good"><b>0</b><span>wrong answers</span></div>
+      <div class="num good"><b>0</b><span>false alarms, on 48 images with no code</span></div>
+    </div>
+    <div class="speed">
+      <h3>Then it was rebuilt in C++</h3>
+      <div class="bar"><span>Python</span><span class="track"><span class="fill" style="display:block;width:100%"></span></span><b>115 ms</b></div>
+      <div class="bar cpp"><span>C++</span><span class="track"><span class="fill" style="display:block;width:4.35%"></span></span><b>5 ms</b></div>
+      <p class="source">Median scan time on the same 1,064 codes. Python read 1,027 and C++ read 1,026, both with 0 wrong. The C++ app is one 1.9 MB exe.</p>
+    </div>
+    <p class="source" style="margin-top:16px">Sources: <a href="https://github.com/pat-selby/uniqr/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (seed 7) and <a href="https://github.com/pat-selby/uniqr/blob/main/cpp/README.md">cpp/README.md</a> (seed 11). Two separate runs. Backed by 481 Python tests and 63 C++ tests, across 13 releases.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap private">
+    <div class="lock" aria-hidden="true">
+      <svg width="46" height="54" viewBox="0 0 22 26"><path d="M5 11V7a6 6 0 0 1 12 0v4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><rect x="2" y="11" width="18" height="13" rx="3" fill="currentColor"/><circle cx="11" cy="17" r="2" style="fill: var(--fg)"/></svg>
+    </div>
+    <div>
+      <span class="eyebrow">Private by design</span>
+      <h2 style="margin-top:10px">It only looks when you ask.</h2>
+      <ul>
+        <li>Nothing is captured until you press the key.</li>
+        <li>No background scanning and no scan history.</li>
+        <li>Your scans never leave your machine.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="get">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Get UniQR</span>
+      <h2>Try it out.</h2>
+      <p class="lede">Free and open source, MIT licensed. Every release is at <a href="https://github.com/pat-selby/uniqr/releases/latest">github.com/pat-selby/uniqr/releases/latest</a>.</p>
+    </div>
+    <div class="get">
+      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> from the latest release and double-click it. No Python needed.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
+      <div class="os"><h3>Mac</h3><p>Run it from source with Python 3.11 or newer, then turn on Screen Recording and Accessibility for Terminal.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
+      <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code> for X11 desktops. Wayland blocks screen capture, so it needs an X11 session.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Built by Patrick Selby. UniQR is MIT licensed.</span>
+    <a href="https://github.com/pat-selby/uniqr">github.com/pat-selby/uniqr</a>
+  </div>
+</footer>
+
+<script>
+// The demo video starts muted (browsers only autoplay that way); this button
+// restarts it with sound.
+(function () {
+  var video = document.getElementById("demo");
+  var sound = document.getElementById("sound");
+  sound.addEventListener("click", function () {
+    video.muted = false;
+    video.currentTime = 0;
+    var p = video.play();
+    if (p && p.catch) p.catch(function () {});
+    sound.hidden = true;
+  });
+  video.addEventListener("volumechange", function () { if (!video.muted) sound.hidden = true; });
+})();
+
+// "Try the card": the same rules as describe_link() and payload_kind() in
+// uniqr/actions.py and uniqr/decode.py, ported to JavaScript.
+(function () {
+  var KIND = { url: "Link", wifi: "Wi-Fi", email: "Email", phone: "Phone", geo: "Location", contact: "Contact", event: "Event", secret: "Secret", uri: "App link", text: "Text" };
+
+  function payloadKind(text) {
+    var s = text.trim().toLowerCase();
+    if (/^https?:\/\//.test(s)) return "url";
+    if (s.indexOf("wifi:") === 0) return "wifi";
+    if (s.indexOf("mailto:") === 0) return "email";
+    if (/^(tel|sms|smsto):/.test(s)) return "phone";
+    if (s.indexOf("geo:") === 0) return "geo";
+    if (s.indexOf("begin:vcard") === 0 || s.indexOf("mecard:") === 0) return "contact";
+    if (s.indexOf("begin:vevent") === 0) return "event";
+    if (/^(bitcoin|ethereum|otpauth):/.test(s)) return "secret";
+    if (s.indexOf("://") >= 0) return "uri";
+    return "text";
+  }
+
+  function isIP(host) {
+    if (/^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/.test(host)) return true;
+    return host.indexOf(":") >= 0 && /^[0-9a-f:.]+$/.test(host);
+  }
+
+  // Like Python's urlsplit: the host is whatever follows the last @.
+  function describeLink(text) {
+    var full = text.trim();
+    if (!/^https?:\/\//i.test(full)) return null;
+    var m = /^([a-z][a-z0-9+.-]*):\/\/([^\/?#]*)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(full);
+    if (!m) return null;
+    var scheme = m[1].toLowerCase(), netloc = m[2];
+    var at = netloc.lastIndexOf("@");
+    var hasUser = at >= 0;
+    var hostport = netloc.slice(at + 1), host, port = "";
+    if (hostport.charAt(0) === "[") {
+      var end = hostport.indexOf("]");
+      host = hostport.slice(1, end).toLowerCase();
+      var after = hostport.slice(end + 1);
+      if (after.charAt(0) === ":") port = after.slice(1);
+    } else {
+      var colon = hostport.lastIndexOf(":");
+      host = (colon >= 0 ? hostport.slice(0, colon) : hostport).toLowerCase();
+      if (colon >= 0) port = hostport.slice(colon + 1);
+    }
+    if (port && !/^\d+$/.test(port)) return null;
+    if (port && +port > 65535) return null;
+    if (!host) return null;
+    var warnings = [];
+    if (scheme !== "https") warnings.push("Not secure: this link uses http, not https.");
+    if (hasUser) warnings.push("Text before the @ is ignored. This really goes to " + host + ".");
+    if (host.split(".").some(function (l) { return l.indexOf("xn--") === 0; })) warnings.push("Uses international characters, a common lookalike trick. Check the address carefully.");
+    if (isIP(host)) warnings.push("Goes to a raw IP address, not a website name.");
+    var rest = m[3] + (m[4] && m[4].length > 1 ? m[4] : "") + (m[5] && m[5].length > 1 ? m[5] : "");
+    return { host: port ? host + ":" + (+port) : host, rest: rest, warnings: warnings };
+  }
+
+  function summarize(text, limit) {
+    var flat = text.split(/\s+/).filter(Boolean).join(" ");
+    return flat.length <= limit ? flat : flat.slice(0, limit - 1) + "…";
+  }
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+
+  var card = document.getElementById("card");
+  var input = document.getElementById("payload");
+  var chips = Array.prototype.slice.call(document.querySelectorAll(".chip"));
+
+  function render() {
+    var text = input.value;
+    var inner = el("div", "card-in");
+    if (!text.trim()) {
+      inner.appendChild(el("div", "card-body", "Paste or type what a code holds."));
+      card.replaceChildren(inner);
+      return;
+    }
+    var kind = payloadKind(text);
+    var head = el("div", "card-head");
+    head.appendChild(el("span", "card-kind", (KIND[kind] || "Text").toUpperCase()));
+    head.appendChild(el("span", "card-status", "✓ Copied"));
+    inner.appendChild(head);
+    var link = describeLink(text), notes = [], canOpen = /^https?:\/\//i.test(text.trim());
+    if (link) {
+      inner.appendChild(el("div", "card-host", link.host));
+      if (link.rest && link.rest !== "/") inner.appendChild(el("div", "card-rest", summarize(link.rest, 54)));
+      notes = link.warnings.map(function (w) { return [w, true]; });
+    } else {
+      inner.appendChild(el("div", "card-body", summarize(text, 90)));
+      notes = [["Not a web link, so UniQR won't open it.", false]];
+      if (kind === "secret") notes.unshift(["This is a login secret. Paste it only into your authenticator app.", true]);
+    }
+    notes.forEach(function (n) { inner.appendChild(el("div", "card-note" + (n[1] ? " warn" : ""), (n[1] ? "⚠ " : "") + n[0])); });
+    var buttons = el("div", "card-buttons");
+    if (canOpen && link) buttons.appendChild(el("span", "primary", "Open"));
+    buttons.appendChild(el("span", null, "Dismiss"));
+    inner.appendChild(buttons);
+    card.replaceChildren(inner);
+    chips.forEach(function (c) { c.setAttribute("aria-pressed", String(c.getAttribute("data-v") === text)); });
+  }
+
+  chips.forEach(function (c) {
+    c.addEventListener("click", function () { input.value = c.getAttribute("data-v"); render(); });
+  });
+  input.addEventListener("input", render);
+  render();
+})();
+</script>
+
+</body>
+</html>
