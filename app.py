@@ -9,6 +9,7 @@
     python app.py --open-url https://example.com       # test opening a link, then exit
     python app.py --check-updates                      # ask GitHub for a newer version, then exit
     python app.py --report-problem                     # open a pre-filled GitHub issue, then exit
+    python app.py --show-usage                         # print the usage counts and what would be sent
 
 Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
@@ -29,6 +30,7 @@ from uniqr import (
     overlay,
     report,
     updates,
+    usage,
     watchdog,
 )
 from uniqr.decode import Scanner, payload_kind
@@ -48,6 +50,8 @@ def build_shell(
     on_update_toggle=None,
     on_update_check=None,
     on_report=None,
+    usage_enabled=None,
+    on_usage_toggle=None,
 ):
     """Pick the shell that matches the capture backend.
 
@@ -67,6 +71,8 @@ def build_shell(
             on_update_toggle=on_update_toggle,
             on_update_check=on_update_check,
             on_report=on_report,
+            usage_enabled=usage_enabled,
+            on_usage_toggle=on_usage_toggle,
         )
 
     from uniqr.shell_portable import PortableShell
@@ -80,6 +86,8 @@ def build_shell(
         on_update_toggle=on_update_toggle,
         on_update_check=on_update_check,
         on_report=on_report,
+        usage_enabled=usage_enabled,
+        on_usage_toggle=on_usage_toggle,
     )
 
 
@@ -102,6 +110,13 @@ class UniQR:
         # Set when the browser would not open the report page, so the next
         # heartbeat can put the address on the clipboard and say so.
         self._report_failed: str | None = None
+        # Usage counts: like the update check, a worker thread sends and leaves
+        # the days it sent here for the main thread, which owns usage.json.
+        self._usage_enabled = usage.enabled()
+        self._usage_next = 0.0
+        self._usage_sent: list[str] | None = None
+        self._usage_thread: threading.Thread | None = None
+        can_share = usage.configured()
         can_toggle = autostart.supported()
         can_update = updates.supported()
         self.shell = build_shell(
@@ -113,6 +128,8 @@ class UniQR:
             self.toggle_updates if can_update else None,
             self.check_updates_now if can_update else None,
             self.report_problem,
+            (lambda: self._usage_enabled) if can_share else None,
+            self.toggle_usage if can_share else None,
         )
 
     def report_problem(self) -> None:
@@ -127,6 +144,40 @@ class UniQR:
         if not actions.open_url(url):
             print("the browser would not open the report page")
             self._report_failed = url
+
+    # -- usage counts --------------------------------------------------------------
+
+    def toggle_usage(self) -> None:
+        """The tray menu's "Share anonymous usage counts". Off deletes what was counted."""
+        turn_on = not self._usage_enabled
+        if usage.set_enabled(turn_on):
+            self._usage_enabled = turn_on
+            usage.record_answer(turn_on)
+            print(f"sharing usage counts is now {'on' if turn_on else 'off'}")
+        else:
+            print("could not change sharing usage counts")
+
+    def _usage_tick(self) -> None:
+        """At most once a minute: send finished days, one try an hour at most."""
+        if self._usage_sent is not None:
+            usage.mark_sent(self._usage_sent)
+            self._usage_sent = None
+        if not self._usage_enabled or time.time() < self._usage_next:
+            return
+        thread = self._usage_thread
+        if thread is not None and thread.is_alive():
+            return
+        self._usage_next = time.time() + 60
+        waiting = usage.due()
+        if not waiting:
+            return
+        self._usage_next = time.time() + usage.RETRY_AFTER_S
+
+        def work() -> None:
+            self._usage_sent = usage.send(waiting, __version__)
+
+        self._usage_thread = threading.Thread(target=work, name="usage-send", daemon=True)
+        self._usage_thread.start()
 
     # -- update checks -----------------------------------------------------------
 
@@ -165,6 +216,10 @@ class UniQR:
         if self._report_failed is not None and not self._scanning:
             url, self._report_failed = self._report_failed, None
             self._tell_report_failed(url)
+        try:
+            self._usage_tick()
+        except Exception as exc:  # noqa: BLE001 - counting must never stop the app
+            print(f"usage counts: {exc}")
         if self._update_enabled and time.time() >= self._update_due:
             self._update_due = time.time() + updates.CHECK_EVERY_S
             updates.record_check()
@@ -247,7 +302,14 @@ class UniQR:
     def _scan(self) -> None:
         rect = capture.virtual_screen()
         shot = capture.grab(rect)
+        started = time.perf_counter()
         found = self.scanner.scan(shot)
+        # Only how many, what kind and how long: never the text.
+        usage.record_scan(
+            time.perf_counter() - started,
+            [d.symbology for d in found],
+            sum(1 for d in found if payload_kind(d.text) == "url"),
+        )
 
         origin = (rect.left, rect.top)
 
@@ -271,6 +333,7 @@ class UniQR:
         # show them where the codes are and let them pick.
         choice = overlay.pick(shot, found, origin=origin)
         if choice is None:
+            usage.record_picker_cancelled()
             return
         action, det = choice
         self._take(action, det, origin)
@@ -279,6 +342,7 @@ class UniQR:
         self.last_payload = det.text
         actions.copy(det.text)
         if action == "open" and actions.open_url(det.text):
+            usage.record_opened()
             self.shell.set_tooltip(f"UniQR - opened {actions.summarize(det.text, 60)}")
             return
 
@@ -290,6 +354,8 @@ class UniQR:
         # The card labels the kind of code itself; this is the status line.
         heading = "Copied" if det.symbology == "QR Code" else f"Copied · {det.symbology}"
         opened = overlay.toast(det.text, heading, at)
+        if opened:
+            usage.record_opened()
         self.shell.set_tooltip(
             f"UniQR - {'opened' if opened else 'copied'} "
             f"{actions.summarize(det.text, 60)}"
@@ -343,6 +409,7 @@ class UniQR:
             # start-up with "Invalid window handle".
             return 0
 
+        usage.record_start()
         dog = watchdog.start(self.shell, self._on_tick)
         clean = False
         try:
@@ -378,6 +445,8 @@ class UniQR:
                 # One question per start. This one waits for a start where the
                 # login question is not being asked.
                 self._greet_and_ask_updates(message, screen)
+            elif usage.should_ask(self.quiet, self.restarted):
+                self._greet_and_ask_usage(message, screen)
             else:
                 overlay.toast("", message, (screen.right - 360, screen.bottom - 130))
         except Exception as exc:  # noqa: BLE001 - a greeting must not stop startup
@@ -443,6 +512,27 @@ class UniQR:
         else:
             print("update checks: could not be saved")
 
+    def _greet_and_ask_usage(self, message: str, screen) -> None:
+        """The third question, on a start where the other two are settled."""
+        print("asking whether to share usage counts")
+        answer = overlay.ask(
+            message,
+            "Help improve UniQR? Once a day it sends counts like how many scans found a "
+            "code. Never what you scan.",
+            ("Yes, share counts", "No thanks"),
+            (screen.right - 400, screen.bottom - 175),
+            until=lambda: self.shell.stopping,
+        )
+        usage.record_answer(answer, stopping=self.shell.stopping)
+        if not answer:
+            print("usage counts: no thanks" if answer is False else "usage counts: no answer")
+            return
+        if usage.set_enabled(True):
+            self._usage_enabled = True  # this start is counted once the loop begins
+            print("usage counts: on. Turn them off from the tray menu.")
+        else:
+            print("usage counts: could not be saved")
+
     @staticmethod
     def _corner(screen) -> tuple[int, int]:
         return (screen.right - 360, screen.bottom - 130)
@@ -492,6 +582,9 @@ def main() -> int:
             return 0
         print(f"Could not check for updates: {outcome.detail}")
         return 1
+    if "--show-usage" in sys.argv:
+        print(usage.describe(__version__))
+        return 0
     link = autostart.option(sys.argv, "--open-url")
     if link:
         opened = actions.open_url(link)

@@ -124,7 +124,10 @@ is copy-only, and you decide what to do with it:
 - App links like `ms-settings:`
 
 Nothing is captured until you press the hotkey. No background scanning, no
-polling, no history file. Nothing leaves your machine.
+polling, no history file. What you scan never leaves your machine. UniQR only
+goes online if you agree to a daily update check, or to sharing anonymous
+usage counts (whole numbers like "12 scans, 10 found a code"). Both are off
+until you say yes. [PRIVACY.md](PRIVACY.md) lists exactly what is sent.
 
 ## What it can read
 
