@@ -17,7 +17,6 @@ skipping the conversion draws every highlight at twice the offset of the code
 it belongs to. `to_points` and `below` are the only two places that divide.
 """
 
-import io
 import sys
 import tkinter as tk
 from collections.abc import Callable
@@ -73,6 +72,24 @@ KIND_LABELS = {
 }
 
 _root: tk.Tk | None = None
+
+
+def show_window(win) -> None:
+    """Show a window that was built while hidden.
+
+    Every UniQR window is built hidden, then shown. On a tester's Mac (macOS
+    26.6.2 in VMware, Python 3.14.7, Tk 9.0.4) a window shown that way once
+    stayed an empty dark rectangle: the picker, the cards, even a plain window
+    with a picture in it. Recorded step by step, the same window shown, hidden
+    and shown again drew everything, while a window that was never hidden drew
+    from the start. So on a Mac it is shown a second time. Elsewhere nothing
+    changes.
+    """
+    win.deiconify()
+    if sys.platform == "darwin":
+        win.update_idletasks()
+        win.withdraw()
+        win.deiconify()
 
 
 def shared_root() -> tk.Tk:
@@ -233,7 +250,7 @@ class HoverTip:
         size = (win.winfo_reqwidth(), win.winfo_reqheight())
         px, py = place_within((x, y), size, capture.monitor_at(x, y))
         win.geometry(f"+{px}+{py}")
-        win.deiconify()
+        show_window(win)
         # The card is also always-on-top, and every step of its fade-in brings
         # it back to the front. So the pop-up must only ever appear after the
         # fade has finished, which TIP_DELAY_MS guarantees (a test pins it).
@@ -344,33 +361,6 @@ def _build_card(
     return outer
 
 
-def photo_image(image: Image.Image, master, bridge: bool | None = None):
-    """A Tk image of `image`, for a canvas.
-
-    Pillow's ImageTk bridge is fast, but with Tk 9 on macOS it hands Tk a
-    picture that never draws. A tester's Mac (macOS 26.6.2, Python 3.14.7,
-    Tk 9.0.4, Pillow 12.3.0) showed the picker as a dark empty window, and a
-    test window drawn the same way did too, while plain coloured windows drew.
-    Tk can read a PPM picture by itself, so with Tk 9 it gets one of those
-    instead: about 130 ms for a 1080p screen, against 30 ms for the bridge,
-    and exactly the same pixels. PNG is the backup if a Tk refuses PPM.
-    `bridge` forces one way, for tests.
-    """
-    if bridge is None:
-        bridge = tk.TkVersion < 9
-    if bridge:
-        return ImageTk.PhotoImage(image, master=master)
-    rgb = image.convert("RGB")
-    buf = io.BytesIO()
-    rgb.save(buf, "PPM")
-    try:
-        return tk.PhotoImage(master=master, data=buf.getvalue())
-    except tk.TclError:
-        buf = io.BytesIO()
-        rgb.save(buf, "PNG", compress_level=1)
-        return tk.PhotoImage(master=master, data=buf.getvalue())
-
-
 class Picker:
     """Shows detections over a screenshot and returns the user's choice.
 
@@ -449,7 +439,7 @@ class Picker:
             # Retina: hand Tk an image the size of the window, or it draws the
             # top-left quarter of the screenshot at full size.
             image = image.resize((w, h), Image.LANCZOS)
-        self._photo = photo_image(image, self.win)
+        self._photo = ImageTk.PhotoImage(image, master=self.win)
         self.canvas.create_image(0, 0, image=self._photo, anchor="nw")
 
         self._draw_markers()
@@ -461,7 +451,7 @@ class Picker:
         for n in range(1, min(len(self.detections), 9) + 1):
             self.win.bind(str(n), lambda _e, i=n - 1: self._choose_index(i))
 
-        self.win.deiconify()
+        show_window(self.win)
         self.win.focus_force()
         self.canvas.focus_set()
 
@@ -686,7 +676,7 @@ class Toast:
         self.win.update_idletasks()
         self._place(at)
         self._set_alpha(0.0)
-        self.win.deiconify()
+        show_window(self.win)
         _round(self.win)
         self._fade_in(1)
 
