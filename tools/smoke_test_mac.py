@@ -29,10 +29,18 @@ def fail(msg: str) -> int:
 
 def check_dmg(dmg: Path) -> str | None:
     mount = Path(tempfile.mkdtemp(prefix="uniqr-dmg-"))
-    subprocess.run(
-        ["hdiutil", "attach", "-nobrowse", "-readonly", "-mountpoint", str(mount), str(dmg)],
-        check=True, capture_output=True,
-    )
+    # Just after hdiutil made it, the image can still be busy, so try a few times.
+    for attempt in range(6):
+        out = subprocess.run(
+            ["hdiutil", "attach", "-nobrowse", "-readonly", "-mountpoint", str(mount), str(dmg)],
+            capture_output=True, text=True,
+        )
+        if out.returncode == 0:
+            break
+        print(f"opening the disk image failed (try {attempt + 1}): {out.stderr.strip()}")
+        time.sleep(5)
+    else:
+        return "the disk image would not open"
     try:
         names = sorted(p.name for p in mount.iterdir())
         if "UniQR.app" not in names:
