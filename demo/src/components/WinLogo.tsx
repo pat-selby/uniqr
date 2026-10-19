@@ -13,6 +13,7 @@ export const WinLogo: React.FC<{ size: number }> = ({ size }) => (
   </svg>
 );
 
-// A key cap's face: the logo for the Windows key, the name for anything else.
+// A key cap's face: the logo for the Windows key, ⌘ Cmd for the Mac's
+// Command key, the name for anything else.
 export const KeyFace: React.FC<{ k: string; size: number }> = ({ k, size }) =>
-  k === "Win" ? <WinLogo size={size} /> : <>{k}</>;
+  k === "Win" ? <WinLogo size={size} /> : k === "Cmd" ? <>⌘ Cmd</> : <>{k}</>;
