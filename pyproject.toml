@@ -58,6 +58,12 @@ uniqr-scan = "scan:main"
 Homepage = "https://github.com/pat-selby/uniqr"
 Repository = "https://github.com/pat-selby/uniqr"
 
+[tool.setuptools]
+# The `uniqr` and `uniqr-scan` commands run these two files, which sit beside the
+# package rather than inside it. Without this line they were left out of every
+# install, and both commands failed with "No module named 'app'" / "'scan'".
+py-modules = ["app", "scan"]
+
 [tool.setuptools.packages.find]
 include = ["uniqr*"]
 
