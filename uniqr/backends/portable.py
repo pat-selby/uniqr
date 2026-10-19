@@ -110,10 +110,23 @@ def input_status() -> tuple[bool | None, str]:
     return False, f"{missing}. {GRANT_TO}"
 
 
-def _sct():
-    """One mss instance per thread; mss objects are not thread-safe."""
+def _sct(fresh: bool = False):
+    """One mss instance per thread; mss objects are not thread-safe.
+
+    `fresh` replaces it first. mss looks the monitors up once and keeps the
+    answer, so a screen that changes size while UniQR runs was still captured
+    at its old size. A tester's Mac VM started at 1204x928 and was resized
+    larger: every scan photographed only the old top-left corner, missed the
+    codes outside it, and the picker covered only that corner.
+    """
     import mss
 
+    if fresh and getattr(_local, "sct", None) is not None:
+        try:
+            _local.sct.close()
+        except Exception:  # noqa: BLE001 - an old handle failing to close changes nothing
+            pass
+        _local.sct = None
     if getattr(_local, "sct", None) is None:
         _local.sct = mss.mss()
     return _local.sct
@@ -128,8 +141,10 @@ def set_dpi_aware() -> None:
 
 
 def virtual_screen() -> Rect:
+    # Asked at the start of every scan, so it looks the screens up again: a
+    # monitor plugged in, or a resolution changed, since the last scan counts.
     # monitors[0] is mss's combined "all monitors" rectangle.
-    m = _sct().monitors[0]
+    m = _sct(fresh=True).monitors[0]
     return Rect(left=m["left"], top=m["top"], width=m["width"], height=m["height"])
 
 
