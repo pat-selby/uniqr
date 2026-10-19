@@ -257,10 +257,10 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
         <span class="plus" style="margin-left:8px">or Cmd+Shift+8 on a Mac</span>
       </div>
       <div class="actions">
-        <a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Download for Windows</a>
+        <a class="btn primary" id="download" href="https://github.com/pat-selby/uniqr/releases/latest">Get UniQR</a>
         <a class="btn ghost" href="#film">Watch the demo</a>
       </div>
-      <p class="platforms">Windows, Mac, and Linux (X11). Reads QR plus six other kinds of 2D code.</p>
+      <p class="platforms"><span id="also">Windows, Mac, and Linux (X11).</span> Reads QR plus six other kinds of 2D code.</p>
     </div>
     <div class="scanbox">
       <div class="qrframe">
@@ -436,6 +436,49 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 </footer>
 
 <script>
+// The hero button matches the visitor's system. Windows and Linux get the
+// file from the latest release directly; there is no Mac build to download,
+// so Mac visitors get the install guide instead. Anything else (a phone, say)
+// gets the releases page, since UniQR is a desktop app.
+(function () {
+  var REPO = "https://github.com/pat-selby/uniqr";
+  var LATEST = REPO + "/releases/latest/download/";
+  var GUIDE = REPO + "/blob/main/INSTALL.md";
+  var SYSTEMS = {
+    windows: { label: "Download for Windows", href: LATEST + "UniQR.exe", name: "Windows" },
+    mac: { label: "Install on Mac", href: GUIDE + "#macos", name: "Mac" },
+    linux: { label: "Download for Linux", href: LATEST + "UniQR-linux-x86_64", name: "Linux (X11)" },
+  };
+
+  function system() {
+    var hint = (navigator.userAgentData && navigator.userAgentData.platform) || "";
+    var ua = navigator.userAgent || "";
+    var all = (hint + " " + ua + " " + (navigator.platform || "")).toLowerCase();
+    if (/android|iphone|ipad|ipod|cros/.test(all)) return "other";
+    // iPads ask for the desktop site and claim to be Macs; they have touch.
+    if (/mac/.test(all)) return navigator.maxTouchPoints > 1 ? "other" : "mac";
+    if (/win/.test(all)) return "windows";
+    if (/linux|x11/.test(all)) return "linux";
+    return "other";
+  }
+
+  var mine = system();
+  var button = document.getElementById("download");
+  var also = document.getElementById("also");
+  if (!SYSTEMS[mine]) return; // keep "Get UniQR", pointing at the releases page
+  button.textContent = SYSTEMS[mine].label;
+  button.href = SYSTEMS[mine].href;
+  also.textContent = "Also for ";
+  var others = Object.keys(SYSTEMS).filter(function (k) { return k !== mine; });
+  others.forEach(function (k, i) {
+    var link = document.createElement("a");
+    link.href = SYSTEMS[k].href;
+    link.textContent = SYSTEMS[k].name;
+    also.appendChild(link);
+    also.appendChild(document.createTextNode(i === others.length - 1 ? "." : " and "));
+  });
+})();
+
 // Light or dark: the system setting by default, or the visitor's own choice
 // from the switch, remembered in their browser only.
 (function () {
