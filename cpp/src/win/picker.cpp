@@ -128,7 +128,7 @@ HBITMAP render_base(const Image& shot, const PickerState& s) {
     // What to do, across the top.
     const size_t count = s.found.size();
     const std::wstring hint = std::to_wstring(count) + (count == 1 ? L" QR code" : L" QR codes") +
-                              L" found  -  hover to inspect, press 1-" + std::to_wstring(std::min<size_t>(count, 9)) +
+                              L" found  -  click one to open it, press 1-" + std::to_wstring(std::min<size_t>(count, 9)) +
                               L" to copy, Esc to cancel";
     HFONT hint_font = CreateFontW(-static_cast<int>(std::lround(16 * s.scale)), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                                   DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
@@ -214,7 +214,10 @@ LRESULT CALLBACK picker_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                                 s->card_at.y + s->card->size().cy};
                 if (PtInRect(&card, p)) return 0;  // a click on the card itself does nothing
             }
-            finish(hwnd, s, code_at(s, p), false);  // a code copies; anywhere else cancels
+            // A safe link opens on one click; a link with a warning, or any other
+            // code, is copied and shown on its card. Anywhere else cancels.
+            const int code = code_at(s, p);
+            finish(hwnd, s, code, code >= 0 && opens_on_click(s->found[code].text));
             return 0;
         }
         case WM_KEYDOWN:

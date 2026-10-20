@@ -15,6 +15,10 @@ namespace uniqr {
 // Only ordinary web links get an Open action. Everything else is copy-only.
 bool can_open(std::string_view text);
 
+// Whether one click in the picker should open this straight away: only a web
+// link with nothing to warn about. Anything else is copied and shown on a card.
+bool opens_on_click(std::string_view text);
+
 // A web link split up so the real destination is easy to see.
 struct LinkView {
     std::string host;  // where the link really goes, with an unusual port

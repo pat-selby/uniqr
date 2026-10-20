@@ -81,3 +81,21 @@ def test_anything_that_cannot_be_opened_is_not_shown_as_a_link(payload):
 @pytest.mark.parametrize("payload", ["https:///no-host", "https://example.com:99999/"])
 def test_malformed_links_are_rejected_rather_than_guessed(payload):
     assert describe_link(payload) is None
+
+
+@pytest.mark.parametrize(
+    ("text", "opens"),
+    [
+        ("https://example.com/menu", True),
+        ("http://example.com", False),  # not secure: the card shows first
+        ("https://paypal.com@evil.example/login", False),  # the @ trick
+        ("https://xn--pypal-4ve.com", False),  # lookalike letters
+        ("https://192.0.2.10/login", False),  # a raw IP address
+        ("WIFI:S:Home;T:WPA;P:secret;;", False),  # not a link: copied
+        ("hello", False),
+    ],
+)
+def test_one_click_opens_only_a_link_with_nothing_to_warn_about(text, opens):
+    from uniqr.actions import opens_on_click
+
+    assert opens_on_click(text) is opens

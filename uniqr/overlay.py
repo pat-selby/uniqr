@@ -487,7 +487,7 @@ class Picker:
             w // 2,
             28,
             text=(
-                f"{count} QR {plural} found  -  hover to inspect, "
+                f"{count} QR {plural} found  -  click one to open it, "
                 f"press 1-{min(count, 9)} to copy, Esc to cancel"
             ),
             fill=CARD_FG,
@@ -580,7 +580,10 @@ class Picker:
         if hit is None:
             self._dismiss()
         else:
-            self._finish("copy", self.detections[hit])
+            # One click opens a safe link. A link with a warning, or anything
+            # that is not a link, is copied and shown on its card instead.
+            det = self.detections[hit]
+            self._finish("open" if actions.opens_on_click(det.text) else "copy", det)
 
     def _choose_index(self, index: int) -> None:
         if 0 <= index < len(self.detections):

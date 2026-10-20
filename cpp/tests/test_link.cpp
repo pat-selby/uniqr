@@ -186,3 +186,12 @@ TEST_CASE("IP address rules match Python's ipaddress module") {
     CHECK(!uniqr::is_ipv6("12345::"));
     CHECK(!uniqr::is_ipv6("example.com"));
 }
+
+TEST_CASE("one click opens only a link with nothing to warn about") {
+    CHECK(uniqr::opens_on_click("https://example.com/menu"));
+    CHECK(!uniqr::opens_on_click("http://example.com"));
+    CHECK(!uniqr::opens_on_click("https://paypal.com@evil.example/login"));
+    CHECK(!uniqr::opens_on_click("https://xn--pypal-4ve.com"));
+    CHECK(!uniqr::opens_on_click("https://192.0.2.10/login"));
+    CHECK(!uniqr::opens_on_click("WIFI:S:Home;T:WPA;P:secret;;"));
+}

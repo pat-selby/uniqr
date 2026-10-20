@@ -8,6 +8,7 @@ position; nothing moves the real mouse.
 
 import sys
 import tkinter as tk
+import types
 
 import numpy as np
 import pytest
@@ -77,3 +78,14 @@ def test_the_pointer_check_stops_quietly_once_the_picker_closes(picker):
     picker._close()
     picker.root.update()
     picker._poll_pointer()  # must not raise
+
+
+def test_clicking_a_safe_link_opens_it(picker):
+    picker._on_click(types.SimpleNamespace(x=160, y=140))
+    assert picker.result[0] == "open"
+
+
+def test_clicking_a_link_with_a_warning_copies_and_shows_its_card(picker):
+    picker.detections[0] = Detection("http://example.com/one", picker.detections[0].quad)
+    picker._on_click(types.SimpleNamespace(x=160, y=140))
+    assert picker.result[0] == "copy"
