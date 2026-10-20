@@ -207,6 +207,7 @@ nav .wrap { display: flex; align-items: center; justify-content: space-between; 
 .get .os { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .get code { font-family: var(--mono); font-size: 14px; background: var(--sunk); padding: 2px 6px; border-radius: 5px; overflow-wrap: anywhere; }
 .get p { color: var(--muted); font-size: 16px; }
+.get .pair { display: flex; flex-wrap: wrap; gap: 8px; }
 footer { padding-block: 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
 
@@ -384,7 +385,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <div class="bar cpp"><span>C++</span><span class="track"><span class="fill" style="display:block;width:4.35%"></span></span><b>5 ms</b></div>
       <p class="source">Median scan time on the same 1,064 codes. Python read 1,027 and C++ read 1,026, both with 0 wrong. The C++ app is one 1.9 MB exe.</p>
     </div>
-    <p class="source" style="margin-top:16px">Sources: <a href="https://github.com/pat-selby/uniqr/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (seed 7) and <a href="https://github.com/pat-selby/uniqr/blob/main/cpp/README.md">cpp/README.md</a> (seed 11). Two separate runs. Backed by 481 Python tests and 63 C++ tests, across 15 releases.</p>
+    <p class="source" style="margin-top:16px">Sources: <a href="https://github.com/pat-selby/uniqr/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (seed 7) and <a href="https://github.com/pat-selby/uniqr/blob/main/cpp/README.md">cpp/README.md</a> (seed 11). Two separate runs. Backed by 481 Python tests and 63 C++ tests, across 16 releases.</p>
   </div>
 </section>
 
@@ -414,7 +415,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
     </div>
     <div class="get">
       <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> and double-click it. No Python needed.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
-      <div class="os"><h3>Mac</h3><p>Run it from source with Python 3.11 or newer. Then allow Screen Recording and Accessibility for Terminal.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
+      <div class="os"><h3>Mac</h3><p>Download the <code>.dmg</code> and drag UniQR to Applications. Open it, then click Open Anyway in System Settings &gt; Privacy &amp; Security. Switch UniQR on under Screen Recording and Accessibility. Needs macOS 14 or newer.</p><div class="pair"><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest/download/UniQR-macOS-arm64.dmg">Apple Silicon</a><a class="btn ghost" href="https://github.com/pat-selby/uniqr/releases/latest/download/UniQR-macOS-x86_64.dmg">Intel</a></div></div>
       <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code>. It needs an X11 session, since Wayland blocks screen capture.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
     </div>
   </div>
@@ -428,17 +429,17 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 </footer>
 
 <script>
-// The hero button matches the visitor's system. Windows and Linux get the
-// file from the latest release directly; there is no Mac build to download,
-// so Mac visitors get the install guide instead. Anything else (a phone, say)
-// gets the releases page, since UniQR is a desktop app.
+// The hero button matches the visitor's system and downloads the file from the
+// latest release. A browser can't reliably tell an Apple Silicon Mac from an
+// Intel one, so Macs get the Apple Silicon file plus a link to the Intel one.
+// Anything else (a phone, say) gets the releases page, since UniQR is a
+// desktop app.
 (function () {
   var REPO = "https://github.com/pat-selby/uniqr";
   var LATEST = REPO + "/releases/latest/download/";
-  var GUIDE = REPO + "/blob/main/INSTALL.md";
   var SYSTEMS = {
     windows: { label: "Download for Windows", href: LATEST + "UniQR.exe", name: "Windows" },
-    mac: { label: "Install on Mac", href: GUIDE + "#macos", name: "Mac" },
+    mac: { label: "Download for Mac", href: LATEST + "UniQR-macOS-arm64.dmg", name: "Mac" },
     linux: { label: "Download for Linux", href: LATEST + "UniQR-linux-x86_64", name: "Linux (X11)" },
   };
 
@@ -460,11 +461,22 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   if (!SYSTEMS[mine]) return; // keep "Get UniQR", pointing at the releases page
   button.textContent = SYSTEMS[mine].label;
   button.href = SYSTEMS[mine].href;
-  also.textContent = "Also for ";
+  also.textContent = "";
+  if (mine === "mac") {
+    var intel = document.createElement("a");
+    intel.href = LATEST + "UniQR-macOS-x86_64.dmg";
+    intel.textContent = "Intel Mac version";
+    also.appendChild(document.createTextNode("For Apple Silicon. "));
+    also.appendChild(intel);
+    also.appendChild(document.createTextNode(". Also for "));
+  } else {
+    also.appendChild(document.createTextNode("Also for "));
+  }
   var others = Object.keys(SYSTEMS).filter(function (k) { return k !== mine; });
   others.forEach(function (k, i) {
     var link = document.createElement("a");
-    link.href = SYSTEMS[k].href;
+    // Mac has two files, so other visitors go to the Mac card, which lists both.
+    link.href = k === "mac" ? "#get" : SYSTEMS[k].href;
     link.textContent = SYSTEMS[k].name;
     also.appendChild(link);
     also.appendChild(document.createTextNode(i === others.length - 1 ? "." : " and "));
