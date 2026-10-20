@@ -74,8 +74,12 @@ def screen_capture_allowed() -> bool | None:
     return _ask_bool("CoreGraphics", "CGPreflightScreenCaptureAccess")
 
 
+# A downloaded UniQR.app is itself what macOS asks about. Run from the source,
+# macOS credits the app that started Python instead.
 GRANT_TO = (
-    "Grant it to the app that launched UniQR - Terminal, iTerm, your IDE - "
+    "Grant it to UniQR, then quit UniQR and open it again"
+    if getattr(sys, "frozen", False)
+    else "Grant it to the app that launched UniQR - Terminal, iTerm, your IDE - "
     "not to Python, then quit that app completely and reopen it"
 )
 
@@ -263,6 +267,9 @@ def _on_wayland() -> bool:
 
 DENIED = (
     "on macOS grant Screen Recording in System Settings > Privacy & Security "
+    "to UniQR, then quit UniQR and open it again"
+    if getattr(sys, "frozen", False)
+    else "on macOS grant Screen Recording in System Settings > Privacy & Security "
     "to the app that launched this - Terminal, iTerm, your IDE - then quit "
     "that app completely and reopen it"
 )

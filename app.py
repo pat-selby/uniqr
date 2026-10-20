@@ -26,6 +26,7 @@ from uniqr import (
     backends,
     capture,
     logbook,
+    mac_permissions,
     overlay,
     report,
     updates,
@@ -306,6 +307,8 @@ class UniQR:
         print(f"screen capture: {detail}")
         if not ok:
             print("Cannot read the screen, so scanning would find nothing.")
+            if sys.platform == "darwin":
+                self._help_mac_permission("screen")
             return 4
 
         # The portable shell needs its tray started explicitly, and may not get
@@ -326,7 +329,8 @@ class UniQR:
                 print("No tray icon on this platform - Ctrl+C here to exit.")
             if sys.platform == "darwin":
                 print(
-                    "macOS: if the hotkey does nothing, grant Input Monitoring in\n"
+                    "macOS: if the hotkey does nothing, switch on "
+                    f"{mac_permissions.who()} under Accessibility in\n"
                     "System Settings > Privacy & Security, then restart UniQR."
                 )
             # A started listener is not a working one. Where the OS can be
@@ -335,6 +339,8 @@ class UniQR:
             allowed, detail = capture.input_status()
             if allowed is False:
                 print(HOTKEY_BLOCKED + detail)
+                if sys.platform == "darwin":
+                    self._help_mac_permission("keys")
         self._greet(label)
 
         if self.shell.stopping:
@@ -442,6 +448,30 @@ class UniQR:
             print("update checks: on. Turn them off from the tray menu.")
         else:
             print("update checks: could not be saved")
+
+    def _help_mac_permission(self, kind: str) -> None:
+        """A Mac permission is missing: say so on screen, not only in the log.
+
+        A downloaded UniQR.app has no Terminal to print to, so without this it
+        would quit, or sit deaf to the hotkey, with nothing visible at all.
+        """
+        mac_permissions.ask_macos(kind)
+        if self.quiet:
+            return
+        heading, note = mac_permissions.message(kind)
+        print(f"{heading}. {note}")
+        screen = capture.monitor_at(0, 0)
+        try:
+            answer = overlay.ask(
+                heading, note, ("Open Settings", "Not now"),
+                (screen.right - 420, screen.bottom - 200),
+                until=lambda: self.shell.stopping,
+            )
+        except Exception as exc:  # noqa: BLE001 - help must not stop start-up
+            print(f"could not show the permission card: {exc}")
+            return
+        if answer:
+            mac_permissions.open_settings(kind)
 
     @staticmethod
     def _corner(screen) -> tuple[int, int]:
