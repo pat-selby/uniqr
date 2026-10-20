@@ -1,6 +1,6 @@
 // UniQR, the C++ version: press a hotkey, read every QR code on screen.
 //
-//   uniqr-cpp.exe                          run it (tray icon, Win+Shift+Q)
+//   uniqr-cpp.exe                          run it (tray icon, Windows logo key+Shift+Q)
 //   uniqr-cpp.exe --quiet                  no card at start-up
 //   uniqr-cpp.exe --hotkey ctrl+alt+k      your own hotkey
 //   uniqr-cpp.exe --install-autostart      start at login (add --hotkey to keep one)

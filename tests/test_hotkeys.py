@@ -95,3 +95,23 @@ def test_an_unreadable_choice_gives_a_reason_and_still_leaves_the_usual_list():
     assert choices == hotkeys.WINDOWS_DEFAULTS
     assert wanted is None
     assert problem
+
+
+@pytest.mark.parametrize(
+    ("label", "seen"),
+    [
+        ("Win+Shift+Q", "\u229e+Shift+Q"),
+        ("Shift+Win+8", "Shift+\u229e+8"),
+        ("Ctrl+Alt+Q", "Ctrl+Alt+Q"),
+        ("Ctrl+Shift+F12", "Ctrl+Shift+F12"),
+    ],
+)
+def test_the_windows_key_is_shown_as_its_logo(label, seen):
+    assert hotkeys.shown(label) == seen
+
+
+def test_the_stored_setting_keeps_the_plain_word():
+    # Start at login stores canonical(); "⊞" in it could not be read back.
+    stored = hotkeys.canonical("win+shift+q")
+    assert stored == "shift+win+q"
+    assert parse_windows(stored)[:2] == parse_windows("win+shift+q")[:2]

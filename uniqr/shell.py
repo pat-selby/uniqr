@@ -15,7 +15,7 @@ import win32con
 import win32event
 import win32gui
 
-from uniqr.hotkeys import windows_choices
+from uniqr.hotkeys import shown, windows_choices
 from uniqr.icon import ensure_icon
 
 WM_TRAYICON = win32con.WM_USER + 20
@@ -148,12 +148,13 @@ class Shell:
                 continue
             if wanted and (mods, vk, label) != wanted:
                 print(
-                    f"{wanted[2]} is already used by another program, so UniQR is using "
-                    f"{label} instead."
+                    f"{shown(wanted[2])} is already used by another program, so UniQR is "
+                    f"using {shown(label)} instead."
                 )
-            self.hotkey_label = label
-            self.set_tooltip(f"UniQR - press {label} to scan")
-            return label
+            # Shown with ⊞ for the Windows key, in the menu, tooltip and cards.
+            self.hotkey_label = shown(label)
+            self.set_tooltip(f"UniQR - press {self.hotkey_label} to scan")
+            return self.hotkey_label
         return None
 
     @property

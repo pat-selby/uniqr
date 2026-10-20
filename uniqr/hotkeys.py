@@ -43,6 +43,9 @@ WINDOWS_DEFAULTS: list[tuple[int, int, str]] = [
 ]
 
 EXAMPLE = "ctrl+alt+k"
+# How the Windows key is shown to people: the logo on the key, not the word
+# "Win", which someone who has never typed a hotkey may not recognise.
+WINDOWS_KEY = "⊞"  # ⊞
 
 
 def _key(name: str) -> tuple[int, str]:
@@ -74,6 +77,16 @@ def parse_windows(text: str) -> tuple[int, int, str]:
     vk, key_label = _key(key_name)
     label = "+".join([word for flag, word in _LABEL_ORDER if mods & flag] + [key_label])
     return mods, vk, label
+
+
+def shown(label: str) -> str:
+    """A hotkey label as a person sees it, with ⊞ for the Windows key.
+
+    Labels keep the word "Win" inside, because canonical() lowercases a label
+    into the --hotkey setting that start at login stores, and "⊞" would not
+    read back. So only what is shown changes.
+    """
+    return "+".join(WINDOWS_KEY if part == "Win" else part for part in label.split("+"))
 
 
 def canonical(text: str) -> str:
