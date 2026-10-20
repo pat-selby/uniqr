@@ -77,6 +77,18 @@ def copy(text: str) -> None:
     backends.copy_text(text)
 
 
+def opens_on_click(text: str) -> bool:
+    """Whether clicking this code in the picker should open it straight away.
+
+    Only a web link with nothing to warn about. A link with a warning (plain
+    http, the @ trick, lookalike letters, a raw IP) is copied and shown on its
+    card first, so the warning is seen before anything opens. Anything that is
+    not a link is copied.
+    """
+    view = describe_link(text) if can_open(text) else None
+    return view is not None and not view.warnings
+
+
 def can_open(text: str) -> bool:
     """Only ordinary web links get an Open action.
 

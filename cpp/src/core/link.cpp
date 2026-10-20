@@ -120,6 +120,11 @@ bool is_ipv6(std::string_view sv) {
     return groups(s) == 8;
 }
 
+bool opens_on_click(std::string_view text) {
+    const auto view = describe_link(text);
+    return view && view->warnings.empty();
+}
+
 std::optional<LinkView> describe_link(std::string_view text) {
     if (!can_open(text)) return std::nullopt;
     LinkView view;
