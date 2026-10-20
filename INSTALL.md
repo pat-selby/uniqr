@@ -47,37 +47,37 @@ To start it at login: `python app.py --install-autostart`.
 
 ## macOS
 
-There's no Mac download yet, so you run it from the source. You need Python 3.11 or newer (`python3 --version`).
+You need macOS 14 or newer.
 
-1. In Terminal:
-
-   ```
-   git clone https://github.com/pat-selby/uniqr.git
-   cd uniqr
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -e .
-   ```
-
-2. Open **System Settings → Privacy & Security** and switch on **Terminal** under **Screen Recording** and **Accessibility**. If the hotkey still does nothing later, add it under **Input Monitoring** too.
-3. Quit Terminal fully with **⌘ Cmd + Q**, and open it again.
-4. Start UniQR:
-
-   ```
-   cd uniqr
-   source .venv/bin/activate
-   uniqr
-   ```
-
+1. Download the file for your Mac from the [latest release](https://github.com/pat-selby/uniqr/releases/latest):
+   **UniQR-macOS-arm64.dmg** for Apple Silicon (M1 and newer), or **UniQR-macOS-x86_64.dmg** for Intel. Not sure? Apple menu → **About This Mac**: "Chip: Apple" means Apple Silicon.
+2. Open the .dmg and drag **UniQR** onto **Applications**.
+3. Open UniQR from Applications. macOS will block it the first time, because it isn't signed by Apple. Go to **System Settings → Privacy & Security** and click **Open Anyway**.
+4. When UniQR asks, switch it on under **Screen Recording** and **Accessibility**. Then quit UniQR and open it again.
 5. Press **⌘ Cmd + Shift + 8** on any QR code.
 
-To quit, press **Control + C** in that Terminal window. There's no tray icon on a Mac.
+To quit, right-click UniQR in the Dock and choose **Quit**. To start it at login, add it under **System Settings → General → Login Items**.
 
-**Another hotkey:** `UNIQR_HOTKEY='<cmd>+<shift>+9' uniqr`. Avoid ⌘ Cmd + Q, ⌘ Cmd + Shift + Q and ⌘ Cmd + Control + Q: they quit, log out and lock.
-
-**Start at login:** run `python3 tools/install_mac_agent.py` from the UniQR folder. It opens a Finder window showing the Python it uses: add that program under **Screen Recording** and **Accessibility** too.
+**Another hotkey:** set it when you run it from the source (below). Avoid ⌘ Cmd + Q, ⌘ Cmd + Shift + Q and ⌘ Cmd + Control + Q: they quit, log out and lock.
 
 **Known issue:** scanning inside a full-screen app takes you out of full screen to show the picker.
+
+<details>
+<summary>Run it from the source instead</summary>
+
+You need Python 3.11 or newer.
+
+```
+git clone https://github.com/pat-selby/uniqr.git
+cd uniqr
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+uniqr
+```
+
+Switch on **Terminal** (not UniQR) under **Screen Recording** and **Accessibility**, then quit Terminal with **⌘ Cmd + Q** and open it again. Quit UniQR with **Control + C**. For another hotkey: `UNIQR_HOTKEY='<cmd>+<shift>+9' uniqr`. To start it at login: `python3 tools/install_mac_agent.py`.
+</details>
 
 ---
 

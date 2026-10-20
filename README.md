@@ -16,7 +16,7 @@ Read any QR code on your screen with one keypress. No phone needed.
 
 **Linux** (X11): download `UniQR-linux-x86_64`, run `chmod +x UniQR-linux-x86_64`, then `./UniQR-linux-x86_64`. Press **Ctrl + Alt + Q**.
 
-**Mac**: no download yet. Run it from the source, then press **⌘ Cmd + Shift + 8**. See [INSTALL.md](INSTALL.md#macos).
+**Mac** (macOS 14+): download `UniQR-macOS-arm64.dmg` (Apple Silicon) or `UniQR-macOS-x86_64.dmg` (Intel), drag UniQR to Applications, then open it. The first time, click **Open Anyway** in System Settings → Privacy & Security. Press **⌘ Cmd + Shift + 8**. See [INSTALL.md](INSTALL.md#macos).
 
 Full steps and fixes for each system: [INSTALL.md](INSTALL.md).
 
