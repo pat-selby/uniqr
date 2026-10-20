@@ -1,3 +1,4 @@
+import type { Platform } from "./platform";
 import { FPS } from "./theme";
 import voiceover from "./voiceover.json";
 
@@ -19,16 +20,19 @@ export type Timing = {
   clips: Clip[];
 };
 
-type Spoken = { text: string; file: string; seconds: number; pause: number };
+// A line can say something else in the Mac or Linux cut (the hotkey, say).
+type Said = { text: string; file: string; seconds: number };
+type Spoken = Said & { pause: number; os?: Partial<Record<Platform, Said>> };
 const SCENES = (voiceover as { scenes: Record<string, Spoken[]> }).scenes;
 
-export function timing(scene: string, minimum: number): Timing {
+export function timing(scene: string, minimum: number, platform: Platform = "windows"): Timing {
   const spoken = SCENES[scene] ?? [];
   const cues: number[] = [];
   const ends: number[] = [];
   const clips: Clip[] = [];
   let t = LEAD;
-  for (const line of spoken) {
+  for (const spokenLine of spoken) {
+    const line = { ...spokenLine, ...spokenLine.os?.[platform] };
     const length = Math.ceil(line.seconds * FPS);
     cues.push(t);
     ends.push(t + length);

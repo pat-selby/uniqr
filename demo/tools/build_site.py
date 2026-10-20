@@ -1,12 +1,14 @@
 """Build the landing page as a standalone site, ready for GitHub Pages.
 
 site/index.html is written as page content without its own <html> and
-<head> wrapper. This adds the wrapper and copies the web video and poster in
-next to it.
+<head> wrapper. This adds the wrapper and copies the web videos and poster in
+next to it. There is one video per system; the page plays the visitor's.
 
-Run from the demo folder, after `npm run render:web` and a poster still:
+Run from the demo folder, after `npm run render:web`, `render:web:mac`,
+`render:web:linux` and a poster still:
     python tools/build_site.py
-Writes out/site/: index.html, uniqr-demo.mp4, poster.jpg.
+Writes out/site/: index.html, uniqr-demo.mp4 (Windows), uniqr-demo-mac.mp4,
+uniqr-demo-linux.mp4, poster.jpg.
 """
 
 import shutil
@@ -33,7 +35,8 @@ def main() -> None:
     html = HEAD + page[:cut] + "\n</head>\n<body>\n" + page[cut:].lstrip() + "\n</body>\n</html>\n"
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "index.html").write_text(html, encoding="utf-8", newline="\n")
-    shutil.copyfile(DEMO / "out" / "uniqr-demo-web.mp4", OUT / "uniqr-demo.mp4")
+    for system in ["", "-mac", "-linux"]:
+        shutil.copyfile(DEMO / "out" / f"uniqr-demo-web{system}.mp4", OUT / f"uniqr-demo{system}.mp4")
     shutil.copyfile(DEMO / "out" / "poster.jpg", OUT / "poster.jpg")
     for f in sorted(OUT.iterdir()):
         print(f"{f.name:16} {f.stat().st_size:>9,} bytes")

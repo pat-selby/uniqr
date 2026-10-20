@@ -11,6 +11,7 @@ import { Real, REAL, REAL_FILE } from "./scenes/Real";
 import { Reveal, REVEAL } from "./scenes/Reveal";
 import { Scam, SCAM } from "./scenes/Scam";
 import { Placed, Soundtrack } from "./Soundtrack";
+import { Platform, PlatformContext } from "./platform";
 import { L } from "./theme";
 import { SceneProps, timing } from "./timeline";
 
@@ -31,42 +32,55 @@ const SCENES: [React.FC<SceneProps>, string, number][] = [
   [Outro, "outro", OUTRO],
 ];
 
-const TIMINGS = SCENES.map(([, name, minimum]) => timing(name, minimum));
+// Each system's cut times its scenes to its own voice lines, so the Mac cut
+// can say "Command, Shift, 8" and still land every animation on the words.
+export function plan(platform: Platform) {
+  const timings = SCENES.map(([, name, minimum]) => timing(name, minimum, platform));
+  const total = timings.reduce((sum, t) => sum + t.duration, 0);
+  // Where each scene starts in the whole video, for the sound bed.
+  const placed: Placed[] = SCENES.map(([, name], i) => ({
+    name,
+    start: timings.slice(0, i).reduce((sum, t) => sum + t.duration, 0),
+    t: timings[i],
+  }));
+  return { timings, total, placed };
+}
 
-export const TOTAL = TIMINGS.reduce((sum, t) => sum + t.duration, 0);
-
-// Where each scene starts in the whole video, for the sound bed.
-export const PLACED: Placed[] = SCENES.map(([, name], i) => ({
-  name,
-  start: TIMINGS.slice(0, i).reduce((sum, t) => sum + t.duration, 0),
-  t: TIMINGS[i],
-}));
+// The Windows cut, which the square LinkedIn cut shows.
+const WINDOWS = plan("windows");
+export const TOTAL = WINDOWS.total;
+export const PLACED = WINDOWS.placed;
 
 // The voice clips live in public/vo; tools/make_voiceover.py makes them.
 // Without them the video is silent.
 const present = new Set(getStaticFiles().map((f) => f.name));
 
-export const Video: React.FC = () => (
-  <AbsoluteFill style={{ background: L.stage }}>
-    <Series>
-      {SCENES.map(([Scene], i) => {
-        const t = TIMINGS[i];
-        return (
-          <Series.Sequence key={i} durationInFrames={t.duration}>
-            <Fade duration={t.duration} color={L.stage} edge={8}>
-              <Scene t={t} />
-            </Fade>
-            {t.clips
-              .filter((clip) => present.has(`vo/${clip.file}`))
-              .map((clip) => (
-                <Sequence key={clip.file} from={clip.from}>
-                  <Audio src={staticFile(`vo/${clip.file}`)} />
-                </Sequence>
-              ))}
-          </Series.Sequence>
-        );
-      })}
-    </Series>
-    <Soundtrack scenes={PLACED} total={TOTAL} />
-  </AbsoluteFill>
-);
+export const Video: React.FC<{ platform?: Platform }> = ({ platform = "windows" }) => {
+  const { timings, total, placed } = plan(platform);
+  return (
+    <PlatformContext.Provider value={platform}>
+      <AbsoluteFill style={{ background: L.stage }}>
+        <Series>
+          {SCENES.map(([Scene], i) => {
+            const t = timings[i];
+            return (
+              <Series.Sequence key={i} durationInFrames={t.duration}>
+                <Fade duration={t.duration} color={L.stage} edge={8}>
+                  <Scene t={t} />
+                </Fade>
+                {t.clips
+                  .filter((clip) => present.has(`vo/${clip.file}`))
+                  .map((clip) => (
+                    <Sequence key={clip.file} from={clip.from}>
+                      <Audio src={staticFile(`vo/${clip.file}`)} />
+                    </Sequence>
+                  ))}
+              </Series.Sequence>
+            );
+          })}
+        </Series>
+        <Soundtrack scenes={placed} total={total} />
+      </AbsoluteFill>
+    </PlatformContext.Provider>
+  );
+};

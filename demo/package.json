@@ -8,6 +8,8 @@
     "render": "remotion render UniQRDemo out/uniqr-demo.mp4",
     "render:square": "remotion render UniQRDemoSquare out/uniqr-demo-square.mp4",
     "render:web": "remotion render UniQRDemo out/uniqr-demo-web.mp4 --scale=0.5 --crf=30 --audio-bitrate=96k",
+    "render:web:mac": "remotion render UniQRDemoMac out/uniqr-demo-web-mac.mp4 --scale=0.5 --crf=30 --audio-bitrate=96k",
+    "render:web:linux": "remotion render UniQRDemoLinux out/uniqr-demo-web-linux.mp4 --scale=0.5 --crf=30 --audio-bitrate=96k",
     "still": "remotion still UniQRDemo out/still.png",
     "typecheck": "tsc --noEmit"
   },

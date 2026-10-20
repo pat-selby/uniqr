@@ -3,7 +3,8 @@ import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } fr
 import { Code } from "../components/Code";
 import { Keys } from "../components/Keys";
 import { LightStage } from "../components/Laptop";
-import { UseCase, WinDesktop } from "../components/OS";
+import { Desktop, UseCase } from "../components/OS";
+import { useHotkey } from "../platform";
 import { C, HEIGHT, UI, WIDTH } from "../theme";
 import { SceneProps, cue, within } from "../timeline";
 
@@ -38,6 +39,7 @@ export const Monitors: React.FC<SceneProps> = ({ t }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const KEYS_AT = within(t, 0, 0.6, 20);
+  const hotkey = useHotkey();
   const PICK = cue(t, 1, 50) + 4; // "It scans every screen at once"
   const dim = interpolate(frame, [PICK, PICK + 8], [0, 0.62], clamp);
   const pad = 8;
@@ -55,7 +57,7 @@ export const Monitors: React.FC<SceneProps> = ({ t }) => {
             {/* screen */}
             <div style={{ position: "absolute", left: m.x, top: m.y, width: SCREEN_W, height: SCREEN_H, overflow: "hidden", borderRadius: 4 }}>
               <div style={{ position: "absolute", left: 0, top: 0, width: WIDTH, height: HEIGHT, transform: `scale(${SCALE})`, transformOrigin: "0 0" }}>
-                <WinDesktop active={1}>
+                <Desktop active={1} app="Preview">
                   <div style={{ position: "absolute", left: WINDOWS[i].x, top: WINDOWS[i].y, width: WINDOWS[i].w, height: WINDOWS[i].h, background: "#fff", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", fontFamily: UI, color: "#1b2333" }}>
                     <div style={{ position: "absolute", left: 90, top: 150, fontSize: 30, letterSpacing: 4, fontWeight: 700, color: "#b0552f" }}>{i === 0 ? "MONITOR 1" : "MONITOR 2"}</div>
                     <div style={{ position: "absolute", left: 90, top: 200, fontSize: 84, fontWeight: 800, width: 640, lineHeight: 1.05 }}>{WINDOWS[i].title}</div>
@@ -63,7 +65,7 @@ export const Monitors: React.FC<SceneProps> = ({ t }) => {
                   <div style={{ position: "absolute", left: WINDOWS[i].code.left, top: WINDOWS[i].code.top }}>
                     <Code bcid="qrcode" text={WINDOWS[i].url} width={WINDOWS[i].code.size} color="#1b2333" />
                   </div>
-                </WinDesktop>
+                </Desktop>
               </div>
             </div>
           </React.Fragment>
@@ -96,7 +98,7 @@ export const Monitors: React.FC<SceneProps> = ({ t }) => {
             })
           : null}
       </LightStage>
-      <Keys keys={["Win", "Shift", "Q"]} from={KEYS_AT} hold={14} size={72} style={{ left: 0, right: 0, top: 40, justifyContent: "center", zIndex: 70 }} />
+      <Keys keys={hotkey} from={KEYS_AT} hold={14} size={72} style={{ left: 0, right: 0, top: 40, justifyContent: "center", zIndex: 70 }} />
       <UseCase label="Two monitors" opacity={interpolate(frame, [4, 14], [0, 1], clamp)} />
     </AbsoluteFill>
   );

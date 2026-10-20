@@ -4,7 +4,8 @@ import { Card } from "../components/Card";
 import { Keys } from "../components/Keys";
 import { Laptop } from "../components/Laptop";
 import { UseCase } from "../components/OS";
-import { SCAM_CODE, SCAM_HOST, ScamScreen } from "../components/Screens";
+import { SCAM_HOST, ScamScreen, scamCode } from "../components/Screens";
+import { useHotkey, usePlatform } from "../platform";
 import { C } from "../theme";
 import { SceneProps, cue, within } from "../timeline";
 
@@ -18,6 +19,9 @@ const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as 
 
 export const Scam: React.FC<SceneProps> = ({ t }) => {
   const frame = useCurrentFrame();
+  const SCAM_CODE = scamCode(usePlatform());
+  const AIM = scamCode("windows"); // see ClassScene: keeps the zoom inside the screen
+  const hotkey = useHotkey();
   const KEYS_AT = within(t, 0, 0.8, 60);
   const CARD_IN = KEYS_AT + 26;
   const LOOK = cue(t, 1, 100); // "Look at the card"
@@ -46,10 +50,10 @@ export const Scam: React.FC<SceneProps> = ({ t }) => {
 
   return (
     <AbsoluteFill>
-      <Laptop zoom={zoom} focus={{ x: SCAM_CODE.left + 300, y: SCAM_CODE.top + SCAM_CODE.size + 110 }} overlay={overlay}>
+      <Laptop zoom={zoom} focus={{ x: AIM.left + 300, y: AIM.top + AIM.size + 110 }} overlay={overlay}>
         <ScamScreen />
       </Laptop>
-      <Keys keys={["Win", "Shift", "Q"]} from={KEYS_AT - 10} hold={18} size={84} style={{ left: 0, right: 0, top: 24, justifyContent: "center", zIndex: 70 }} />
+      <Keys keys={hotkey} from={KEYS_AT - 10} hold={18} size={84} style={{ left: 0, right: 0, top: 24, justifyContent: "center", zIndex: 70 }} />
       <UseCase label="A scam email" opacity={interpolate(frame, [4, 14, LOOK - 6, LOOK + 4], [0, 1, 1, 0], clamp)} />
     </AbsoluteFill>
   );

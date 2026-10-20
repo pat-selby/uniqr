@@ -14,8 +14,14 @@ hides where it really goes. A real
 screen recording proves it, and it ends on "Try it out." with the
 latest-release link. The look is light: a drawn laptop on an off-white stage.
 
-Nothing in it is a recording of a real screen. The desktops are drawn from
-plain shapes in the style of Windows 11 and macOS, with no logos. Every link is
+There is one cut per system. The Windows cut shows Windows desktops and the
+Windows key; the Mac cut shows a Mac and says "Command, Shift, 8"; the Linux
+cut shows a GNOME-style desktop and Ctrl + Alt + Q. The landing page plays the
+cut that matches the visitor's computer. The square cut is the Windows one.
+
+Apart from the "Is this real?" scene, nothing in it is a recording of a real
+screen. The desktops are drawn from plain shapes in the style of Windows 11,
+macOS and GNOME, with no logos. Every link is
 an example.com style address, and the card and the picker are rebuilt in HTML
 with the app's own colors and text. The codes are real: `python scan.py` on a
 rendered frame reads the same text the card shows.
@@ -28,8 +34,10 @@ You need Node.js 18 or newer.
 cd demo
 npm install
 npm run studio    # opens a live preview in the browser
-npm run render          # writes out/uniqr-demo.mp4 (1920x1080)
+npm run render          # writes out/uniqr-demo.mp4 (1920x1080, Windows)
 npm run render:square   # writes out/uniqr-demo-square.mp4 (1080x1080)
+npx remotion render UniQRDemoMac out/uniqr-demo-mac.mp4      # the Mac cut
+npx remotion render UniQRDemoLinux out/uniqr-demo-linux.mp4  # the Linux cut
 ```
 
 The square cut is for the LinkedIn feed. It is the same video, seen through a
@@ -53,8 +61,11 @@ again. It plays muted, for `REAL_FRAMES` frames, set in
 `site/index.html` is a one-page site for UniQR: the video, the use cases, a
 "try the card" box that applies the app's link rules to anything you paste,
 the features, the numbers, and download links. It plays a lighter copy of the
-video (`npm run render:web`, about 2 MB), published next to it as
-`uniqr-demo.mp4`, with `out/poster.jpg` as the poster frame.
+video for the visitor's system (`npm run render:web`, `render:web:mac` and
+`render:web:linux`, about 2 MB each), published next to it as
+`uniqr-demo.mp4`, `uniqr-demo-mac.mp4` and `uniqr-demo-linux.mp4`, with
+`out/poster.jpg` as the poster frame. `python tools/build_site.py` puts it all
+in `out/site/` for GitHub Pages.
 
 ## Voiceover
 

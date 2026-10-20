@@ -430,7 +430,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 
 <script>
 // The hero button matches the visitor's system and downloads the file from the
-// latest release. A browser can't reliably tell an Apple Silicon Mac from an
+// latest release, and the demo video shows that system and its hotkey. A browser can't reliably tell an Apple Silicon Mac from an
 // Intel one, so Macs get the Apple Silicon file plus a link to the Intel one.
 // Anything else (a phone, say) gets the releases page, since UniQR is a
 // desktop app.
@@ -456,6 +456,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   }
 
   var mine = system();
+  var CUTS = { mac: "uniqr-demo-mac.mp4", linux: "uniqr-demo-linux.mp4" };
+  var film = document.getElementById("demo");
+  if (CUTS[mine] && film) film.src = CUTS[mine];
   var button = document.getElementById("download");
   var also = document.getElementById("also");
   if (!SYSTEMS[mine]) return; // keep "Get UniQR", pointing at the releases page

@@ -1,17 +1,21 @@
 import React, { createContext, useContext } from "react";
 import { AbsoluteFill } from "remotion";
+import { Platform, usePlatform } from "../platform";
 import { C } from "../theme";
 import { Icon } from "./Icon";
 
-// Desktops in the style of Windows 11 and macOS, drawn from plain shapes: no
-// logos, no screenshots, no real windows. Sizes are at 150% display scaling,
+// Desktops in the style of Windows 11, macOS and a GNOME-style Linux, drawn
+// from plain shapes: no logos, no screenshots, no real windows. Sizes are at 150% display scaling,
 // so text reads on a phone and on a conference screen.
 
 const WIN_FONT = '"Segoe UI Variable", "Segoe UI", system-ui, sans-serif';
 const MAC_FONT = '-apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
+const LINUX_FONT = '"Ubuntu", "Cantarell", "DejaVu Sans", system-ui, sans-serif';
 
 export const WIN_TASKBAR = 72;
 export const MAC_MENU = 36;
+const MAC_DOCK = 108; // the dock and the gap under it
+const LINUX_BAR = 44;
 
 // -- Windows ----------------------------------------------------------------
 
@@ -401,21 +405,67 @@ export const MacWindow: React.FC<{
   </div>
 );
 
+
+// Safari in the same style: one toolbar with the window buttons, the arrows,
+// and the address in the middle.
+const MAC_TOOLBAR = 60;
+export const MacBrowser: React.FC<{
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  tab: string;
+  url: string;
+  children: React.ReactNode;
+}> = ({ x, y, w, h, url, children }) => (
+  <div
+    style={{
+      position: "absolute",
+      left: x,
+      top: y,
+      width: w,
+      height: h,
+      borderRadius: 16,
+      overflow: "hidden",
+      background: "#ffffff",
+      boxShadow: "0 36px 90px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)",
+      display: "flex",
+      flexDirection: "column",
+      fontFamily: MAC_FONT,
+    }}
+  >
+    <div style={{ height: MAC_TOOLBAR, background: "#f2f2f4", borderBottom: "1px solid #d9d9dc", display: "flex", alignItems: "center", gap: 22, padding: "0 20px", color: "#6b6b70", fontSize: 26, flexShrink: 0, position: "relative" }}>
+      <span style={{ display: "flex" }}>
+        {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
+          <span key={c} style={{ width: 18, height: 18, borderRadius: 9, background: c, marginRight: 12 }} />
+        ))}
+      </span>
+      <span>‹</span>
+      <span style={{ opacity: 0.4 }}>›</span>
+      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", width: 680, height: 38, borderRadius: 10, background: "#e4e4e8", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize: 18, color: "#333" }}>
+        <span style={{ fontSize: 14 }}>🔒</span>
+        {url}
+      </div>
+    </div>
+    <div style={{ position: "relative", flex: 1 }}>{children}</div>
+  </div>
+);
+
 // -- Linux --------------------------------------------------------------------
 
 // A generic Linux desktop: a dark top bar with the clock in the middle, a dock
 // down the left side, and a calm wallpaper. No distribution's branding.
-export const LinuxDesktop: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+export const LinuxDesktop: React.FC<{ children?: React.ReactNode; dock?: boolean }> = ({ children, dock = true }) => (
   <AbsoluteFill
     style={{
-      fontFamily: '"Ubuntu", "Cantarell", "DejaVu Sans", system-ui, sans-serif',
+      fontFamily: LINUX_FONT,
       background:
         "radial-gradient(ellipse at 75% 80%, #e8a463 0%, transparent 45%)," +
         "radial-gradient(ellipse at 20% 30%, #3f8f8a 0%, transparent 55%)," +
         "linear-gradient(160deg, #24575a 0%, #1d3b4a 100%)",
     }}
   >
-    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 44, background: "#1b1b1d", color: "#f2f2f2", display: "flex", alignItems: "center", padding: "0 22px", fontSize: 20, zIndex: 5 }}>
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: LINUX_BAR, background: "#1b1b1d", color: "#f2f2f2", display: "flex", alignItems: "center", padding: "0 22px", fontSize: 20, zIndex: 5 }}>
       <span style={{ fontWeight: 600 }}>Activities</span>
       <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontWeight: 600 }}>Sat 10:24</span>
       <span style={{ marginLeft: "auto", display: "flex", gap: 14 }}>
@@ -424,14 +474,122 @@ export const LinuxDesktop: React.FC<{ children?: React.ReactNode }> = ({ childre
         <TrayGlyph d={BATTERY} />
       </span>
     </div>
-    <div style={{ position: "absolute", top: 44, left: 0, bottom: 0, width: 92, background: "rgba(20,20,22,0.7)", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, zIndex: 4 }}>
-      {["#e95420", "#3584e4", "#2ec27e", "#9141ac", "#f6d32d"].map((c, i) => (
-        <AppIcon key={i} color={c} size={58} />
-      ))}
-    </div>
+    {dock ? (
+      <div style={{ position: "absolute", top: LINUX_BAR, left: 0, bottom: 0, width: 92, background: "rgba(20,20,22,0.7)", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, zIndex: 4 }}>
+        {["#e95420", "#3584e4", "#2ec27e", "#9141ac", "#f6d32d"].map((c, i) => (
+          <AppIcon key={i} color={c} size={58} />
+        ))}
+      </div>
+    ) : null}
     {children}
   </AbsoluteFill>
 );
+
+
+// GNOME-style window buttons: small round ones on the right of the header bar.
+const LinuxButtons: React.FC = () => (
+  <span style={{ display: "flex", gap: 12 }}>
+    {["–", "□", "✕"].map((g) => (
+      <span key={g} style={{ width: 28, height: 28, borderRadius: 14, background: "#dcdcdc", display: "grid", placeItems: "center", fontSize: 14, color: "#2e2e2e" }}>
+        {g}
+      </span>
+    ))}
+  </span>
+);
+
+const LINUX_HEADER = 52;
+export const LinuxWindow: React.FC<{
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+}> = ({ x, y, w, h, title, children }) => (
+  <div style={{ position: "absolute", left: x, top: y, width: w, height: h, borderRadius: "12px 12px 0 0", overflow: "hidden", background: "#ffffff", display: "flex", flexDirection: "column", fontFamily: LINUX_FONT }}>
+    <div style={{ height: LINUX_HEADER, background: "#ebebeb", borderBottom: "1px solid #d5d5d5", display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 16px", position: "relative", flexShrink: 0 }}>
+      <span style={{ position: "absolute", left: 0, right: 0, textAlign: "center", fontSize: 19, fontWeight: 700, color: "#2e2e2e", pointerEvents: "none" }}>{title}</span>
+      <LinuxButtons />
+    </div>
+    <div style={{ position: "relative", flex: 1 }}>{children}</div>
+  </div>
+);
+
+// Firefox in the same style: a tab row with the window buttons, then the
+// address bar.
+const LINUX_TABS = 44;
+const LINUX_ADDRESS = 50;
+export const LinuxBrowser: React.FC<{
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  tab: string;
+  url: string;
+  children: React.ReactNode;
+}> = ({ x, y, w, h, tab, url, children }) => (
+  <div style={{ position: "absolute", left: x, top: y, width: w, height: h, borderRadius: "12px 12px 0 0", overflow: "hidden", background: "#ffffff", display: "flex", flexDirection: "column", fontFamily: LINUX_FONT }}>
+    <div style={{ height: LINUX_TABS, background: "#e3e3e6", display: "flex", alignItems: "flex-end", padding: "0 16px 0 10px", flexShrink: 0 }}>
+      <div style={{ height: 36, width: 300, background: "#f9f9fb", borderRadius: "8px 8px 0 0", display: "flex", alignItems: "center", gap: 10, padding: "0 14px", fontSize: 16, color: "#222" }}>
+        <AppIcon color="#e66000" size={18} />
+        <span style={{ flex: 1, overflow: "hidden", whiteSpace: "nowrap" }}>{tab}</span>
+        <span style={{ color: "#666" }}>✕</span>
+      </div>
+      <span style={{ fontSize: 22, color: "#555", margin: "0 0 6px 14px" }}>+</span>
+      <span style={{ flex: 1 }} />
+      <span style={{ alignSelf: "center" }}>
+        <LinuxButtons />
+      </span>
+    </div>
+    <div style={{ height: LINUX_ADDRESS, background: "#f9f9fb", borderBottom: "1px solid #e0e0e3", display: "flex", alignItems: "center", gap: 18, padding: "0 18px", color: "#555", fontSize: 20, flexShrink: 0 }}>
+      <span>←</span>
+      <span style={{ opacity: 0.4 }}>→</span>
+      <span>⟳</span>
+      <div style={{ flex: 1, height: 34, borderRadius: 6, background: "#ededf0", display: "flex", alignItems: "center", padding: "0 14px", gap: 10, fontSize: 17, color: "#333" }}>
+        <span style={{ fontSize: 14 }}>🔒</span>
+        {url}
+      </div>
+    </div>
+    <div style={{ position: "relative", flex: 1 }}>{children}</div>
+  </div>
+);
+
+// -- any system ---------------------------------------------------------------
+
+// Where a window that fills the screen sits on each system, and how tall its
+// title bar and a browser's bars are. Pages are laid out inside the window,
+// so a code's place on screen is the window's corner plus its place inside.
+export const FRAME: Record<Platform, { full: { x: number; y: number; w: number; h: number }; appBar: number; browserBar: number }> = {
+  windows: { full: { x: 0, y: 0, w: 1920, h: 1080 - WIN_TASKBAR }, appBar: 48, browserBar: 104 },
+  mac: { full: { x: 0, y: MAC_MENU, w: 1920, h: 1080 - MAC_MENU - MAC_DOCK }, appBar: 56, browserBar: MAC_TOOLBAR },
+  linux: { full: { x: 0, y: LINUX_BAR, w: 1920, h: 1080 - LINUX_BAR }, appBar: LINUX_HEADER, browserBar: LINUX_TABS + LINUX_ADDRESS },
+};
+
+// The desktop of this cut's system. `full` is true when a window fills the
+// screen, which hides the Linux dock the way GNOME does.
+export const Desktop: React.FC<{ active?: number; app: string; full?: boolean; children?: React.ReactNode }> = ({ active, app, full = false, children }) => {
+  const os = usePlatform();
+  if (os === "mac") return <MacDesktop app={app}>{children}</MacDesktop>;
+  if (os === "linux") return <LinuxDesktop dock={!full}>{children}</LinuxDesktop>;
+  return <WinDesktop active={active}>{children}</WinDesktop>;
+};
+
+type WindowProps = { x: number; y: number; w: number; h: number; title: string; icon: string; children: React.ReactNode };
+export const AppWindow: React.FC<WindowProps> = (props) => {
+  const os = usePlatform();
+  if (os === "mac") return <MacWindow {...props} />;
+  if (os === "linux") return <LinuxWindow {...props} />;
+  return <WinWindow {...props} />;
+};
+
+type BrowserProps = { x: number; y: number; w: number; h: number; tab: string; url: string; children: React.ReactNode };
+export const Browser: React.FC<BrowserProps> = (props) => {
+  const os = usePlatform();
+  if (os === "mac") return <MacBrowser {...props} />;
+  if (os === "linux") return <LinuxBrowser {...props} />;
+  return <WinBrowser {...props} />;
+};
 
 // -- shared -----------------------------------------------------------------
 

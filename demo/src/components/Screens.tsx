@@ -1,30 +1,37 @@
 import React from "react";
 import { Code } from "./Code";
-import { WinBrowser, WinDesktop, WinWindow, WIN_TASKBAR } from "./OS";
+import { Platform, usePlatform } from "../platform";
+import { AppWindow, Browser, Desktop, FRAME } from "./OS";
 
-// Three everyday moments with a QR code on a laptop screen, each laid out on
-// a full 1920 x 1080 screen. Made-up content, reserved example addresses.
-// The *_CODE constants say where each code sits, in screen pixels, so cards
-// and the picker can be placed on it.
+// Three everyday moments with a QR code on a laptop screen, each in a window
+// that fills a 1920 x 1080 screen on this cut's system. Made-up content,
+// reserved example addresses. classCode(), callBoxes() and scamCode() say
+// where each code sits, in screen pixels, so cards and the picker can be
+// placed on it. The page inside each window is the same on every system;
+// only the window's corner and title bar move.
 
-const FULL = { x: 0, y: 0, w: 1920, h: 1080 - WIN_TASKBAR };
 const FONT = '"Segoe UI", system-ui, sans-serif';
 
 // -- an online class ------------------------------------------------------------
 
-const PLAYER = { x: 36, y: 104 + 28, w: 1340, h: 754 };
-export const CLASS_CODE = { left: PLAYER.x + 880, top: PLAYER.y + 190, size: 320 };
+// The video player, inside the browser page; the code, inside the player.
+const PLAYER = { x: 36, y: 28, w: 1340, h: 754 };
+const IN_PLAYER = { left: 880, top: 190, size: 320 };
+export const classCode = (os: Platform) => {
+  const f = FRAME[os];
+  return { left: f.full.x + PLAYER.x + IN_PLAYER.left, top: f.full.y + f.browserBar + PLAYER.y + IN_PLAYER.top, size: IN_PLAYER.size };
+};
 export const CLASS_URL = "https://example.edu/attend/cs201-week6";
 
 export const ClassScreen: React.FC = () => (
-  <WinDesktop active={1}>
-    <WinBrowser {...FULL} tab="CS 201: Week 6 (live)" url="example.edu/courses/cs201/live">
+  <Desktop active={1} app="Safari" full>
+    <Browser {...FRAME[usePlatform()].full} tab="CS 201: Week 6 (live)" url="example.edu/courses/cs201/live">
       <div style={{ position: "absolute", inset: 0, background: "#f6f7f9", fontFamily: FONT }}>
         <div
           style={{
             position: "absolute",
             left: PLAYER.x,
-            top: PLAYER.y - 104,
+            top: PLAYER.y,
             width: PLAYER.w,
             height: PLAYER.h,
             borderRadius: 14,
@@ -38,8 +45,8 @@ export const ClassScreen: React.FC = () => (
             <div style={{ fontSize: 86, fontWeight: 800, lineHeight: 1.04, marginTop: 18 }}>Attendance check</div>
             <div style={{ fontSize: 34, color: "#5a6478", marginTop: 26 }}>Scan the code before 10:15.</div>
           </div>
-          <div style={{ position: "absolute", left: CLASS_CODE.left - PLAYER.x, top: CLASS_CODE.top - PLAYER.y }}>
-            <Code bcid="qrcode" text={CLASS_URL} width={CLASS_CODE.size} color="#1b2333" />
+          <div style={{ position: "absolute", left: IN_PLAYER.left, top: IN_PLAYER.top }}>
+            <Code bcid="qrcode" text={CLASS_URL} width={IN_PLAYER.size} color="#1b2333" />
           </div>
           <div style={{ position: "absolute", left: 24, bottom: 24, width: 240, height: 150, borderRadius: 12, background: "linear-gradient(160deg,#c9b8a6,#9c8672)", display: "grid", placeItems: "center" }}>
             <div style={{ width: 70, height: 70, borderRadius: 35, background: "#efe4d8" }} />
@@ -60,37 +67,42 @@ export const ClassScreen: React.FC = () => (
           ))}
         </div>
       </div>
-    </WinBrowser>
-  </WinDesktop>
+    </Browser>
+  </Desktop>
 );
 
 // -- a team call ----------------------------------------------------------------
 
-const SLIDE = { x: 24, y: 48 + 22, w: 1520, h: 855 };
+// The shared slide, inside the call window; the codes, inside the slide.
+const SLIDE = { x: 24, y: 22, w: 1520, h: 855 };
 const CALL_SIZE = 230;
-const CALL_TOP = SLIDE.y + 360;
+const CALL_TOP = 360;
 export const CALL_ITEMS = [
   { label: "Design", url: "https://example.com/q3/design" },
   { label: "Backend", url: "https://example.org/q3/backend" },
   { label: "Data", url: "https://example.net/q3/data" },
 ];
-export const CALL_BOXES = [0.2, 0.5, 0.8].map((k) => ({
-  left: Math.round(SLIDE.x + SLIDE.w * k - CALL_SIZE / 2),
-  top: CALL_TOP,
-  size: CALL_SIZE,
-}));
+const IN_SLIDE = [0.2, 0.5, 0.8].map((k) => Math.round(SLIDE.w * k - CALL_SIZE / 2));
+export const callBoxes = (os: Platform) => {
+  const f = FRAME[os];
+  return IN_SLIDE.map((left) => ({
+    left: f.full.x + SLIDE.x + left,
+    top: f.full.y + f.appBar + SLIDE.y + CALL_TOP,
+    size: CALL_SIZE,
+  }));
+};
 
 export const CallScreen: React.FC = () => (
-  <WinDesktop active={3}>
-    <WinWindow {...FULL} title="Team sync" icon="#6264a7">
+  <Desktop active={3} app="Meetings" full>
+    <AppWindow {...FRAME[usePlatform()].full} title="Team sync" icon="#6264a7">
       <div style={{ position: "absolute", inset: 0, background: "#26262c", fontFamily: FONT }}>
-        <div style={{ position: "absolute", left: SLIDE.x, top: SLIDE.y - 48, width: SLIDE.w, height: SLIDE.h, background: "#fbfaf7", borderRadius: 8, color: "#1a2233" }}>
+        <div style={{ position: "absolute", left: SLIDE.x, top: SLIDE.y, width: SLIDE.w, height: SLIDE.h, background: "#fbfaf7", borderRadius: 8, color: "#1a2233" }}>
           <div style={{ textAlign: "center", paddingTop: 90 }}>
             <div style={{ fontSize: 28, letterSpacing: 4, fontWeight: 700, color: "#6264a7" }}>Q3 PLANNING</div>
             <div style={{ fontSize: 70, fontWeight: 800, marginTop: 12 }}>Pick your workstream</div>
           </div>
           {CALL_ITEMS.map((item, i) => (
-            <div key={item.url} style={{ position: "absolute", left: CALL_BOXES[i].left - SLIDE.x, top: CALL_TOP - SLIDE.y, width: CALL_SIZE, textAlign: "center" }}>
+            <div key={item.url} style={{ position: "absolute", left: IN_SLIDE[i], top: CALL_TOP, width: CALL_SIZE, textAlign: "center" }}>
               <Code bcid="qrcode" text={item.url} width={CALL_SIZE} color="#1a2233" />
               <div style={{ fontSize: 32, fontWeight: 700, marginTop: 70 }}>{item.label}</div>
             </div>
@@ -108,22 +120,27 @@ export const CallScreen: React.FC = () => (
           ))}
         </div>
       </div>
-    </WinWindow>
-  </WinDesktop>
+    </AppWindow>
+  </Desktop>
 );
 
 // -- a scam email ---------------------------------------------------------------
 
-const PANE = { x: 760, y: 48 };
-export const SCAM_CODE = { left: PANE.x + 70, top: PANE.y + 330, size: 300 };
+// The reading pane, inside the mail window; the code, inside the pane.
+const PANE = { x: 760 };
+const IN_PANE = { left: 70, top: 330, size: 300 };
+export const scamCode = (os: Platform) => {
+  const f = FRAME[os];
+  return { left: f.full.x + PANE.x + IN_PANE.left, top: f.full.y + f.appBar + IN_PANE.top, size: IN_PANE.size };
+};
 // The @ trick: everything before the @ is ignored, so this goes to the host
 // after it. Both names are reserved examples.
 export const SCAM_HOST = "pay-redelivery.example.net";
 export const SCAM_URL = `https://parcel.example@${SCAM_HOST}/fee`;
 
 export const ScamScreen: React.FC = () => (
-  <WinDesktop active={2}>
-    <WinWindow {...FULL} title="Inbox - Mail" icon="#0f6cbd">
+  <Desktop active={2} app="Mail" full>
+    <AppWindow {...FRAME[usePlatform()].full} title="Inbox - Mail" icon="#0f6cbd">
       <div style={{ position: "absolute", inset: 0, background: "#ffffff", fontFamily: FONT, color: "#1b2333" }}>
         <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 260, background: "#f3f4f6", padding: "28px 24px", boxSizing: "border-box", fontSize: 24, display: "flex", flexDirection: "column", gap: 22 }}>
           <b>Inbox <span style={{ color: "#0f6cbd" }}>3</span></b>
@@ -149,11 +166,11 @@ export const ScamScreen: React.FC = () => (
           <div style={{ fontSize: 26, lineHeight: 1.5, marginTop: 36, maxWidth: 900 }}>
             We tried to deliver your package today. To schedule a new delivery, scan the code below and pay the redelivery fee.
           </div>
-          <div style={{ position: "absolute", left: SCAM_CODE.left - PANE.x, top: SCAM_CODE.top - PANE.y }}>
-            <Code bcid="qrcode" text={SCAM_URL} width={SCAM_CODE.size} color="#1b2333" />
+          <div style={{ position: "absolute", left: IN_PANE.left, top: IN_PANE.top }}>
+            <Code bcid="qrcode" text={SCAM_URL} width={IN_PANE.size} color="#1b2333" />
           </div>
         </div>
       </div>
-    </WinWindow>
-  </WinDesktop>
+    </AppWindow>
+  </Desktop>
 );

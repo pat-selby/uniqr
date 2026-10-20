@@ -6,7 +6,8 @@ import { Keys } from "../components/Keys";
 import { Laptop } from "../components/Laptop";
 import { UseCase } from "../components/OS";
 import { Picker } from "../components/Picker";
-import { CALL_BOXES, CallScreen } from "../components/Screens";
+import { CallScreen, callBoxes } from "../components/Screens";
+import { useHotkey, usePlatform } from "../platform";
 import { SceneProps, cue, within } from "../timeline";
 
 export const CALL = 120;
@@ -19,6 +20,8 @@ const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as 
 
 export const CallScene: React.FC<SceneProps> = ({ t }) => {
   const frame = useCurrentFrame();
+  const CALL_BOXES = callBoxes(usePlatform());
+  const hotkey = useHotkey();
   const PICK = cue(t, 1, 60) - 2; // "Each one gets a number"
   const HOVER = PICK + 18;
   const PRESS = within(t, 1, 0.78, PICK + 50); // "Pick one"
@@ -64,7 +67,7 @@ export const CallScene: React.FC<SceneProps> = ({ t }) => {
       <Laptop overlay={overlay}>
         <CallScreen />
       </Laptop>
-      <Keys keys={["Win", "Shift", "Q"]} from={PICK - 26} hold={6} size={72} style={{ left: 0, right: 0, top: 24, justifyContent: "center", zIndex: 70 }} />
+      <Keys keys={hotkey} from={PICK - 26} hold={6} size={72} style={{ left: 0, right: 0, top: 24, justifyContent: "center", zIndex: 70 }} />
       <Keys keys={["2"]} from={PRESS - 10} hold={14} size={90} style={{ left: 0, right: 0, top: 24, justifyContent: "center", zIndex: 70 }} />
       <UseCase label="Team call" opacity={interpolate(frame, [4, 14], [0, 1], clamp)} />
     </AbsoluteFill>

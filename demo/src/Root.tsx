@@ -2,11 +2,14 @@ import React from "react";
 import { Composition } from "remotion";
 import { SQUARE, Square } from "./Square";
 import { FPS, HEIGHT, WIDTH } from "./theme";
-import { TOTAL, Video } from "./Video";
+import { Video, plan } from "./Video";
 
 export const Root: React.FC = () => (
   <>
-    <Composition id="UniQRDemo" component={Video} durationInFrames={TOTAL} fps={FPS} width={WIDTH} height={HEIGHT} />
-    <Composition id="UniQRDemoSquare" component={Square} durationInFrames={TOTAL} fps={FPS} width={SQUARE} height={SQUARE} />
+    {/* One cut per system; the landing page plays the visitor's. */}
+    <Composition id="UniQRDemo" component={Video} defaultProps={{ platform: "windows" as const }} durationInFrames={plan("windows").total} fps={FPS} width={WIDTH} height={HEIGHT} />
+    <Composition id="UniQRDemoMac" component={Video} defaultProps={{ platform: "mac" as const }} durationInFrames={plan("mac").total} fps={FPS} width={WIDTH} height={HEIGHT} />
+    <Composition id="UniQRDemoLinux" component={Video} defaultProps={{ platform: "linux" as const }} durationInFrames={plan("linux").total} fps={FPS} width={WIDTH} height={HEIGHT} />
+    <Composition id="UniQRDemoSquare" component={Square} durationInFrames={plan("windows").total} fps={FPS} width={SQUARE} height={SQUARE} />
   </>
 );

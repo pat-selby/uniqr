@@ -13,8 +13,9 @@ at the card".
 
 1. Edit [voiceover/script.json](voiceover/script.json). `who` is the speaker,
    `text` is the line, `say` is how the voice reads it (for numbers and
-   symbols), and `pause` adds frames of silence after it.
-2. Make the clips again:
+   symbols), and `pause` adds frames of silence after it. `os` gives what a
+   line says in the Mac or Linux cut instead, like the hotkey.
+2. Make the clips again. Clips whose words haven't changed are kept as they are:
 
    ```bash
    pip install edge-tts mutagen

@@ -5,6 +5,7 @@ import { Keys } from "../components/Keys";
 import { Laptop, LightStage } from "../components/Laptop";
 import { PhoneCam } from "../components/PhoneCam";
 import { ScamScreen } from "../components/Screens";
+import { useHotkey } from "../platform";
 import { L } from "../theme";
 import { SceneProps, Timing, cue, within } from "../timeline";
 
@@ -23,6 +24,7 @@ export const Reveal: React.FC<SceneProps> = ({ t }) => {
   const at = revealAt(t);
   const title = spring({ frame: frame - at, fps, config: { damping: 15 } });
   const laptopOut = interpolate(frame, [at - 8, at + 6], [1, 0], clamp);
+  const hotkey = useHotkey();
 
   return (
     <AbsoluteFill>
@@ -45,7 +47,7 @@ export const Reveal: React.FC<SceneProps> = ({ t }) => {
               <div style={{ fontSize: 44, color: L.sub }}>Read any QR code on your screen with one keypress.</div>
             </div>
           </LightStage>
-          <Keys keys={["Win", "Shift", "Q"]} from={at + 8} hold={60} size={84} style={{ left: 0, right: 0, top: 800, justifyContent: "center" }} />
+          <Keys keys={hotkey} from={at + 8} hold={60} size={84} style={{ left: 0, right: 0, top: 800, justifyContent: "center" }} />
         </AbsoluteFill>
       ) : null}
     </AbsoluteFill>
