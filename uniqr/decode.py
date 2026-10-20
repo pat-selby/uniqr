@@ -180,8 +180,8 @@ def _resize_max(image: np.ndarray, target: int) -> np.ndarray:
     return cv2.resize(image, None, fx=scale, fy=scale, interpolation=interp)
 
 
-def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
-    """The upright rectangle around a quad, with a small quiet-zone margin."""
+def _bbox_bounds(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
+    """(x0, y0, x1, y1) of the upright rectangle around a quad, plus a margin."""
     pad = max(8, int(_quad_span(quad) * margin))
     h, w = image.shape[:2]
     x0 = max(0, int(quad[:, 0].min()) - pad)
@@ -190,7 +190,36 @@ def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
     y1 = min(h, int(quad[:, 1].max()) + pad)
     if x1 <= x0 or y1 <= y0:
         return None
+    return x0, y0, x1, y1
+
+
+def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
+    """The upright rectangle around a quad, with a small quiet-zone margin."""
+    bounds = _bbox_bounds(image, quad, margin)
+    if bounds is None:
+        return None
+    x0, y0, x1, y1 = bounds
     return image[y0:y1, x0:x1]
+
+
+def _true_outline(image: np.ndarray, quad: np.ndarray, text: str) -> np.ndarray:
+    """Where the code reading `text` really is, near a rough outline.
+
+    The locators' outline can be a shape stitched from several codes' corners,
+    or reach well past the code. zxing reports the corners of what it reads, so
+    the area around the rough outline is read again and, if the same text is
+    there, its corners are used. Otherwise the rough outline stays.
+    """
+    bounds = _bbox_bounds(image, quad, margin=0.25)
+    if bounds is None:
+        return quad
+    x0, y0, x1, y1 = bounds
+    rough = quad.mean(axis=0)
+    same = [d for d in _zxing_detect(image[y0:y1, x0:x1]) if d.text == text]
+    if not same:
+        return quad
+    best = min(same, key=lambda d: float(np.linalg.norm(d.quad.mean(axis=0) + (x0, y0) - rough)))
+    return best.quad + np.array([x0, y0], dtype=np.float32)
 
 
 def _zxing_detect(
@@ -338,26 +367,27 @@ def _run(detector, image: np.ndarray) -> list[Detection]:
     return out
 
 
-def _inside(point: tuple[int, int], det: Detection) -> bool:
-    left, top, w, h = det.bbox
-    return left <= point[0] <= left + w and top <= point[1] <= top + h
+def _inside(point, quad: np.ndarray) -> bool:
+    return cv2.pointPolygonTest(
+        quad.reshape(-1, 1, 2).astype(np.float32), (float(point[0]), float(point[1])), False
+    ) >= 0
 
 
 def _same_code(a: Detection, b: Detection) -> bool:
     """Two reads of one code: same text, and in the same place.
 
     "Same place" can't just mean nearby centres. The locator sometimes joins
-    the corner squares of two or three different codes into one big square,
-    and reading that square finds the real code inside it - so the text is
-    right but the box is far too big, and its centre lands well away from the
-    real one. Either centre inside the other's box catches that. Two copies of
-    one code side by side still count twice: neither box holds the other's
-    centre.
+    the corner squares of two or three different codes into one big shape,
+    and reading that shape finds the real code inside it - so the text is
+    right but the outline is far too big, and its centre lands well away from
+    the real one. Either centre inside the other's outline catches that. Two
+    copies of one code side by side still count twice: neither outline holds
+    the other's centre.
     """
     if a.text != b.text:
         return False
     near = abs(a.center[0] - b.center[0]) < 40 and abs(a.center[1] - b.center[1]) < 40
-    return near or _inside(a.center, b) or _inside(b.center, a)
+    return near or _inside(a.center, b.quad) or _inside(b.center, a.quad)
 
 
 def _area(det: Detection) -> int:
@@ -368,10 +398,11 @@ def _area(det: Detection) -> int:
 def _merge(groups: list[list[Detection]]) -> list[Detection]:
     """Combine detector results, dropping the same code found twice.
 
-    The first read of a code is kept, unless a later one has a box less than
-    half the size. A real read hugs the code, and the wrong box described in
-    _same_code is always much bigger. The picker draws its outline and badge
-    from this box, so the tight one matters.
+    The first read of a code is kept, and the whole-frame reads, which place
+    codes best, come first. A later read replaces it only when its box is
+    less than half the size: a real read hugs the code, and the stitched
+    shape described in _same_code is always much bigger. The picker draws its
+    outline and badge from this box, so the tight one matters.
     """
     merged: list[Detection] = []
     for group in groups:
@@ -524,14 +555,14 @@ class Scanner:
         canvas[margin:-margin, margin:-margin] = patch
 
         text = self._read_patch(canvas)
-        if text:
-            return Detection(text, quad)
-
-        # Warping is the right move for a tilted code, but on a big flat one
-        # the padding drags in surrounding scenery and skews the threshold
-        # against the code itself. A straight rectangular cut avoids that.
-        text = self._read_patch(_bbox_crop(image, quad))
-        return Detection(text, quad) if text else None
+        if not text:
+            # Warping is the right move for a tilted code, but on a big flat one
+            # the padding drags in surrounding scenery and skews the threshold
+            # against the code itself. A straight rectangular cut avoids that.
+            text = self._read_patch(_bbox_crop(image, quad))
+        if not text:
+            return None
+        return Detection(text, _true_outline(image, quad, text))
 
     def _read_patch(self, patch: np.ndarray | None) -> str:
         """Try a patch at several sizes under several contrast treatments.

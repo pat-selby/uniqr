@@ -82,3 +82,14 @@ TEST_CASE("an unreadable choice gives a reason and still leaves the usual list")
     CHECK(!c.problem.empty());
     CHECK(c.order.size() == default_hotkeys().size());
 }
+
+TEST_CASE("the Windows key is shown as its logo, and only where people read it") {
+    CHECK(shown_hotkey("Win+Shift+Q") == "\xE2\x8A\x9E+Shift+Q");
+    CHECK(shown_hotkey("Shift+Win+8") == "Shift+\xE2\x8A\x9E+8");
+    CHECK(shown_hotkey("Ctrl+Alt+Q") == "Ctrl+Alt+Q");
+    // The stored setting keeps the word, so it reads back.
+    const auto hk = parse_hotkey("win+shift+q");
+    REQUIRE(hk);
+    CHECK(canonical_hotkey(*hk) == "shift+win+q");
+    CHECK(parse_hotkey(canonical_hotkey(*hk)));
+}

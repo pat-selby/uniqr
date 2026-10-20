@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uniqr"
-version = "0.2.1"
+version = "0.2.4"
 description = "System-wide QR code recognition: scan any code on screen with a hotkey"
 readme = "README.md"
 license = { text = "MIT" }
@@ -57,6 +57,12 @@ uniqr-scan = "scan:main"
 [project.urls]
 Homepage = "https://github.com/pat-selby/uniqr"
 Repository = "https://github.com/pat-selby/uniqr"
+
+[tool.setuptools]
+# The `uniqr` and `uniqr-scan` commands run these two files, which sit beside the
+# package rather than inside it. Without this line they were left out of every
+# install, and both commands failed with "No module named 'app'" / "'scan'".
+py-modules = ["app", "scan"]
 
 [tool.setuptools.packages.find]
 include = ["uniqr*"]

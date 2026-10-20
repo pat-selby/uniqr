@@ -93,7 +93,7 @@ std::optional<Hotkey> App::register_hotkey() {
     for (const Hotkey& hk : choices.order) {
         if (RegisterHotKey(hwnd_, kHotkeyId, hk.modifiers | MOD_NOREPEAT, hk.key)) {
             if (choices.wanted && !(hk == *choices.wanted))
-                log(choices.wanted->label + " is already used by another program, so UniQR is using " + hk.label +
+                log(shown_hotkey(choices.wanted->label) + " is already used by another program, so UniQR is using " + shown_hotkey(hk.label) +
                     " instead.");
             return hk;
         }
@@ -102,12 +102,12 @@ std::optional<Hotkey> App::register_hotkey() {
 }
 
 void App::greet() {
-    const std::string message = hotkey_ ? "UniQR is running. Press " + hotkey_->label + " to scan."
+    const std::string message = hotkey_ ? "UniQR is running. Press " + shown_hotkey(hotkey_->label) + " to scan."
                                         : "UniQR is running, but no hotkey was free. Use the tray icon.";
-    log(hotkey_ ? "UniQR is running. Press " + hotkey_->label + " to scan the screen."
+    log(hotkey_ ? "UniQR is running. Press " + shown_hotkey(hotkey_->label) + " to scan the screen."
                 : "UniQR is running, but no hotkey was free. Use the tray icon.");
     log("Right-click the tray icon to exit.");
-    set_tooltip(hotkey_ ? "UniQR - press " + hotkey_->label + " to scan" : "UniQR");
+    set_tooltip(hotkey_ ? "UniQR - press " + shown_hotkey(hotkey_->label) + " to scan" : "UniQR");
     if (options_.quiet) return;
     const RECT work = work_area_at(POINT{0, 0});
     const double s = dpi_scale_at(POINT{0, 0});
@@ -117,7 +117,7 @@ void App::greet() {
 
 void App::show_menu() {
     HMENU menu = CreatePopupMenu();
-    const std::wstring scan = hotkey_ ? L"Scan now (" + widen(hotkey_->label) + L")" : L"Scan now";
+    const std::wstring scan = hotkey_ ? L"Scan now (" + widen(shown_hotkey(hotkey_->label)) + L")" : L"Scan now";
     AppendMenuW(menu, MF_STRING, kScanNow, scan.c_str());
     AppendMenuW(menu, MF_STRING | (autostart_enabled() ? MF_CHECKED : 0), kAutostart, L"Start at login");
     AppendMenuW(menu, MF_STRING, kReport, L"Report a problem");
@@ -235,7 +235,7 @@ LRESULT CALLBACK App::window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 LRESULT App::handle(UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == taskbar_created_ && taskbar_created_ != 0) {  // Explorer restarted
         add_tray_icon();
-        set_tooltip(hotkey_ ? "UniQR - press " + hotkey_->label + " to scan" : "UniQR");
+        set_tooltip(hotkey_ ? "UniQR - press " + shown_hotkey(hotkey_->label) + " to scan" : "UniQR");
         return 0;
     }
     switch (msg) {

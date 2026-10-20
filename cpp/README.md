@@ -34,7 +34,7 @@ on the path. You get three programs:
 ## Use it
 
 ```bash
-uniqr-cpp.exe                          # Win+Shift+Q scans the screen
+uniqr-cpp.exe                          # ⊞+Shift+Q scans the screen
 uniqr-cpp.exe --hotkey ctrl+alt+k      # your own hotkey
 uniqr-cpp.exe --install-autostart      # start at login (add --hotkey to keep one)
 uniqr-cpp.exe --uninstall-autostart
