@@ -49,6 +49,7 @@ def build_shell(
     on_update_toggle=None,
     on_update_check=None,
     on_report=None,
+    on_feedback=None,
 ):
     """Pick the shell that matches the capture backend.
 
@@ -68,6 +69,7 @@ def build_shell(
             on_update_toggle=on_update_toggle,
             on_update_check=on_update_check,
             on_report=on_report,
+            on_feedback=on_feedback,
         )
 
     from uniqr.shell_portable import PortableShell
@@ -81,6 +83,7 @@ def build_shell(
         on_update_toggle=on_update_toggle,
         on_update_check=on_update_check,
         on_report=on_report,
+        on_feedback=on_feedback,
     )
 
 
@@ -114,6 +117,7 @@ class UniQR:
             self.toggle_updates if can_update else None,
             self.check_updates_now if can_update else None,
             self.report_problem,
+            self.send_feedback,
         )
 
     def report_problem(self) -> None:
@@ -128,6 +132,17 @@ class UniQR:
         if not actions.open_url(url):
             print("the browser would not open the report page")
             self._report_failed = url
+
+    def send_feedback(self) -> None:
+        """The tray menu's "Send feedback": a new post in the project's Discussions.
+
+        Like Report a problem, nothing is sent from here, and a browser that will
+        not open is reported on the next heartbeat.
+        """
+        print("opening the feedback page")
+        if not actions.open_url(report.FEEDBACK_URL):
+            print("the browser would not open the feedback page")
+            self._report_failed = report.FEEDBACK_URL
 
     # -- update checks -----------------------------------------------------------
 
@@ -184,7 +199,7 @@ class UniQR:
         """The browser would not open: leave the address where it can be pasted."""
         try:
             actions.copy(url)
-            message = "Could not open your browser. The report page address is on your clipboard."
+            message = "Could not open your browser. The page address is on your clipboard."
         except Exception as exc:  # noqa: BLE001
             print(f"could not copy the report address either: {exc}")
             message = "Could not open your browser. See the log."

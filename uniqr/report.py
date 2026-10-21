@@ -17,6 +17,9 @@ from urllib.parse import quote, urlencode
 
 REPO = "pat-selby/uniqr"
 NEW_ISSUE = f"https://github.com/{REPO}/issues/new"
+# The tray's "Send feedback": a new post in the project's Discussions, for
+# ideas and opinions rather than bugs.
+FEEDBACK_URL = f"https://github.com/{REPO}/discussions/new?category=general"
 
 
 def how_it_is_run() -> str:
