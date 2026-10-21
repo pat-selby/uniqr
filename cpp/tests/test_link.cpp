@@ -202,7 +202,8 @@ TEST_CASE("one click opens only a link with nothing to warn about") {
 
 TEST_CASE("a bare web address opens with https") {
     for (const char* p : {"emberfellows.org/pages/apply", "example.com", "www.example.com", "Example.COM/Path",
-                          "docs.example.co.uk/guide?page=2#top", "example.com:8443/admin", "  example.org  "}) {
+                          "docs.example.co.uk/guide?page=2#top", "example.com:8443/admin", "  example.org  ",
+                          "allegro.pl", "brand.inc", "museum.museum/visit", "site.py/menu", "www.setup.py"}) {
         const std::string trimmed = uniqr::trim(p);
         CHECK_MESSAGE(uniqr::web_address(p) == "https://" + trimmed, p);
         CHECK_MESSAGE(can_open(p), p);
@@ -212,7 +213,7 @@ TEST_CASE("a bare web address opens with https") {
 
 TEST_CASE("anything that only might be an address stays text") {
     for (const char* p : {"someone@example.com", "setup.py", "notes.md", "photo.zip", "main.cc",
-                          "visit example.com today", "example", "localhost:8080", "192.168.1.1",
+                          "clip.mov", "Main.java", "notes.md?next=/home", "visit example.com today", "example", "localhost:8080", "192.168.1.1",
                           "example.notarealtld", "-bad-.com", "exa_mple.com", "example.com:99999", "example.com:abc",
                           "example.com:", "javascript:alert(1)", "ftp.example.com://x", ""}) {
         CHECK_MESSAGE(!uniqr::web_address(p), p);

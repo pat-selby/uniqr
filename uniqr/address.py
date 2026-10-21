@@ -5,28 +5,28 @@ browser's address bar opens both, so UniQR should too. A bare address is
 opened with https, never http.
 
 A bare address has to look like one beyond doubt: no spaces, no scheme, no @
-(that is an email address), and a name ending in a common top-level domain.
-The list is short on purpose. An address it misses stays copy-only, as before.
-Some domains it leaves out are also file extensions ("setup.py", "notes.md",
-"main.cc"), and those codes are far likelier to be file names than links.
+(that is an email address), and a name ending in a real top-level domain. The
+list of those is IANA's, kept in uniqr/tlds.py and refreshed by
+tools/update_tlds.py, so the check needs no network.
+
+A few domains are also common file types. "setup.py" or "notes.md" in a code is
+far likelier a file name than a site in Paraguay or Moldova, so those count
+only when the text clearly looks like an address: a path after the name
+("site.py/menu") or a leading "www.". .zip and .mov are also a known phishing
+trick, which is one more reason to be careful with them.
 """
 
 import re
 
+from uniqr.tlds import TLDS
+
 SCHEMES = ("http://", "https://")
 
-_TLDS = """
-    com org net edu gov mil int info biz name pro mobi
-    io co ai app dev me tv ly gg fm to ws
-    xyz online site website store shop tech blog cloud page link live news
-    art club top one design agency media studio space world global
-    us uk ca au nz ie de fr it es pt nl be lu ch at se no dk fi is
-    cz sk hu ro bg gr hr si ee lv lt tr ru ua il ae sa qa kw om bh jo lb eg ma tn dz
-    ng gh ke tz ug rw et za zm zw cm sn ci bw na mu
-    in lk bd np cn hk tw jp kr sg my ph id th vn
-    br mx ar cl pe uy ve ec bo cr pa do jm tt
-"""
-COMMON_TLDS = frozenset(_TLDS.split())
+# File types that are also domains. Left out on purpose: .ai, .app and .pl,
+# where real sites (and Poland) far outnumber files in QR codes.
+FILE_LIKE = frozenset(
+    {"py", "md", "zip", "mov", "sh", "rs", "cc", "so", "ps", "java", "ml", "mm", "pm", "pub"}
+)
 
 _LABEL = re.compile(r"^(?!-)[a-z0-9-]{1,63}(?<!-)$")
 
@@ -46,13 +46,16 @@ def web_address(text: str) -> str | None:
     if colon and not (port.isdigit() and len(port) <= 5 and 0 < int(port) <= 65535):
         return None
     labels = host.lower().split(".")
-    if len(host) > 253 or len(labels) < 2 or labels[-1] not in COMMON_TLDS:
+    if len(host) > 253 or len(labels) < 2 or labels[-1] not in TLDS:
         return None
     if not all(_LABEL.match(label) for label in labels):
+        return None
+    if labels[-1] in FILE_LIKE and labels[0] != "www" and t[end : end + 1] != "/":
         return None
     return "https://" + t
 
 
 def is_bare(text: str) -> bool:
     """A web address written without http:// or https://."""
-    return web_address(text) is not None and not text.strip().lower().startswith(SCHEMES)
+    has_scheme = text.strip().lower().startswith(SCHEMES)
+    return not has_scheme and web_address(text) is not None

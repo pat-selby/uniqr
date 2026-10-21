@@ -3,6 +3,7 @@
 A poster's code held "emberfellows.org/pages/apply". Every browser opens that,
 but UniQR called it text and offered no Open button. A bare address now opens,
 always with https, while anything that only might be an address stays text.
+The endings are IANA's full list, in uniqr/tlds.py.
 """
 
 import pytest
@@ -18,6 +19,11 @@ BARE = [
     "docs.example.co.uk/guide?page=2#top",
     "example.com:8443/admin",
     "  example.org  ",
+    "allegro.pl",  # endings outside the old short list
+    "brand.inc",
+    "museum.museum/visit",
+    "site.py/menu",  # a file-type ending with a path
+    "www.setup.py",  # or with www.
 ]
 
 NOT_ADDRESSES = [
@@ -26,6 +32,9 @@ NOT_ADDRESSES = [
     "notes.md",
     "photo.zip",
     "main.cc",
+    "clip.mov",
+    "Main.java",
+    "notes.md?next=/home",  # a slash in the query is not a path
     "visit example.com today",  # a sentence
     "example",  # no dot
     "localhost:8080",
@@ -82,3 +91,16 @@ def test_open_url_hands_the_browser_the_https_link(monkeypatch):
     monkeypatch.setattr(actions.webbrowser, "open", lambda url: opened.append(url) or True)
     assert actions.open_url("emberfellows.org/pages/apply") is True
     assert opened == ["https://emberfellows.org/pages/apply"]
+
+
+def test_the_domain_lists_for_python_and_cpp_match():
+    """Both are written by tools/update_tlds.py; a hand edit to one would split them."""
+    import re
+    from pathlib import Path
+
+    from uniqr.tlds import TLDS
+
+    inc = Path(__file__).resolve().parent.parent / "cpp" / "src" / "core" / "tlds.inc"
+    words = " ".join(re.findall(r'"([^"]*)"', inc.read_text(encoding="utf-8"))).split()
+    assert set(words) == TLDS
+    assert len(TLDS) > 1000

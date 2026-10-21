@@ -70,26 +70,26 @@ bool has_scheme(std::string_view text) {
     return starts_with(t, "http://") || starts_with(t, "https://");
 }
 
-// Top-level domains a bare address may end in, the same short list as
-// uniqr/address.py. Some it leaves out are also file extensions ("setup.py",
-// "notes.md", "main.cc"), and those codes are far likelier to be file names.
-const std::unordered_set<std::string>& common_tlds() {
-    static const std::unordered_set<std::string> tlds = [] {
+// Every real top-level domain, IANA's list, the same one uniqr/tlds.py holds.
+// Both are written by tools/update_tlds.py.
+const std::unordered_set<std::string>& tlds() {
+    static const std::unordered_set<std::string> names = [] {
         std::istringstream words(
-            "com org net edu gov mil int info biz name pro mobi "
-            "io co ai app dev me tv ly gg fm to ws "
-            "xyz online site website store shop tech blog cloud page link live news "
-            "art club top one design agency media studio space world global "
-            "us uk ca au nz ie de fr it es pt nl be lu ch at se no dk fi is "
-            "cz sk hu ro bg gr hr si ee lv lt tr ru ua il ae sa qa kw om bh jo lb eg ma tn dz "
-            "ng gh ke tz ug rw et za zm zw cm sn ci bw na mu "
-            "in lk bd np cn hk tw jp kr sg my ph id th vn "
-            "br mx ar cl pe uy ve ec bo cr pa do jm tt");
+#include "tlds.inc"
+        );
         std::unordered_set<std::string> out;
         for (std::string w; words >> w;) out.insert(w);
         return out;
     }();
-    return tlds;
+    return names;
+}
+
+// File types that are also domains, as in uniqr/address.py. "setup.py" in a
+// code is far likelier a file than a site, so these need a path or "www.".
+bool file_like(std::string_view ending) {
+    static constexpr std::string_view endings[] = {"py", "md", "zip", "mov", "sh", "rs", "cc",
+                                                   "so", "ps", "java", "ml", "mm", "pm", "pub"};
+    return std::find(std::begin(endings), std::end(endings), ending) != std::end(endings);
 }
 
 bool is_dns_label(std::string_view label) {
@@ -105,11 +105,12 @@ std::optional<std::string> web_address(std::string_view text) {
     const std::string t = trim(text);
     if (has_scheme(t)) return t;
     // A bare address has to look like one beyond doubt: no spaces, no scheme,
-    // no @ (an email address), and a name ending in a common top-level domain.
+    // no @ (an email address), and a name ending in a real top-level domain.
     if (t.empty() || t.find("://") != std::string::npos) return std::nullopt;
     if (std::any_of(t.begin(), t.end(), [](char c) { return is_space(static_cast<unsigned char>(c)); }))
         return std::nullopt;
-    const std::string authority = t.substr(0, std::min(t.find_first_of("/?#"), t.size()));
+    const size_t end = std::min(t.find_first_of("/?#"), t.size());
+    const std::string authority = t.substr(0, end);
     if (authority.find('@') != std::string::npos) return std::nullopt;
     const size_t colon = authority.find(':');
     const std::string host = ascii_lower(authority.substr(0, colon));
@@ -129,8 +130,10 @@ std::optional<std::string> web_address(std::string_view text) {
         if (dot == std::string::npos) break;
         i = dot + 1;
     }
-    if (labels.size() < 2 || !common_tlds().count(labels.back())) return std::nullopt;
+    if (labels.size() < 2 || !tlds().count(labels.back())) return std::nullopt;
     if (!std::all_of(labels.begin(), labels.end(), is_dns_label)) return std::nullopt;
+    if (file_like(labels.back()) && labels.front() != "www" && (end == t.size() || t[end] != '/'))
+        return std::nullopt;
     return "https://" + t;
 }
 
