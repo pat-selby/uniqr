@@ -275,7 +275,9 @@ once converted to grey, yet separates cleanly in the red channel alone.
 
 A decoded payload is untrusted input read off the screen.
 
-Only `http://` and `https://` get an Open action. See `actions.can_open`. Never
+Only `http://` and `https://` get an Open action. See `actions.can_open`. A bare
+address like `example.org/apply` counts too, but only when it ends in a common
+top-level domain, and it opens as `https://`. See `uniqr/address.py`. Never
 pass an arbitrary payload to anything that runs it. `file://` and app links like
 `ms-settings:` stay copy only. Do not widen this to make a demo look better.
 

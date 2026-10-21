@@ -330,6 +330,7 @@ def _build_card(
                 rest.pack(anchor="w", pady=(2, 0))
                 HoverTip(rest, link.full)
             notes = [(warning, True) for warning in link.warnings]
+            notes += [(note, False) for note in link.notes]
         else:
             flat = " ".join(text.split())
             body = tk.Label(

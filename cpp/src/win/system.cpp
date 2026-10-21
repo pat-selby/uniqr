@@ -36,8 +36,9 @@ bool copy_to_clipboard(HWND owner, std::string_view utf8) {
 }
 
 bool open_link(std::string_view url) {
-    if (!can_open(url)) return false;
-    const std::wstring w = widen(trim(url));
+    const auto address = web_address(url);
+    if (!address) return false;
+    const std::wstring w = widen(*address);
     const auto result = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", w.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
     return result > 32;
 }
