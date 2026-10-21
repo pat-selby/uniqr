@@ -93,7 +93,7 @@ export const Picker: React.FC<{ boxes: Box[]; from: number; scale?: number }> = 
           }),
         }}
       >
-        {`${n} QR codes found  -  hover to inspect, press 1-${Math.min(n, 9)} to copy, Esc to cancel`}
+        {`${n} QR codes found  -  click one to open it, press 1-${Math.min(n, 9)} to copy, Esc to cancel`}
       </div>
     </AbsoluteFill>
   );
