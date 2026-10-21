@@ -176,12 +176,145 @@ std::optional<LinkView> describe_link(std::string_view text) {
         view.warnings.push_back(
             "Uses international characters, a common lookalike trick. Check the address carefully.");
     if (is_ipv4(host) || is_ipv6(host)) view.warnings.push_back("Goes to a raw IP address, not a website name.");
+    // Short links, borrowed brand names, file-like endings.
+    for (auto& w : link_checks(host)) view.warnings.push_back(std::move(w));
 
     view.rest = parts.path;
     if (!parts.query.empty()) view.rest += "?" + parts.query;
     if (!parts.fragment.empty()) view.rest += "#" + parts.fragment;
     view.host = port_number > 0 ? host + ":" + std::to_string(port_number) : host;
     return view;
+}
+
+namespace {
+
+std::vector<std::string> split_any(std::string_view s, std::string_view seps) {
+    std::vector<std::string> out;
+    size_t start = 0;
+    for (size_t i = 0; i <= s.size(); ++i) {
+        if (i == s.size() || seps.find(s[i]) != std::string_view::npos) {
+            out.emplace_back(s.substr(start, i - start));
+            start = i + 1;
+        }
+    }
+    return out;
+}
+
+std::string replace_all(std::string s, std::string_view from, std::string_view to) {
+    for (size_t at = s.find(from); at != std::string::npos; at = s.find(from, at + to.size()))
+        s.replace(at, from.size(), to);
+    return s;
+}
+
+// Digits and letter pairs that pass for letters at a glance: paypa1, micr0soft, arnazon.
+std::string unswap(std::string word) {
+    static constexpr std::pair<std::string_view, std::string_view> swaps[] = {
+        {"rn", "m"}, {"vv", "w"}, {"0", "o"}, {"1", "l"}, {"3", "e"}, {"5", "s"}, {"4", "a"}};
+    for (const auto& [fake, real] : swaps) word = replace_all(std::move(word), fake, real);
+    return word;
+}
+
+// Services whose whole job is to hide a longer address. A brand's own short
+// links (amzn.to, wa.me) are left out: they only lead to that brand.
+constexpr std::string_view kShorteners[] = {
+    "bit.ly", "tinyurl.com", "t.co",    "ow.ly", "is.gd",   "v.gd",   "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at",
+    "tiny.cc", "rb.gy",      "t.ly",    "s.id",  "bl.ink", "qrco.de", "goo.gl", "shorte.st", "adf.ly"};
+
+struct Brand {
+    std::string_view word, shown;
+    std::vector<std::string_view> own;
+};
+
+// The same list as uniqr/linkcheck.py. Words that are also ordinary English
+// (chase, ups, office, steam) are left out on purpose.
+const std::vector<Brand>& brands() {
+    static const std::vector<Brand> list = {
+        {"paypal", "PayPal", {"paypal.com", "paypal.me"}},
+        {"apple", "Apple", {"apple.com", "icloud.com", "apple.co"}},
+        {"icloud", "iCloud", {"icloud.com", "apple.com"}},
+        {"microsoft", "Microsoft", {"microsoft.com", "microsoftonline.com", "live.com", "office.com", "aka.ms"}},
+        {"outlook", "Outlook", {"outlook.com", "live.com", "office.com", "microsoft.com"}},
+        {"google", "Google", {"google.com", "googleusercontent.com", "googleapis.com", "gstatic.com", "g.co", "goo.gl"}},
+        {"gmail", "Gmail", {"gmail.com", "google.com"}},
+        {"amazon", "Amazon", {"amazon.com", "amazonaws.com", "amzn.to", "a.co"}},
+        {"netflix", "Netflix", {"netflix.com"}},
+        {"facebook", "Facebook", {"facebook.com", "fb.com", "fb.me", "meta.com"}},
+        {"instagram", "Instagram", {"instagram.com"}},
+        {"whatsapp", "WhatsApp", {"whatsapp.com", "whatsapp.net", "wa.me"}},
+        {"linkedin", "LinkedIn", {"linkedin.com", "lnkd.in"}},
+        {"github", "GitHub", {"github.com", "github.io", "githubusercontent.com"}},
+        {"dropbox", "Dropbox", {"dropbox.com"}},
+        {"docusign", "DocuSign", {"docusign.com", "docusign.net"}},
+        {"adobe", "Adobe", {"adobe.com"}},
+        {"coinbase", "Coinbase", {"coinbase.com"}},
+        {"binance", "Binance", {"binance.com"}},
+        {"venmo", "Venmo", {"venmo.com"}},
+        {"zelle", "Zelle", {"zellepay.com"}},
+        {"bankofamerica", "Bank of America", {"bankofamerica.com", "bofa.com"}},
+        {"wellsfargo", "Wells Fargo", {"wellsfargo.com"}},
+        {"dhl", "DHL", {"dhl.com"}},
+        {"fedex", "FedEx", {"fedex.com"}},
+        {"usps", "USPS", {"usps.com"}},
+        {"irs", "the IRS", {"irs.gov"}},
+    };
+    return list;
+}
+
+bool is_brands_own(const Brand& b, const std::string& site) {
+    if (std::find(b.own.begin(), b.own.end(), site) != b.own.end()) return true;
+    // Its own country sites (google.de, amazon.co.uk) count; its name on a
+    // newer ending anyone can still buy (paypal.support) does not.
+    const size_t dot = site.find('.');
+    if (site.substr(0, dot) != b.word) return false;
+    const std::string ending = site.substr(dot + 1);
+    return ending == "com" || ending == "net" || ending == "org" || ending.size() == 2 ||
+           std::count(ending.begin(), ending.end(), '.') == 1;
+}
+
+std::optional<std::string> brand_warning(const std::string& host) {
+    const std::string site = site_of(host);
+    for (const auto& word : split_any(host, ".-")) {
+        for (const std::string& candidate : {word, unswap(word)}) {
+            for (const auto& b : brands()) {
+                if (candidate != b.word) continue;
+                if (is_brands_own(b, site)) return std::nullopt;
+                const std::string shown(b.shown);
+                return "Mentions " + shown + ", but the site is " + site + ", not " + shown + "'s.";
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+}  // namespace
+
+std::string site_of(std::string_view host) {
+    std::string h = ascii_lower(host);
+    while (!h.empty() && h.back() == '.') h.pop_back();
+    const auto labels = split_any(h, ".");
+    const size_t n = labels.size();
+    static constexpr std::string_view second_level[] = {"co", "com", "net", "org", "gov", "edu", "ac"};
+    const bool country_pair = n >= 3 && labels[n - 1].size() == 2 &&
+                              std::find(std::begin(second_level), std::end(second_level), labels[n - 2]) !=
+                                  std::end(second_level);
+    const size_t keep = std::min(n, country_pair ? size_t{3} : size_t{2});
+    std::string out;
+    for (size_t i = n - keep; i < n; ++i) out += (out.empty() ? "" : ".") + labels[i];
+    return out;
+}
+
+std::vector<std::string> link_checks(std::string_view host_view) {
+    const std::string host = ascii_lower(host_view);
+    std::vector<std::string> warnings;
+    const std::string site = site_of(host);
+    if (std::find(std::begin(kShorteners), std::end(kShorteners), site) != std::end(kShorteners) ||
+        std::find(std::begin(kShorteners), std::end(kShorteners), host) != std::end(kShorteners))
+        warnings.push_back("A short link: it hides the real site until you open it.");
+    if (auto b = brand_warning(host)) warnings.push_back(*b);
+    const std::string ending = host.substr(host.rfind('.') == std::string::npos ? 0 : host.rfind('.') + 1);
+    if (ending == "zip" || ending == "mov")
+        warnings.push_back("Ends in ." + ending + ", which looks like a file name. Scammers use that trick.");
+    return warnings;
 }
 
 std::string payload_kind(std::string_view text) {

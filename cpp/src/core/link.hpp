@@ -30,6 +30,13 @@ struct LinkView {
 // None for anything that is not an openable web link, or is malformed.
 std::optional<LinkView> describe_link(std::string_view text);
 
+// The part of a host someone registered: login.example.co.uk -> example.co.uk.
+// An approximation of the public suffix list, good for the common cases.
+std::string site_of(std::string_view host);
+// The instant checks on a host, as in uniqr/linkcheck.py: a short link, a
+// brand's name on someone else's site, a .zip or .mov ending. Plain sentences.
+std::vector<std::string> link_checks(std::string_view host);
+
 // "url", "wifi", "email", "phone", "geo", "contact", "event", "secret", "uri" or "text".
 std::string payload_kind(std::string_view text);
 // The badge on the card: "Link", "Wi-Fi", ... "Text".
