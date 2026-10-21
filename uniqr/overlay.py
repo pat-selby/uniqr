@@ -54,6 +54,8 @@ OK_FG = "#3fb27f"
 WARN_FG = "#e0a33e"
 TIP_BG = "#0b1220"
 HIGHLIGHT_PAD = 10
+# How often the picker looks at the pointer on a Mac. See Picker._poll_pointer.
+POINTER_POLL_MS = 50
 
 # Hover pop-up for the full link: a short pause so it doesn't flicker as the
 # pointer passes over, and a width after which long links wrap.
@@ -72,6 +74,24 @@ KIND_LABELS = {
 }
 
 _root: tk.Tk | None = None
+
+
+def show_window(win) -> None:
+    """Show a window that was built while hidden.
+
+    Every UniQR window is built hidden, then shown. On a tester's Mac (macOS
+    26.6.2 in VMware, Python 3.14.7, Tk 9.0.4) a window shown that way once
+    stayed an empty dark rectangle: the picker, the cards, even a plain window
+    with a picture in it. Recorded step by step, the same window shown, hidden
+    and shown again drew everything, while a window that was never hidden drew
+    from the start. So on a Mac it is shown a second time. Elsewhere nothing
+    changes.
+    """
+    win.deiconify()
+    if sys.platform == "darwin":
+        win.update_idletasks()
+        win.withdraw()
+        win.deiconify()
 
 
 def shared_root() -> tk.Tk:
@@ -232,7 +252,7 @@ class HoverTip:
         size = (win.winfo_reqwidth(), win.winfo_reqheight())
         px, py = place_within((x, y), size, capture.monitor_at(x, y))
         win.geometry(f"+{px}+{py}")
-        win.deiconify()
+        show_window(win)
         # The card is also always-on-top, and every step of its fade-in brings
         # it back to the front. So the pop-up must only ever appear after the
         # fade has finished, which TIP_DELAY_MS guarantees (a test pins it).
@@ -433,9 +453,11 @@ class Picker:
         for n in range(1, min(len(self.detections), 9) + 1):
             self.win.bind(str(n), lambda _e, i=n - 1: self._choose_index(i))
 
-        self.win.deiconify()
+        show_window(self.win)
         self.win.focus_force()
         self.canvas.focus_set()
+        if sys.platform == "darwin":
+            self.win.after(POINTER_POLL_MS, self._poll_pointer)
 
     def _draw_markers(self) -> None:
         self._marker_ids = []
@@ -465,7 +487,7 @@ class Picker:
             w // 2,
             28,
             text=(
-                f"{count} QR {plural} found  -  hover to inspect, "
+                f"{count} QR {plural} found  -  click one to open it, "
                 f"press 1-{min(count, 9)} to copy, Esc to cancel"
             ),
             fill=CARD_FG,
@@ -484,7 +506,34 @@ class Picker:
         return None
 
     def _on_motion(self, event) -> None:
-        hit = self._hit(event.x, event.y)
+        self._hover_at(event.x, event.y)
+
+    def _poll_pointer(self) -> None:
+        """Hover on a Mac, from where the pointer is rather than from moves.
+
+        On a tester's Mac (Tk 9.0.4) the picker heard the mouse only while a
+        button was held down, so hovering over a code showed nothing. Asked
+        where the pointer is, Tk always knows, so on a Mac the picker asks
+        twenty times a second. A test window doing this showed the cards on
+        plain hovering.
+        """
+        try:
+            if not self.win.winfo_exists():
+                return
+            x = self.win.winfo_pointerx() - self.canvas.winfo_rootx()
+            y = self.win.winfo_pointery() - self.canvas.winfo_rooty()
+        except tk.TclError:
+            return  # the picker closed between two looks
+        self._hover_at(x, y)
+        self.win.after(POINTER_POLL_MS, self._poll_pointer)
+
+    def _hover_at(self, x: int, y: int) -> None:
+        """Show the card of the code under (x, y), canvas points."""
+        if self._card is not None:
+            box = self.canvas.bbox(self._card)
+            if box and box[0] <= x <= box[2] and box[1] <= y <= box[3]:
+                return  # on the card itself: keep it, so its buttons can be pressed
+        hit = self._hit(x, y)
         if hit != self._active:
             self._active = hit
             self._show_card(hit)
@@ -531,7 +580,10 @@ class Picker:
         if hit is None:
             self._dismiss()
         else:
-            self._finish("copy", self.detections[hit])
+            # One click opens a safe link. A link with a warning, or anything
+            # that is not a link, is copied and shown on its card instead.
+            det = self.detections[hit]
+            self._finish("open" if actions.opens_on_click(det.text) else "copy", det)
 
     def _choose_index(self, index: int) -> None:
         if 0 <= index < len(self.detections):
@@ -658,7 +710,7 @@ class Toast:
         self.win.update_idletasks()
         self._place(at)
         self._set_alpha(0.0)
-        self.win.deiconify()
+        show_window(self.win)
         _round(self.win)
         self._fade_in(1)
 

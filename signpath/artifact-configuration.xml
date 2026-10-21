@@ -13,7 +13,7 @@
 -->
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
   <zip-file>
-    <pe-file path="UniQR.exe" product-name="UniQR" product-version="0.2.2">
+    <pe-file path="UniQR.exe" product-name="UniQR" product-version="0.2.6">
       <authenticode-sign/>
     </pe-file>
   </zip-file>
