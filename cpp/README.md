@@ -39,6 +39,7 @@ uniqr-cpp.exe --hotkey ctrl+alt+k      # your own hotkey
 uniqr-cpp.exe --install-autostart      # start at login (add --hotkey to keep one)
 uniqr-cpp.exe --uninstall-autostart
 uniqr-cpp.exe --report-problem         # a pre-filled GitHub issue
+uniqr-cpp.exe --uninstall              # remove it (or the tray's Uninstall UniQR)
 uniqr-scan --json photo.png            # read codes from a file
 ```
 

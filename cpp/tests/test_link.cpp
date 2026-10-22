@@ -195,3 +195,91 @@ TEST_CASE("one click opens only a link with nothing to warn about") {
     CHECK(!uniqr::opens_on_click("https://192.0.2.10/login"));
     CHECK(!uniqr::opens_on_click("WIFI:S:Home;T:WPA;P:secret;;"));
 }
+
+// Web addresses written without http:// or https://, ported from
+// tests/test_bare_addresses.py. A poster's code held
+// "emberfellows.org/pages/apply": every browser opens it, so UniQR does too.
+
+TEST_CASE("a bare web address opens with https") {
+    for (const char* p : {"emberfellows.org/pages/apply", "example.com", "www.example.com", "Example.COM/Path",
+                          "docs.example.co.uk/guide?page=2#top", "example.com:8443/admin", "  example.org  ",
+                          "allegro.pl", "brand.inc", "museum.museum/visit", "site.py/menu", "www.setup.py"}) {
+        const std::string trimmed = uniqr::trim(p);
+        CHECK_MESSAGE(uniqr::web_address(p) == "https://" + trimmed, p);
+        CHECK_MESSAGE(can_open(p), p);
+        CHECK_MESSAGE(payload_kind(p) == "url", p);
+    }
+}
+
+TEST_CASE("anything that only might be an address stays text") {
+    for (const char* p : {"someone@example.com", "setup.py", "notes.md", "photo.zip", "main.cc",
+                          "clip.mov", "Main.java", "notes.md?next=/home", "visit example.com today", "example", "localhost:8080", "192.168.1.1",
+                          "example.notarealtld", "-bad-.com", "exa_mple.com", "example.com:99999", "example.com:abc",
+                          "example.com:", "javascript:alert(1)", "ftp.example.com://x", ""}) {
+        CHECK_MESSAGE(!uniqr::web_address(p), p);
+        CHECK_MESSAGE(!can_open(p), p);
+        CHECK_MESSAGE(!describe_link(p), p);
+    }
+}
+
+TEST_CASE("the card shows the real host and says https was added") {
+    const auto view = describe_link("emberfellows.org/pages/apply");
+    REQUIRE(view);
+    CHECK(view->host == "emberfellows.org");
+    CHECK(view->rest == "/pages/apply");
+    CHECK(view->full == "https://emberfellows.org/pages/apply");
+    CHECK(view->warnings.empty());
+    REQUIRE(view->notes.size() == 1);
+    CHECK(view->notes[0] == "The code has no https://, so UniQR adds it.");
+    CHECK(describe_link("https://example.com")->notes.empty());
+}
+
+TEST_CASE("a bare address opens in one click like any safe link") {
+    CHECK(uniqr::opens_on_click("example.com/menu"));
+    CHECK_FALSE(uniqr::opens_on_click("xn--pypal-4ve.com"));
+}
+
+// The instant checks, ported from tests/test_link_checks.py.
+
+TEST_CASE("a brand on someone else's site is named") {
+    const std::pair<const char*, const char*> cases[] = {
+        {"https://paypal.com.secure-login.xyz/a", "PayPal"}, {"https://paypa1.com", "PayPal"},
+        {"https://micr0soft-login.com", "Microsoft"},          {"https://arnazon.com", "Amazon"},
+        {"https://dhl-tracking.info/parcel", "DHL"},           {"https://paypal.support", "PayPal"},
+        {"https://login.bankofamerica.verify-now.top", "Bank of America"}};
+    for (const auto& [url, brand] : cases) {
+        const auto view = describe_link(url);
+        REQUIRE_MESSAGE(view, url);
+        CHECK_MESSAGE(any_warning(*view, std::string(brand)), url);
+        CHECK_MESSAGE(!uniqr::opens_on_click(url), url);
+    }
+}
+
+TEST_CASE("the real sites and ordinary words pass") {
+    for (const char* url : {"https://www.paypal.com/signin", "https://paypal.me/someone", "https://accounts.google.com",
+                            "https://google.co.uk", "https://amazon.de/dp/1", "https://s3.amazonaws.com/bucket/file",
+                            "https://go.bofa.com/q/7b5032", "https://pineapple.com", "https://pop-ups.example",
+                            "https://linktr.ee/qr/45d45578", "https://events.eventnoire.com/e/small-business-workshop"}) {
+        const auto view = describe_link(url);
+        REQUIRE_MESSAGE(view, url);
+        CHECK_MESSAGE(view->warnings.empty(), url);
+        CHECK_MESSAGE(uniqr::opens_on_click(url), url);
+    }
+}
+
+TEST_CASE("short links and file-like endings are flagged") {
+    for (const char* url : {"https://bit.ly/3WHdJiw", "https://qrco.de/bgyYxV", "https://tinyurl.com/x"})
+        CHECK_MESSAGE(any_warning(*describe_link(url), "short link"), url);
+    for (const char* url : {"https://invoice.zip", "https://holiday-photos.mov/view"})
+        CHECK_MESSAGE(any_warning(*describe_link(url), "looks like a file name"), url);
+}
+
+TEST_CASE("the registered site is found") {
+    CHECK(uniqr::site_of("login.example.co.uk") == "example.co.uk");
+    CHECK(uniqr::site_of("a.b.example.com") == "example.com");
+    CHECK(uniqr::site_of("example.com") == "example.com");
+    CHECK(uniqr::site_of("paypal.com.evil.xyz") == "evil.xyz");
+    const auto view = describe_link("https://paypal.com.secure-login.xyz/");
+    REQUIRE(view->warnings.size() == 1);
+    CHECK(view->warnings[0] == "Mentions PayPal, but the site is secure-login.xyz, not PayPal's.");
+}

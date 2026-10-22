@@ -22,7 +22,9 @@ namespace {
 constexpr wchar_t kWindowClass[] = L"UniQRCppHiddenWindow";
 constexpr int kHotkeyId = 1;
 constexpr UINT kTrayId = 1;
-enum Command : UINT { kScanNow = 1001, kExit = 1002, kAutostart = 1003, kReport = 1006, kFeedback = 1008 };
+enum Command : UINT {
+    kScanNow = 1001, kExit = 1002, kAutostart = 1003, kReport = 1006, kUninstall = 1007, kFeedback = 1008
+};
 
 std::string ms_text(double ms) {
     char buf[32];
@@ -122,6 +124,7 @@ void App::show_menu() {
     AppendMenuW(menu, MF_STRING | (autostart_enabled() ? MF_CHECKED : 0), kAutostart, L"Start at login");
     AppendMenuW(menu, MF_STRING, kReport, L"Report a problem");
     AppendMenuW(menu, MF_STRING, kFeedback, L"Send feedback");
+    AppendMenuW(menu, MF_STRING, kUninstall, L"Uninstall UniQR");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kExit, L"Exit UniQR");
     POINT p;
@@ -234,6 +237,19 @@ void App::send_feedback() {
     }
 }
 
+void App::uninstall() {
+    const int answer = MessageBoxW(hwnd_, L"This removes UniQR, its start-at-login entry and its log from this computer.",
+                                   L"Uninstall UniQR?", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2);
+    if (answer != IDYES) {
+        log("uninstall: cancelled");
+        return;
+    }
+    if (!set_autostart(false)) log("uninstall: could not remove the start-at-login entry");
+    log("uninstall: removing UniQR");
+    uninstalling_ = true;
+    DestroyWindow(hwnd_);  // run() starts the removal once the loop has ended
+}
+
 LRESULT CALLBACK App::window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_NCCREATE) {
         auto* self = static_cast<App*>(reinterpret_cast<CREATESTRUCTW*>(lp)->lpCreateParams);
@@ -270,6 +286,7 @@ LRESULT App::handle(UINT msg, WPARAM wp, LPARAM lp) {
                 case kAutostart: toggle_autostart(); break;
                 case kReport: report_problem(); break;
                 case kFeedback: send_feedback(); break;
+                case kUninstall: uninstall(); break;
                 case kExit: DestroyWindow(hwnd_); break;
             }
             return 0;
@@ -298,6 +315,10 @@ int App::run() {
     while (GetMessageW(&m, nullptr, 0, 0) > 0) {
         TranslateMessage(&m);
         DispatchMessageW(&m);
+    }
+    if (uninstalling_) {
+        if (!schedule_removal()) message_box("UniQR could not remove itself. Delete " + narrow(exe_path()) + " yourself.", false);
+        else message_box("UniQR is removed.");
     }
     return 0;
 }

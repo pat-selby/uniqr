@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 # The C++ version of UniQR. See README.md in this folder.
-project(uniqr_cpp VERSION 0.2.6 LANGUAGES CXX)
+project(uniqr_cpp VERSION 0.2.7 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -68,6 +68,7 @@ add_library(uniqr_core STATIC
   src/core/link.cpp
   src/core/hotkeys.cpp
   src/core/report.cpp
+  src/core/removal.cpp
 )
 target_include_directories(uniqr_core PUBLIC src/core ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_include_directories(uniqr_core SYSTEM PRIVATE ${stb_SOURCE_DIR})

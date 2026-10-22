@@ -2,9 +2,13 @@
 
 #include <shellapi.h>
 
+#include <cstdio>
 #include <cstring>
+#include <filesystem>
 
 #include "link.hpp"
+#include "log.hpp"
+#include "removal.hpp"
 
 namespace uniqr::win {
 
@@ -36,8 +40,9 @@ bool copy_to_clipboard(HWND owner, std::string_view utf8) {
 }
 
 bool open_link(std::string_view url) {
-    if (!can_open(url)) return false;
-    const std::wstring w = widen(trim(url));
+    const auto address = web_address(url);
+    if (!address) return false;
+    const std::wstring w = widen(*address);
     const auto result = reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", w.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
     return result > 32;
 }
@@ -94,6 +99,32 @@ bool set_autostart(bool on, std::string_view hotkey_canonical) {
     }
     RegCloseKey(key);
     return st == ERROR_SUCCESS;
+}
+
+bool schedule_removal() {
+    namespace fs = std::filesystem;
+    const fs::path log = log_path();
+    fs::path old = log;
+    old += L".1";
+    // Only the C++ version's own files. The Python version shares the folder.
+    const std::string script = removal_script({narrow(log.wstring()), narrow(old.wstring())},
+                                              {narrow(log.parent_path().wstring())}, narrow(exe_path()));
+    const fs::path where = fs::temp_directory_path() / L"uniqr-cpp-uninstall.cmd";
+    FILE* f = nullptr;
+    if (_wfopen_s(&f, where.c_str(), L"wb") != 0 || !f) return false;
+    std::fwrite(script.data(), 1, script.size(), f);
+    std::fclose(f);
+
+    std::wstring command = L"cmd.exe /c \"" + where.wstring() + L"\"";
+    STARTUPINFOW si{sizeof(si)};
+    PROCESS_INFORMATION pi{};
+    // A hidden console, not none: the script's chcp needs one.
+    if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si,
+                        &pi))
+        return false;
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
 }
 
 void message_box(std::string_view text, bool ok) {

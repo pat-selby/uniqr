@@ -6,6 +6,7 @@
 //   uniqr-cpp.exe --install-autostart      start at login (add --hotkey to keep one)
 //   uniqr-cpp.exe --uninstall-autostart
 //   uniqr-cpp.exe --report-problem         open a pre-filled GitHub issue
+//   uniqr-cpp.exe --uninstall              remove UniQR from this computer
 //   uniqr-cpp.exe --version
 
 #include "win.hpp"  // windows.h, before any other Windows header
@@ -95,6 +96,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
                     was ? "Removed. UniQR will no longer start when you log in to Windows."
                         : "UniQR was not set to start at login, so there is nothing to remove.",
                     true);
+    }
+    if (has(args, "--uninstall")) {
+        // The tray's "Uninstall UniQR", for when there is no tray.
+        if (!set_autostart(false)) return tell(quiet, "UniQR could not remove its start-at-login entry.", false);
+        if (!schedule_removal()) return tell(quiet, "UniQR could not remove itself. Delete " + narrow(exe_path()) + " yourself.", false);
+        return tell(quiet, "UniQR is removed from this computer.", true);
     }
     if (has(args, "--report-problem")) {
         const std::string url = issue_url(UNIQR_CPP_VERSION, windows_version(), "%LOCALAPPDATA%\\UniQR\\uniqr-cpp.log");

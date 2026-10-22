@@ -11,6 +11,7 @@ add_executable(uniqr_tests
   test_link.cpp
   test_hotkeys.cpp
   test_report.cpp
+  test_removal.cpp
   test_image.cpp
   test_scanner.cpp
   test_fixtures.cpp

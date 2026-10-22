@@ -30,6 +30,7 @@ IDM_UPDATE_NOW = 1004
 IDM_UPDATE_AUTO = 1005
 IDM_REPORT = 1006
 IDM_FEEDBACK = 1008
+IDM_UNINSTALL = 1007
 
 HOTKEY_ID = 1
 HEARTBEAT_ID = 2
@@ -64,6 +65,7 @@ class Shell:
         on_update_check: Callable[[], None] | None = None,
         on_report: Callable[[], None] | None = None,
         on_feedback: Callable[[], None] | None = None,
+        on_uninstall: Callable[[], None] | None = None,
     ) -> None:
         self.on_hotkey = on_hotkey
         self.on_notification_click = on_notification_click
@@ -77,6 +79,7 @@ class Shell:
         self.on_update_check = on_update_check
         self.on_report = on_report  # the menu's "Report a problem"
         self.on_feedback = on_feedback  # the menu's "Send feedback"
+        self.on_uninstall = on_uninstall  # the menu's "Uninstall UniQR"
         self.tooltip = tooltip
         self.hotkey_label = ""
         self._hicon = None
@@ -259,6 +262,8 @@ class Shell:
             win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_REPORT, "Report a problem")
         if self.on_feedback:
             win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_FEEDBACK, "Send feedback")
+        if self.on_uninstall:
+            win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_UNINSTALL, "Uninstall UniQR")
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 0, "")
         win32gui.AppendMenu(menu, win32con.MF_STRING, IDM_EXIT, "Exit UniQR")
 
@@ -286,6 +291,8 @@ class Shell:
             self.on_report()
         elif item == IDM_FEEDBACK and self.on_feedback:
             self.on_feedback()
+        elif item == IDM_UNINSTALL and self.on_uninstall:
+            self.on_uninstall()
         elif item == IDM_EXIT:
             self.stop()
         return 0

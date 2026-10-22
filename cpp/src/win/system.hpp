@@ -27,4 +27,9 @@ std::wstring autostart_command();
 
 void message_box(std::string_view text, bool ok = true);
 
+// Uninstall: start a hidden script that waits for UniQR to quit, then deletes
+// this exe and UniQR's log, and the folder if nothing else is in it. Call it
+// as the last thing before exiting. False if the script could not start.
+bool schedule_removal();
+
 }  // namespace uniqr::win
