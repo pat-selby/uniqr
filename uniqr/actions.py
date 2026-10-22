@@ -10,7 +10,7 @@ import webbrowser
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from uniqr import backends
+from uniqr import backends, linkcheck
 from uniqr.address import is_bare, web_address
 
 
@@ -62,6 +62,8 @@ def describe_link(text: str) -> LinkView | None:
         warnings.append("Goes to a raw IP address, not a website name.")
     except ValueError:
         pass
+    # Short links, borrowed brand names, file-like endings. See uniqr/linkcheck.py.
+    warnings += linkcheck.check(host)
 
     rest = parts.path
     if parts.query:

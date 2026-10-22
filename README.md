@@ -35,7 +35,8 @@ To quit, right-click the tray icon and choose **Exit**. To report a bug, choose 
 A QR code is a stranger's text, so UniQR treats it with care:
 
 - Only web links get an **Open** button. A link without `https://`, like `example.org/apply`, opens with `https`. Wi-Fi passwords, contacts and app links are copy-only.
-- The card warns about plain `http`, the `@` trick, lookalike letters and raw IP addresses.
+- The card warns about plain `http`, the `@` trick, lookalike letters and raw IP addresses. It also flags short links that hide the real site, a brand's name on someone else's site (`paypal.com.secure-login.xyz`, `paypa1.com`) and `.zip` or `.mov` endings.
+- A link with a warning never opens in one click. You see the card first.
 - It looks at the screen only when you press the hotkey.
 - What you scan never leaves your computer. It only goes online if you turn on the daily update check.
 

@@ -238,3 +238,48 @@ TEST_CASE("a bare address opens in one click like any safe link") {
     CHECK(uniqr::opens_on_click("example.com/menu"));
     CHECK_FALSE(uniqr::opens_on_click("xn--pypal-4ve.com"));
 }
+
+// The instant checks, ported from tests/test_link_checks.py.
+
+TEST_CASE("a brand on someone else's site is named") {
+    const std::pair<const char*, const char*> cases[] = {
+        {"https://paypal.com.secure-login.xyz/a", "PayPal"}, {"https://paypa1.com", "PayPal"},
+        {"https://micr0soft-login.com", "Microsoft"},          {"https://arnazon.com", "Amazon"},
+        {"https://dhl-tracking.info/parcel", "DHL"},           {"https://paypal.support", "PayPal"},
+        {"https://login.bankofamerica.verify-now.top", "Bank of America"}};
+    for (const auto& [url, brand] : cases) {
+        const auto view = describe_link(url);
+        REQUIRE_MESSAGE(view, url);
+        CHECK_MESSAGE(any_warning(*view, std::string(brand)), url);
+        CHECK_MESSAGE(!uniqr::opens_on_click(url), url);
+    }
+}
+
+TEST_CASE("the real sites and ordinary words pass") {
+    for (const char* url : {"https://www.paypal.com/signin", "https://paypal.me/someone", "https://accounts.google.com",
+                            "https://google.co.uk", "https://amazon.de/dp/1", "https://s3.amazonaws.com/bucket/file",
+                            "https://go.bofa.com/q/7b5032", "https://pineapple.com", "https://pop-ups.example",
+                            "https://linktr.ee/qr/45d45578", "https://events.eventnoire.com/e/small-business-workshop"}) {
+        const auto view = describe_link(url);
+        REQUIRE_MESSAGE(view, url);
+        CHECK_MESSAGE(view->warnings.empty(), url);
+        CHECK_MESSAGE(uniqr::opens_on_click(url), url);
+    }
+}
+
+TEST_CASE("short links and file-like endings are flagged") {
+    for (const char* url : {"https://bit.ly/3WHdJiw", "https://qrco.de/bgyYxV", "https://tinyurl.com/x"})
+        CHECK_MESSAGE(any_warning(*describe_link(url), "short link"), url);
+    for (const char* url : {"https://invoice.zip", "https://holiday-photos.mov/view"})
+        CHECK_MESSAGE(any_warning(*describe_link(url), "looks like a file name"), url);
+}
+
+TEST_CASE("the registered site is found") {
+    CHECK(uniqr::site_of("login.example.co.uk") == "example.co.uk");
+    CHECK(uniqr::site_of("a.b.example.com") == "example.com");
+    CHECK(uniqr::site_of("example.com") == "example.com");
+    CHECK(uniqr::site_of("paypal.com.evil.xyz") == "evil.xyz");
+    const auto view = describe_link("https://paypal.com.secure-login.xyz/");
+    REQUIRE(view->warnings.size() == 1);
+    CHECK(view->warnings[0] == "Mentions PayPal, but the site is secure-login.xyz, not PayPal's.");
+}
