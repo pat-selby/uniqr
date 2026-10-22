@@ -198,3 +198,22 @@ def test_the_command_line_gives_the_address_when_no_browser_opens(monkeypatch, c
     code, out = run_cli(monkeypatch, capsys, opens=False)
     assert code == 1
     assert report.NEW_ISSUE in out
+
+
+# -- Send feedback ----------------------------------------------------------------
+
+
+def test_send_feedback_opens_a_new_discussion(stage):
+    make_app().send_feedback()
+    assert stage.opened == [report.FEEDBACK_URL]
+    assert report.FEEDBACK_URL.startswith("https://github.com/pat-selby/uniqr/discussions/new")
+
+
+def test_when_feedback_will_not_open_its_address_is_left_on_the_clipboard(stage):
+    stage.opens = False
+    uniqr = make_app()
+    uniqr.send_feedback()
+    assert stage.toasts == []  # this may be on a thread that cannot draw
+    uniqr._on_tick()
+    assert stage.copied == [report.FEEDBACK_URL]
+    assert "clipboard" in stage.toasts[0]

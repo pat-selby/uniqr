@@ -10,6 +10,8 @@
 namespace uniqr {
 
 inline constexpr std::string_view kNewIssue = "https://github.com/pat-selby/uniqr/issues/new";
+// The tray's "Send feedback": a new post in the project's Discussions.
+inline constexpr std::string_view kFeedbackUrl = "https://github.com/pat-selby/uniqr/discussions/new?category=general";
 
 // `system` names the operating system and its version, never the computer or
 // the person. `log` is where the log lives, written without anyone's name.

@@ -96,6 +96,7 @@ class PortableShell:
         on_update_toggle: Callable[[], None] | None = None,
         on_update_check: Callable[[], None] | None = None,
         on_report: Callable[[], None] | None = None,
+        on_feedback: Callable[[], None] | None = None,
         on_uninstall: Callable[[], None] | None = None,
     ) -> None:
         from uniqr import overlay
@@ -107,6 +108,7 @@ class PortableShell:
         self.update_enabled = update_enabled
         self.on_update_toggle = on_update_toggle
         self.on_update_check = on_update_check
+        self.on_feedback = on_feedback
         self.on_uninstall = on_uninstall
         self.on_report = on_report
         self.tooltip = tooltip
@@ -201,6 +203,8 @@ class PortableShell:
                 ]
             if self.on_report:
                 items.append(pystray.MenuItem("Report a problem", lambda: self.on_report()))
+            if self.on_feedback:
+                items.append(pystray.MenuItem("Send feedback", lambda: self.on_feedback()))
             if self.on_uninstall:
                 # Queued: it shows a card, and only the Tk thread may draw.
                 items.append(

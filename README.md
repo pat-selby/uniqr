@@ -28,7 +28,7 @@ Full steps and fixes for each system: [INSTALL.md](INSTALL.md).
 | Several codes | Dims the screen and numbers them. Hover, click, or press 1 to 9 |
 | No code | Says so, briefly |
 
-To quit, right-click the tray icon and choose **Exit**. To report a bug, choose **Report a problem**. To remove it, choose **Uninstall UniQR**.
+To quit, right-click the tray icon and choose **Exit**. To report a bug, choose **Report a problem**. For ideas or opinions, choose **Send feedback**. To remove it, choose **Uninstall UniQR**.
 
 ## Safety
 

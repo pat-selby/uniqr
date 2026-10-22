@@ -45,6 +45,7 @@ private:
     void take(const Detection& det, bool open);
     void toggle_autostart();
     void report_problem();
+    void send_feedback();
     void uninstall();
 
     HINSTANCE instance_;

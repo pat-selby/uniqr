@@ -22,7 +22,9 @@ namespace {
 constexpr wchar_t kWindowClass[] = L"UniQRCppHiddenWindow";
 constexpr int kHotkeyId = 1;
 constexpr UINT kTrayId = 1;
-enum Command : UINT { kScanNow = 1001, kExit = 1002, kAutostart = 1003, kReport = 1006, kUninstall = 1007 };
+enum Command : UINT {
+    kScanNow = 1001, kExit = 1002, kAutostart = 1003, kReport = 1006, kUninstall = 1007, kFeedback = 1008
+};
 
 std::string ms_text(double ms) {
     char buf[32];
@@ -121,6 +123,7 @@ void App::show_menu() {
     AppendMenuW(menu, MF_STRING, kScanNow, scan.c_str());
     AppendMenuW(menu, MF_STRING | (autostart_enabled() ? MF_CHECKED : 0), kAutostart, L"Start at login");
     AppendMenuW(menu, MF_STRING, kReport, L"Report a problem");
+    AppendMenuW(menu, MF_STRING, kFeedback, L"Send feedback");
     AppendMenuW(menu, MF_STRING, kUninstall, L"Uninstall UniQR");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, kExit, L"Exit UniQR");
@@ -223,6 +226,17 @@ void App::report_problem() {
     }
 }
 
+void App::send_feedback() {
+    const std::string url(kFeedbackUrl);
+    log("opening the feedback page");
+    if (!open_link(url)) {
+        copy_to_clipboard(hwnd_, url);
+        POINT p;
+        GetCursorPos(&p);
+        show_card(instance_, "", "Could not open your browser. The page address is on your clipboard.", p);
+    }
+}
+
 void App::uninstall() {
     const int answer = MessageBoxW(hwnd_, L"This removes UniQR, its start-at-login entry and its log from this computer.",
                                    L"Uninstall UniQR?", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2);
@@ -271,6 +285,7 @@ LRESULT App::handle(UINT msg, WPARAM wp, LPARAM lp) {
                 case kScanNow: start_scan(); break;
                 case kAutostart: toggle_autostart(); break;
                 case kReport: report_problem(); break;
+                case kFeedback: send_feedback(); break;
                 case kUninstall: uninstall(); break;
                 case kExit: DestroyWindow(hwnd_); break;
             }
