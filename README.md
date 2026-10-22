@@ -59,6 +59,6 @@ pytest                      # 498 tests
 
 - **How it works:** a hotkey triggers a screen capture, then a retry ladder of image steps and three decoders (OpenCV's two QR readers and zxing-cpp). Only capture, hotkey, tray and clipboard differ per system, behind `uniqr/backends/`.
 - **C++ version:** [`cpp/`](cpp/README.md) is a port of the scanner and Windows app to C++20, with no OpenCV. It's one 1.9 MB file and is offered as a preview in each release.
-- **More:** [DEVELOPMENT.md](DEVELOPMENT.md) for notes and history, [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md) for why Windows warns.
+- **More:** [DEVELOPMENT.md](DEVELOPMENT.md) for notes and history, the [Code signing policy](CODE_SIGNING_POLICY.md) for why Windows warns.
 
 MIT licensed.
