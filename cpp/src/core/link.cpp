@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <sstream>
+#include <unordered_set>
 
 namespace uniqr {
 
@@ -59,12 +61,83 @@ std::string ascii_lower(std::string_view s) {
     return out;
 }
 
-bool can_open(std::string_view text) {
+namespace {
+
+bool has_scheme(std::string_view text) {
     // A prefix test, never a substring test: "nothttps://" and
     // "myapp://open?url=https://..." must stay copy-only.
     const std::string t = ascii_lower(trim(text));
     return starts_with(t, "http://") || starts_with(t, "https://");
 }
+
+// Every real top-level domain, IANA's list, the same one uniqr/tlds.py holds.
+// Both are written by tools/update_tlds.py.
+const std::unordered_set<std::string>& tlds() {
+    static const std::unordered_set<std::string> names = [] {
+        std::istringstream words(
+#include "tlds.inc"
+        );
+        std::unordered_set<std::string> out;
+        for (std::string w; words >> w;) out.insert(w);
+        return out;
+    }();
+    return names;
+}
+
+// File types that are also domains, as in uniqr/address.py. "setup.py" in a
+// code is far likelier a file than a site, so these need a path or "www.".
+bool file_like(std::string_view ending) {
+    static constexpr std::string_view endings[] = {"py", "md", "zip", "mov", "sh", "rs", "cc",
+                                                   "so", "ps", "java", "ml", "mm", "pm", "pub"};
+    return std::find(std::begin(endings), std::end(endings), ending) != std::end(endings);
+}
+
+bool is_dns_label(std::string_view label) {
+    if (label.empty() || label.size() > 63 || label.front() == '-' || label.back() == '-') return false;
+    return std::all_of(label.begin(), label.end(), [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+    });
+}
+
+}  // namespace
+
+std::optional<std::string> web_address(std::string_view text) {
+    const std::string t = trim(text);
+    if (has_scheme(t)) return t;
+    // A bare address has to look like one beyond doubt: no spaces, no scheme,
+    // no @ (an email address), and a name ending in a real top-level domain.
+    if (t.empty() || t.find("://") != std::string::npos) return std::nullopt;
+    if (std::any_of(t.begin(), t.end(), [](char c) { return is_space(static_cast<unsigned char>(c)); }))
+        return std::nullopt;
+    const size_t end = std::min(t.find_first_of("/?#"), t.size());
+    const std::string authority = t.substr(0, end);
+    if (authority.find('@') != std::string::npos) return std::nullopt;
+    const size_t colon = authority.find(':');
+    const std::string host = ascii_lower(authority.substr(0, colon));
+    if (colon != std::string::npos) {
+        const std::string port = authority.substr(colon + 1);
+        if (port.empty() || port.size() > 5 ||
+            !std::all_of(port.begin(), port.end(), [](char c) { return c >= '0' && c <= '9'; }))
+            return std::nullopt;
+        const int n = std::stoi(port);
+        if (n < 1 || n > 65535) return std::nullopt;
+    }
+    if (host.size() > 253) return std::nullopt;
+    std::vector<std::string> labels;
+    for (size_t i = 0;;) {
+        const size_t dot = host.find('.', i);
+        labels.push_back(host.substr(i, dot == std::string::npos ? std::string::npos : dot - i));
+        if (dot == std::string::npos) break;
+        i = dot + 1;
+    }
+    if (labels.size() < 2 || !tlds().count(labels.back())) return std::nullopt;
+    if (!std::all_of(labels.begin(), labels.end(), is_dns_label)) return std::nullopt;
+    if (file_like(labels.back()) && labels.front() != "www" && (end == t.size() || t[end] != '/'))
+        return std::nullopt;
+    return "https://" + t;
+}
+
+bool can_open(std::string_view text) { return web_address(text).has_value(); }
 
 bool is_ipv4(std::string_view s) {
     // Python's ipaddress rules: four decimal parts, 0 to 255, no leading zeros.
@@ -126,9 +199,11 @@ bool opens_on_click(std::string_view text) {
 }
 
 std::optional<LinkView> describe_link(std::string_view text) {
-    if (!can_open(text)) return std::nullopt;
+    const auto address = web_address(text);
+    if (!address) return std::nullopt;
     LinkView view;
-    view.full = trim(text);
+    view.full = *address;
+    if (!has_scheme(text)) view.notes.push_back("The code has no https://, so UniQR adds it.");
     const Split parts = split_url(view.full);
 
     // Everything before the last @ is a user name, which is how
@@ -331,6 +406,7 @@ std::string payload_kind(std::string_view text) {
     if (any({"begin:vevent"})) return "event";
     if (any({"bitcoin:", "ethereum:", "otpauth:"})) return "secret";
     if (t.find("://") != std::string::npos) return "uri";
+    if (web_address(text)) return "url";
     return "text";
 }
 

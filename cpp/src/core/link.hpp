@@ -15,6 +15,10 @@ namespace uniqr {
 // Only ordinary web links get an Open action. Everything else is copy-only.
 bool can_open(std::string_view text);
 
+// The link to open for this payload, or none. A bare address such as
+// "example.org/apply" opens with https; see web_address in link.cpp.
+std::optional<std::string> web_address(std::string_view text);
+
 // Whether one click in the picker should open this straight away: only a web
 // link with nothing to warn about. Anything else is copied and shown on a card.
 bool opens_on_click(std::string_view text);
@@ -25,6 +29,7 @@ struct LinkView {
     std::string rest;  // path, query and fragment
     std::string full;  // the whole link, trimmed
     std::vector<std::string> warnings;
+    std::vector<std::string> notes;  // plain remarks, not warnings
 };
 
 // None for anything that is not an openable web link, or is malformed.

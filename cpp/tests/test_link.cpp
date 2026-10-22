@@ -196,6 +196,49 @@ TEST_CASE("one click opens only a link with nothing to warn about") {
     CHECK(!uniqr::opens_on_click("WIFI:S:Home;T:WPA;P:secret;;"));
 }
 
+// Web addresses written without http:// or https://, ported from
+// tests/test_bare_addresses.py. A poster's code held
+// "emberfellows.org/pages/apply": every browser opens it, so UniQR does too.
+
+TEST_CASE("a bare web address opens with https") {
+    for (const char* p : {"emberfellows.org/pages/apply", "example.com", "www.example.com", "Example.COM/Path",
+                          "docs.example.co.uk/guide?page=2#top", "example.com:8443/admin", "  example.org  ",
+                          "allegro.pl", "brand.inc", "museum.museum/visit", "site.py/menu", "www.setup.py"}) {
+        const std::string trimmed = uniqr::trim(p);
+        CHECK_MESSAGE(uniqr::web_address(p) == "https://" + trimmed, p);
+        CHECK_MESSAGE(can_open(p), p);
+        CHECK_MESSAGE(payload_kind(p) == "url", p);
+    }
+}
+
+TEST_CASE("anything that only might be an address stays text") {
+    for (const char* p : {"someone@example.com", "setup.py", "notes.md", "photo.zip", "main.cc",
+                          "clip.mov", "Main.java", "notes.md?next=/home", "visit example.com today", "example", "localhost:8080", "192.168.1.1",
+                          "example.notarealtld", "-bad-.com", "exa_mple.com", "example.com:99999", "example.com:abc",
+                          "example.com:", "javascript:alert(1)", "ftp.example.com://x", ""}) {
+        CHECK_MESSAGE(!uniqr::web_address(p), p);
+        CHECK_MESSAGE(!can_open(p), p);
+        CHECK_MESSAGE(!describe_link(p), p);
+    }
+}
+
+TEST_CASE("the card shows the real host and says https was added") {
+    const auto view = describe_link("emberfellows.org/pages/apply");
+    REQUIRE(view);
+    CHECK(view->host == "emberfellows.org");
+    CHECK(view->rest == "/pages/apply");
+    CHECK(view->full == "https://emberfellows.org/pages/apply");
+    CHECK(view->warnings.empty());
+    REQUIRE(view->notes.size() == 1);
+    CHECK(view->notes[0] == "The code has no https://, so UniQR adds it.");
+    CHECK(describe_link("https://example.com")->notes.empty());
+}
+
+TEST_CASE("a bare address opens in one click like any safe link") {
+    CHECK(uniqr::opens_on_click("example.com/menu"));
+    CHECK_FALSE(uniqr::opens_on_click("xn--pypal-4ve.com"));
+}
+
 // The instant checks, ported from tests/test_link_checks.py.
 
 TEST_CASE("a brand on someone else's site is named") {
