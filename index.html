@@ -214,6 +214,7 @@ nav .wrap { display: flex; align-items: center; justify-content: space-between; 
 .get .os { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .get code { font-family: var(--mono); font-size: 14px; background: var(--sunk); padding: 2px 6px; border-radius: 5px; overflow-wrap: anywhere; }
 .get p { color: var(--muted); font-size: 16px; }
+.policy { margin-top: 20px; color: var(--muted); font-size: 16px; }
 .get .pair { display: flex; flex-wrap: wrap; gap: 8px; }
 footer { padding-block: 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
@@ -324,7 +325,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
     <div class="steps">
       <div class="step"><h3>Press the hotkey</h3><p>⊞ + Shift + Q on Windows. ⌘ Cmd + Shift + 8 on a Mac. Ctrl + Alt + Q on Linux. Or set your own.</p></div>
       <div class="step"><h3>Read the card</h3><p>The code is copied. A card shows where the link really goes, with any warning in amber.</p></div>
-      <div class="step"><h3>Open it, or paste it</h3><p>Web links get an Open button. Wi-Fi, contacts and app links are copy only.</p></div>
+      <div class="step"><h3>Open it, or paste it</h3><p>Web links get an Open button, and a link without https:// opens with https. Wi-Fi, contacts and app links are copy only.</p></div>
     </div>
   </div>
 </section>
@@ -339,10 +340,13 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
     <div class="try">
       <div class="controls">
         <label for="payload">Code contents</label>
-        <input id="payload" type="text" autocomplete="off" spellcheck="false" value="https://freepass.example@prize-claim.example.net/login">
+        <input id="payload" type="text" autocomplete="off" spellcheck="false" value="https://paypal.com.account-verify.example/login">
         <div class="chips" role="group" aria-label="Examples">
           <button class="chip" type="button" data-v="https://example.com/talks/keynote-slides">A normal link</button>
-          <button class="chip" type="button" data-v="https://freepass.example@prize-claim.example.net/login" aria-pressed="true">The @ trick</button>
+          <button class="chip" type="button" data-v="https://paypal.com.account-verify.example/login" aria-pressed="true">A borrowed brand name</button>
+          <button class="chip" type="button" data-v="https://freepass.example@prize-claim.example.net/login">The @ trick</button>
+          <button class="chip" type="button" data-v="https://bit.ly/3xample">A short link</button>
+          <button class="chip" type="button" data-v="example.org/apply">No https://</button>
           <button class="chip" type="button" data-v="https://xn--exmple-4nf.com/login">Lookalike letters</button>
           <button class="chip" type="button" data-v="http://192.0.2.10/login">Raw IP, over http</button>
           <button class="chip" type="button" data-v="WIFI:T:WPA;S:CafeGuest;P:example-pass;;">Wi-Fi</button>
@@ -363,6 +367,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <h2>Small app. Lots of thought.</h2>
     </div>
     <div class="features">
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v4M12 16h.01"/></svg><div><h3>Scam checks</h3><p>Every link is checked on your computer for short links that hide the real site, borrowed brand names, and endings like .zip. A link with a warning shows its card before anything opens.</p></div></div>
       <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="9" height="7" rx="1"/><rect x="13" y="4" width="9" height="7" rx="1"/><path d="M6 15h1M17 15h1M4 19h6M14 19h6"/></svg><div><h3>Every screen at once</h3><p>A scan covers your whole desktop, every monitor. Each card appears on the screen its code is on.</p></div></div>
       <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 20h1"/></svg><div><h3>Seven kinds of code</h3><p>Not just QR.</p><div class="formats"><span>QR</span><span>Micro QR</span><span>rMQR</span><span>Data Matrix</span><span>Aztec</span><span>PDF417</span><span>MaxiCode</span></div></div></div>
       <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg><div><h3>Styled codes</h3><p>Dots, rounded blocks, a logo in the middle, colors, dark mode, codes at an angle, and codes down to about 45 pixels.</p></div></div>
@@ -370,7 +375,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M7 11h2M11 11h2M15 11h2M8 15h8"/></svg><div><h3>Your hotkey</h3><p>Set your own with one option. On Windows, a taken key falls back to the next free one, and the startup card says which.</p></div></div>
       <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M4 4l16 16"/></svg><div><h3>Works with Do Not Disturb</h3><p>The card is UniQR's own window, not a notification, so focus modes can't hide it.</p></div></div>
       <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg><div><h3>Scan an image file</h3><p><code style="font-family:var(--mono);font-size:14px">uniqr-scan photo.png</code> reads codes from a picture, no screen needed.</p></div></div>
-      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div><h3>Report a problem</h3><p>One click in the tray opens a pre-filled GitHub issue. UniQR sends nothing itself.</p></div></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div><h3>Help from the tray</h3><p>Report a problem opens a pre-filled GitHub issue. Send feedback opens the discussions. Uninstall UniQR removes it. UniQR sends nothing itself.</p></div></div>
     </div>
   </div>
 </section>
@@ -393,7 +398,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <div class="bar cpp"><span>C++</span><span class="track"><span class="fill" style="display:block;width:4.35%"></span></span><b>5 ms</b></div>
       <p class="source">Median scan time on the same 1,064 codes. Python read 1,027 and C++ read 1,026, both with 0 wrong. The C++ app is one 1.9 MB exe.</p>
     </div>
-    <p class="source" style="margin-top:16px">Sources: <a href="https://github.com/pat-selby/uniqr/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (seed 7) and <a href="https://github.com/pat-selby/uniqr/blob/main/cpp/README.md">cpp/README.md</a> (seed 11). Two separate runs. Backed by 500+ Python tests and 60+ C++ tests, across 17 releases.</p>
+    <p class="source" style="margin-top:16px">Sources: <a href="https://github.com/pat-selby/uniqr/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (seed 7) and <a href="https://github.com/pat-selby/uniqr/blob/main/cpp/README.md">cpp/README.md</a> (seed 11). Two separate runs. Backed by 500+ Python tests and 60+ C++ tests, across 19 releases.</p>
   </div>
 </section>
 
@@ -422,17 +427,18 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <p class="lede">Free and open source, MIT licensed. Every release is at <a href="https://github.com/pat-selby/uniqr/releases/latest">github.com/pat-selby/uniqr/releases/latest</a>.</p>
     </div>
     <div class="get">
-      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> and double-click it. No Python needed.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
+      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> and double-click it. No Python needed. Windows may warn the first time, since it isn't code-signed yet.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
       <div class="os"><h3>Mac</h3><p>Download the <code>.dmg</code> and drag UniQR to Applications. Open it, then click Open Anyway in System Settings &gt; Privacy &amp; Security. Switch UniQR on under Screen Recording and Accessibility. Needs macOS 14 or newer.</p><div class="pair"><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest/download/UniQR-macOS-arm64.dmg">Apple Silicon</a><a class="btn ghost" href="https://github.com/pat-selby/uniqr/releases/latest/download/UniQR-macOS-x86_64.dmg">Intel</a></div></div>
       <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code>. It needs an X11 session, since Wayland blocks screen capture.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
     </div>
+    <p class="policy">Why does Windows warn? It isn't code-signed yet. Read the <a href="https://github.com/pat-selby/uniqr/blob/main/CODE_SIGNING_POLICY.md">Code signing policy</a>. Questions or ideas? <a href="https://github.com/pat-selby/uniqr/discussions">Ask in Discussions</a>.</p>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
     <span>Built by Patrick Selby. UniQR is MIT licensed.</span>
-    <a href="https://github.com/pat-selby/uniqr">github.com/pat-selby/uniqr</a>
+    <span class="links"><a href="https://github.com/pat-selby/uniqr/blob/main/CODE_SIGNING_POLICY.md">Code signing policy</a> · <a href="https://github.com/pat-selby/uniqr/discussions">Questions or ideas?</a> · <a href="https://github.com/pat-selby/uniqr">github.com/pat-selby/uniqr</a></span>
   </div>
 </footer>
 
@@ -547,9 +553,99 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 })();
 
 // "Try the card": the same rules as describe_link() and payload_kind() in
-// uniqr/actions.py and uniqr/decode.py, ported to JavaScript.
+// uniqr/actions.py and uniqr/decode.py, with uniqr/address.py and
+// uniqr/linkcheck.py, as of v0.2.8, ported to JavaScript.
 (function () {
   var KIND = { url: "Link", wifi: "Wi-Fi", email: "Email", phone: "Phone", geo: "Location", contact: "Contact", event: "Event", secret: "Secret", uri: "App link", text: "Text" };
+
+  // address.py: which payloads are web addresses. A bare one opens with https.
+  // Top-level domains from IANA (version 2026102100), as in uniqr/tlds.py.
+  var TLDS = new Set("aaa aarp abb abbott abbvie abc able abogado abudhabi ac academy accenture accountant accountants aco actor ad ads adult ae aeg aero aetna af afl africa ag agakhan agency ai aig airbus airforce airtel akdn al alibaba alipay allfinanz allstate ally alsace alstom am amazon americanexpress americanfamily amex amfam amica amsterdam analytics android anquan anz ao aol apartments app apple aq aquarelle ar arab aramco archi army arpa art arte as asda asia associates at athleta attorney au auction audi audible audio auspost author auto autos aw aws ax axa az azure ba baby baidu banamex band bank bar barcelona barclaycard barclays barefoot bargains baseball basketball bauhaus bayern bb bbc bbt bbva bcg bcn bd be beats beauty beer berlin best bestbuy bet bf bg bh bharti bi bible bid bike bing bingo bio biz bj black blackfriday blockbuster blog bloomberg blue bm bms bmw bn bnpparibas bo boats boehringer bofa bom bond boo book booking bosch bostik boston bot boutique box br bradesco bridgestone broadway broker brother brussels bs bt build builders business buy buzz bv bw by bz bzh ca cab cafe cal call calvinklein cam camera camp canon capetown capital capitalone car caravan cards care career careers cars casa case cash casino cat catering catholic cba cbn cbre cc cd center ceo cern cf cfa cfd cg ch chanel channel charity chase chat cheap chintai christmas chrome church ci cipriani circle cisco citadel citi citic city ck cl claims cleaning click clinic clinique clothing cloud club clubmed cm cn co coach codes coffee college cologne com commbank community company compare computer comsec condos construction consulting contact contractors cooking cool coop corsica country coupon coupons courses cpa cr credit creditcard creditunion cricket crown crs cruise cruises cu cuisinella cv cw cx cy cymru cyou cz dad dance data date dating datsun day dclk dds de deal dealer deals degree delivery dell deloitte delta democrat dental dentist desi design dev dhl diamonds diet digital direct directory discount discover dish diy dj dk dm dnp do docs doctor dog domains dot download drive dtv dubai dupont durban dvag dvr dz earth eat ec eco edeka edu education ee eg email emerck energy engineer engineering enterprises epson equipment er ericsson erni es esq estate et eu eurovision eus events exchange expert exposed express extraspace fage fail fairwinds faith family fan fans farm farmers fashion fast fedex feedback ferrari ferrero fi fidelity fido film final finance financial fire firestone firmdale fish fishing fit fitness fj fk flickr flights flir florist flowers fly fm fo foo food football ford forex forsale forum foundation fox fr free fresenius frl frogans frontier ftr fujitsu fun fund furniture futbol fyi ga gal gallery gallo gallup game games gap garden gay gb gbiz gd gdn ge gea gent genting george gf gg ggee gh gi gift gifts gives giving gl glass gle global globo gm gmail gmbh gmo gmx gn godaddy gold goldpoint golf goodyear goog google gop got gov gp gq gr grainger graphics gratis green gripe grocery group gs gt gu gucci guge guide guitars guru gw gy hair hamburg hangout haus hbo hdfc hdfcbank health healthcare help helsinki here hermes hiphop hisamitsu hitachi hiv hk hkt hm hn hockey holdings holiday homedepot homegoods homes homesense honda horse hospital host hosting hot hotels hotmail house how hr hsbc ht hu hughes hyatt hyundai ibm icbc ice icu id ie ieee ifm ikano il im imamat imdb immo immobilien in inc industries infiniti info ing ink institute insurance insure int international intuit investments io ipiranga iq ir irish is ismaili ist istanbul it itau itv jaguar java jcb je jeep jetzt jewelry jio jll jm jmp jnj jo jobs joburg jot joy jp jpmorgan jprs juegos kaufen kddi ke kerryhotels kerryproperties kfh kg kh ki kia kids kim kindle kitchen kiwi km kn koeln komatsu kosher kp kpmg kpn kr krd kred kuokgroup kw ky kyoto kz la lacaixa lamborghini lamer land landrover lanxess lasalle lat latino latrobe law lawyer lb lc lds lease leclerc lefrak legal lego lexus lgbt li lidl life lifeinsurance lifestyle lighting like lilly limited limo lincoln link live living lk llc llp loan loans locker locus lol london lotte lotto love lpl lplfinancial lr ls lt ltd ltda lu lundbeck luxe luxury lv ly ma madrid maif maison makeup man management mango map market marketing markets marriott marshalls mattel mba mc mckinsey md me med media meet melbourne meme memorial men menu merck merckmsd mg mh miami microsoft mil mini mint mit mitsubishi mk ml mlb mls mm mma mn mo mobi mobile moda moe moi mom monash money monster mormon mortgage moscow moto motorcycles mov movie mp mq mr ms msd mt mtn mtr mu museum music mv mw mx my mz na nab nagoya name navy nba nc ne nec net netbank netflix network neustar new news next nextdirect nexus nf nfl ng ngo nhk ni nico nike nikon ninja nissan nissay nl no nokia norton now nowruz nowtv np nr nra nrw ntt nu nyc nz obi observer office okinawa olayan olayangroup ollo om omega one ong onl online ooo open oracle orange org organic origins osaka otsuka ott ovh pa page panasonic paris pars partners parts party pay pccw pe pet pf pfizer pg ph pharmacy phd philips phone photo photography photos physio pics pictet pictures pid pin ping pink pioneer pizza pk pl place play playstation plumbing plus pm pn pnc pohl poker politie porn post pr praxi press prime pro prod productions prof progressive promo properties property protection pru prudential ps pt pub pw pwc py qa qpon quebec quest racing radio re read realestate realtor realty recipes red redumbrella rehab reise reisen reit reliance ren rent rentals repair report republican rest restaurant review reviews rexroth rich richardli ricoh ril rio rip ro rocks rodeo rogers room rs rsvp ru rugby ruhr run rw rwe ryukyu sa saarland safe safety sakura sale salon samsclub samsung sandvik sandvikcoromant sanofi sap sarl sas save saxo sb sbi sbs sc scb schaeffler schmidt scholarships school schule schwarz science scot sd se search seat secure security seek select sener services seven sew sex sexy sfr sg sh shangrila sharp shell shia shiksha shoes shop shopping shouji show si silk sina singles site sj sk ski skin sky skype sl sling sm smart smile sn sncf so soccer social softbank software sohu solar solutions song sony soy spa space sport spot sr srl ss st stada staples star statebank statefarm stc stcgroup stockholm storage store stream studio study style su sucks supplies supply support surf surgery suzuki sv swatch swiss sx sy sydney systems sz tab taipei talk taobao target tatamotors tatar tattoo tax taxi tc tci td tdk team tech technology tel temasek tennis teva tf tg th thd theater theatre tiaa tickets tienda tips tires tirol tj tjmaxx tjx tk tkmaxx tl tm tmall tn to today tokyo tools top toray toshiba total tours town toyota toys tr trade trading training travel travelers travelersinsurance trust trv tt tube tui tunes tushu tv tvs tw tz ua ubank ubs ug uk unicom university uno uol ups us uy uz va vacations vana vanguard vc ve vegas ventures verisign versicherung vet vg vi viajes video vig viking villas vin vip virgin visa vision viva vivo vlaanderen vn vodka volvo vote voting voto voyage vu wales walmart walter wang wanggou watch watches weather weatherchannel web webcam weber website wed wedding weibo weir wf whoswho wien wiki williamhill win windows wine winners wme woodside work works world wow ws wtc wtf xbox xerox xihuan xin xn--11b4c3d xn--1ck2e1b xn--1qqw23a xn--2scrj9c xn--30rr7y xn--3bst00m xn--3ds443g xn--3e0b707e xn--3hcrj9c xn--3pxu8k xn--42c2d9a xn--45br5cyl xn--45brj9c xn--45q11c xn--4dbrk0ce xn--4gbrim xn--54b7fta0cc xn--55qw42g xn--55qx5d xn--5su34j936bgsg xn--5tzm5g xn--6frz82g xn--6qq986b3xl xn--80adxhks xn--80ao21a xn--80aqecdr1a xn--80asehdb xn--80aswg xn--8y0a063a xn--90a3ac xn--90ae xn--90ais xn--9dbq2a xn--9et52u xn--9krt00a xn--b4w605ferd xn--bck1b9a5dre4c xn--c1avg xn--c2br7g xn--cck2b3b xn--cckwcxetd xn--cg4bki xn--clchc0ea0b2g2a9gcd xn--czr694b xn--czrs0t xn--czru2d xn--d1acj3b xn--d1alf xn--e1a4c xn--eckvdtc9d xn--efvy88h xn--fct429k xn--fhbei xn--fiq228c5hs xn--fiq64b xn--fiqs8s xn--fiqz9s xn--fjq720a xn--flw351e xn--fpcrj9c3d xn--fzc2c9e2c xn--fzys8d69uvgm xn--g2xx48c xn--gckr3f0f xn--gecrj9c xn--gk3at1e xn--h2breg3eve xn--h2brj9c xn--h2brj9c8c xn--hxt814e xn--i1b6b1a6a2e xn--imr513n xn--io0a7i xn--j1aef xn--j1amh xn--j6w193g xn--jlq480n2rg xn--jvr189m xn--kcrx77d1x4a xn--kprw13d xn--kpry57d xn--kput3i xn--l1acc xn--lgbbat1ad8j xn--mgb9awbf xn--mgba3a3ejt xn--mgba3a4f16a xn--mgba7c0bbn0a xn--mgbaam7a8h xn--mgbab2bd xn--mgbah1a3hjkrd xn--mgbai9azgqp6j xn--mgbayh7gpa xn--mgbbh1a xn--mgbbh1a71e xn--mgbc0a9azcg xn--mgbca7dzdo xn--mgbcpq6gpa1a xn--mgberp4a5d4ar xn--mgbgu82a xn--mgbi4ecexp xn--mgbpl2fh xn--mgbt3dhd xn--mgbtx2b xn--mgbx4cd0ab xn--mix891f xn--mk1bu44c xn--mxtq1m xn--ngbc5azd xn--ngbe9e0a xn--ngbrx xn--node xn--nqv7f xn--nqv7fs00ema xn--nyqy26a xn--o3cw4h xn--ogbpf8fl xn--otu796d xn--p1acf xn--p1ai xn--pgbs0dh xn--pssy2u xn--q7ce6a xn--q9jyb4c xn--qcka1pmc xn--qxa6a xn--qxam xn--rhqv96g xn--rovu88b xn--rvc1e0am3e xn--s9brj9c xn--ses554g xn--t60b56a xn--tckwe xn--tiq49xqyj xn--unup4y xn--vermgensberater-ctb xn--vermgensberatung-pwb xn--vhquv xn--vuq861b xn--w4r85el8fhu5dnra xn--w4rs40l xn--wgbh1c xn--wgbl6a xn--xhq521b xn--xkc2al3hye2a xn--xkc2dl3a5ee0h xn--y9a3aq xn--yfro4i67o xn--ygbi2ammx xn--zfr164b xxx xyz yachts yahoo yamaxun yandex ye yodobashi yoga yokohama you youtube yt yun za zappos zara zero zip zm zone zuerich zw".split(" "));
+  var FILE_LIKE = new Set("py md zip mov sh rs cc so ps java ml mm pm pub".split(" "));
+  var LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+
+  function webAddress(text) {
+    var t = text.trim();
+    if (/^https?:\/\//i.test(t)) return t;
+    if (!t || /\s/.test(t) || t.indexOf("://") >= 0) return null;
+    var cut = [t.indexOf("/"), t.indexOf("?"), t.indexOf("#")].filter(function (i) { return i >= 0; });
+    var end = cut.length ? Math.min.apply(null, cut) : t.length;
+    var authority = t.slice(0, end);
+    if (authority.indexOf("@") >= 0) return null;
+    var colon = authority.indexOf(":");
+    var host = colon >= 0 ? authority.slice(0, colon) : authority;
+    if (colon >= 0) {
+      var port = authority.slice(colon + 1);
+      if (!/^\d{1,5}$/.test(port) || +port < 1 || +port > 65535) return null;
+    }
+    var labels = host.toLowerCase().split(".");
+    if (host.length > 253 || labels.length < 2 || !TLDS.has(labels[labels.length - 1])) return null;
+    if (!labels.every(function (l) { return LABEL.test(l); })) return null;
+    if (FILE_LIKE.has(labels[labels.length - 1]) && labels[0] !== "www" && t.charAt(end) !== "/") return null;
+    return "https://" + t;
+  }
+
+  // linkcheck.py: short links, borrowed brand names, file-like endings.
+  var SHORTENERS = new Set("bit.ly tinyurl.com t.co ow.ly is.gd v.gd buff.ly rebrand.ly cutt.ly shorturl.at tiny.cc rb.gy t.ly s.id bl.ink qrco.de goo.gl shorte.st adf.ly".split(" "));
+  var BRANDS = {
+    paypal: ["PayPal", "paypal.com paypal.me"], apple: ["Apple", "apple.com icloud.com apple.co"], icloud: ["iCloud", "icloud.com apple.com"],
+    microsoft: ["Microsoft", "microsoft.com microsoftonline.com live.com office.com aka.ms"], outlook: ["Outlook", "outlook.com live.com office.com microsoft.com"],
+    google: ["Google", "google.com googleusercontent.com googleapis.com gstatic.com g.co goo.gl"], gmail: ["Gmail", "gmail.com google.com"],
+    amazon: ["Amazon", "amazon.com amazonaws.com amzn.to a.co"], netflix: ["Netflix", "netflix.com"], facebook: ["Facebook", "facebook.com fb.com fb.me meta.com"],
+    instagram: ["Instagram", "instagram.com"], whatsapp: ["WhatsApp", "whatsapp.com whatsapp.net wa.me"], linkedin: ["LinkedIn", "linkedin.com lnkd.in"],
+    github: ["GitHub", "github.com github.io githubusercontent.com"], dropbox: ["Dropbox", "dropbox.com"], docusign: ["DocuSign", "docusign.com docusign.net"],
+    adobe: ["Adobe", "adobe.com"], coinbase: ["Coinbase", "coinbase.com"], binance: ["Binance", "binance.com"], venmo: ["Venmo", "venmo.com"],
+    zelle: ["Zelle", "zellepay.com"], bankofamerica: ["Bank of America", "bankofamerica.com bofa.com"], wellsfargo: ["Wells Fargo", "wellsfargo.com"],
+    dhl: ["DHL", "dhl.com"], fedex: ["FedEx", "fedex.com"], usps: ["USPS", "usps.com"], irs: ["the IRS", "irs.gov"]
+  };
+  var HOME_ENDINGS = new Set(["com", "net", "org"]);
+  var FILE_ENDINGS = { zip: ".zip", mov: ".mov" };
+  var SWAPS = [["rn", "m"], ["vv", "w"], ["0", "o"], ["1", "l"], ["3", "e"], ["5", "s"], ["4", "a"]];
+  var SECOND_LEVEL = new Set(["co", "com", "net", "org", "gov", "edu", "ac"]);
+
+  function siteOf(host) {
+    var labels = host.toLowerCase().replace(/\.$/, "").split(".");
+    var n = labels.length;
+    if (n >= 3 && labels[n - 1].length === 2 && SECOND_LEVEL.has(labels[n - 2])) return labels.slice(-3).join(".");
+    return labels.slice(-2).join(".");
+  }
+
+  function unswap(word) {
+    SWAPS.forEach(function (p) { word = word.split(p[0]).join(p[1]); });
+    return word;
+  }
+
+  function isBrandsOwn(brand, site, own) {
+    if (own.split(" ").indexOf(site) >= 0) return true;
+    var dot = site.indexOf(".");
+    var name = dot >= 0 ? site.slice(0, dot) : site, ending = dot >= 0 ? site.slice(dot + 1) : "";
+    return name === brand && (HOME_ENDINGS.has(ending) || ending.length === 2 || ending.split(".").length === 2);
+  }
+
+  function brandWarning(host) {
+    var site = siteOf(host), words = host.toLowerCase().split(/[.-]/);
+    for (var i = 0; i < words.length; i++) {
+      var tries = [words[i], unswap(words[i])];
+      for (var j = 0; j < tries.length; j++) {
+        var entry = BRANDS[tries[j]];
+        if (!entry) continue;
+        if (isBrandsOwn(tries[j], site, entry[1])) return null;
+        return "Mentions " + entry[0] + ", but the site is " + site + ", not " + entry[0] + "'s.";
+      }
+    }
+    return null;
+  }
+
+  function linkCheck(host) {
+    host = host.toLowerCase();
+    var warnings = [], site = siteOf(host);
+    if (SHORTENERS.has(site) || SHORTENERS.has(host)) warnings.push("A short link: it hides the real site until you open it.");
+    var brand = brandWarning(host);
+    if (brand) warnings.push(brand);
+    var ending = host.split(".").pop();
+    if (FILE_ENDINGS[ending]) warnings.push("Ends in " + FILE_ENDINGS[ending] + ", which looks like a file name. Scammers use that trick.");
+    return warnings;
+  }
 
   function payloadKind(text) {
     var s = text.trim().toLowerCase();
@@ -562,6 +658,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
     if (s.indexOf("begin:vevent") === 0) return "event";
     if (/^(bitcoin|ethereum|otpauth):/.test(s)) return "secret";
     if (s.indexOf("://") >= 0) return "uri";
+    if (webAddress(text)) return "url";
     return "text";
   }
 
@@ -572,8 +669,8 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 
   // Like Python's urlsplit: the host is whatever follows the last @.
   function describeLink(text) {
-    var full = text.trim();
-    if (!/^https?:\/\//i.test(full)) return null;
+    var full = webAddress(text);
+    if (!full) return null;
     var m = /^([a-z][a-z0-9+.-]*):\/\/([^\/?#]*)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(full);
     if (!m) return null;
     var scheme = m[1].toLowerCase(), netloc = m[2];
@@ -598,8 +695,10 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
     if (hasUser) warnings.push("Text before the @ is ignored. This really goes to " + host + ".");
     if (host.split(".").some(function (l) { return l.indexOf("xn--") === 0; })) warnings.push("Uses international characters, a common lookalike trick. Check the address carefully.");
     if (isIP(host)) warnings.push("Goes to a raw IP address, not a website name.");
+    warnings = warnings.concat(linkCheck(host));
+    var bare = !/^https?:\/\//i.test(text.trim());
     var rest = m[3] + (m[4] && m[4].length > 1 ? m[4] : "") + (m[5] && m[5].length > 1 ? m[5] : "");
-    return { host: port ? host + ":" + (+port) : host, rest: rest, warnings: warnings };
+    return { host: port ? host + ":" + (+port) : host, rest: rest, warnings: warnings, notes: bare ? ["The code has no https://, so UniQR adds it."] : [] };
   }
 
   function summarize(text, limit) {
@@ -626,11 +725,11 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
     head.appendChild(el("span", "card-kind", (KIND[kind] || "Text").toUpperCase()));
     head.appendChild(el("span", "card-status", "✓ Copied"));
     inner.appendChild(head);
-    var link = describeLink(text), notes = [], canOpen = /^https?:\/\//i.test(text.trim());
+    var link = describeLink(text), notes = [], canOpen = webAddress(text) !== null;
     if (link) {
       inner.appendChild(el("div", "card-host", link.host));
       if (link.rest && link.rest !== "/") inner.appendChild(el("div", "card-rest", summarize(link.rest, 54)));
-      notes = link.warnings.map(function (w) { return [w, true]; });
+      notes = link.warnings.map(function (w) { return [w, true]; }).concat(link.notes.map(function (n) { return [n, false]; }));
     } else {
       inner.appendChild(el("div", "card-body", summarize(text, 90)));
       notes = [["Not a web link, so UniQR won't open it.", false]];
