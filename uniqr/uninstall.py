@@ -167,6 +167,11 @@ def _to_trash(app: Path) -> None:
 
 def run_command_line() -> int:
     """UniQR --uninstall: the same as the tray item, for when there is no tray."""
+    from uniqr import store
+
+    if store.packaged():
+        print("This UniQR came from the Microsoft Store. Remove it in Settings > Apps.")
+        return 1
     problems = remove()
     finish()
     if problems:

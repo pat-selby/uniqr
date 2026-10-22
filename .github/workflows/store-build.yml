@@ -1,0 +1,94 @@
+name: Store build
+
+# Builds the Microsoft Store package (MSIX) and checks it installs and runs as a
+# Store app. The package kept at the end is unsigned: Partner Center signs it.
+#
+# The package identity comes from three repository variables, copied from
+# Partner Center's "Product identity" page: STORE_IDENTITY_NAME, STORE_PUBLISHER
+# and STORE_PUBLISHER_DISPLAY. Without them it builds with test values, which
+# install here but which the Store would refuse. See tools/build_msix.py.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/build_msix.py"
+      - "tools/build_exe.py"
+      - "uniqr/store.py"
+      - ".github/workflows/store-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package, install and start
+    runs-on: windows-latest
+    env:
+      STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
+      STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
+      STORE_PUBLISHER_DISPLAY: ${{ vars.STORE_PUBLISHER_DISPLAY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the program folder
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[windows]" pyinstaller
+          python tools/build_exe.py --store
+
+      - name: Pack it
+        run: python tools/build_msix.py
+
+      # Windows installs only signed packages. A throwaway certificate, made for
+      # this run and trusted only on this build machine, signs a copy to test with.
+      - name: Install a test-signed copy
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem dist/store/UniQR-*.msix | Select-Object -First 1
+          [xml]$manifest = Get-Content build/msix/AppxManifest.xml
+          $publisher = $manifest.Package.Identity.Publisher
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher -KeyUsage DigitalSignature `
+            -FriendlyName "UniQR test" -CertStoreLocation Cert:\CurrentUser\My `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          $password = ConvertTo-SecureString -String "test-only" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath test.pfx -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath test.cer | Out-Null
+          Import-Certificate -FilePath test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          Copy-Item $package.FullName test.msix
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+          & $signtool.FullName sign /fd SHA256 /f test.pfx /p test-only test.msix
+          if ($LASTEXITCODE -ne 0) { throw "signing failed" }
+          Add-AppxPackage -Path test.msix
+          Get-AppxPackage -Name $manifest.Package.Identity.Name | Format-List Name, Version, PackageFamilyName, InstallLocation
+
+      - name: Start it as a Store app and read its log
+        shell: pwsh
+        run: |
+          [xml]$manifest = Get-Content build/msix/AppxManifest.xml
+          $app = Get-AppxPackage -Name $manifest.Package.Identity.Name
+          $family = $app.PackageFamilyName
+          Start-Process "explorer.exe" "shell:AppsFolder\$family!UniQR"
+          $log = Join-Path $env:LOCALAPPDATA "Packages\$family\LocalCache\Local\UniQR\uniqr.log"
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Get-Date) -lt $deadline -and -not ((Test-Path $log) -and (Select-String -Path $log -Pattern "UniQR is running" -Quiet))) {
+            Start-Sleep -Seconds 2
+          }
+          if (-not (Test-Path $log)) { throw "no log at $log: the app did not start, or its files are not kept in the package folder" }
+          Get-Content $log
+          if (-not (Select-String -Path $log -Pattern "UniQR is running" -Quiet)) { throw "UniQR did not report that it is running" }
+          if (Select-String -Path $log -Pattern "asking whether to start at login" -Quiet) { throw "a Store app must not ask to add itself to the registry start-up list" }
+          if (-not (Get-Process -Name UniQR -ErrorAction SilentlyContinue)) { throw "UniQR is not running" }
+          Stop-Process -Name UniQR -Force
+          Remove-AppxPackage -Package $app.PackageFullName
+
+      - name: Keep the package for Partner Center
+        uses: actions/upload-artifact@v7
+        with:
+          name: UniQR-msix
+          path: dist/store/UniQR-*.msix
+          if-no-files-found: error

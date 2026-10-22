@@ -23,6 +23,10 @@ FEEDBACK_URL = f"https://github.com/{REPO}/discussions/new?category=general"
 
 
 def how_it_is_run() -> str:
+    from uniqr import store
+
+    if store.packaged():
+        return "Microsoft Store app"
     return "downloaded file" if getattr(sys, "frozen", False) else "run from the source"
 
 
@@ -37,6 +41,10 @@ def system_summary() -> str:
 def log_location() -> str:
     """Where this system keeps UniQR's log, written so it holds no one's name."""
     if sys.platform == "win32":
+        from uniqr import store
+
+        if store.packaged():
+            return store.log_path()
         return "%LOCALAPPDATA%\\UniQR\\uniqr.log"
     if sys.platform == "darwin":
         return "~/Library/Logs/UniQR/uniqr.log"

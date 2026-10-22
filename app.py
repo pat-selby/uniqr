@@ -29,6 +29,7 @@ from uniqr import (
     mac_permissions,
     overlay,
     report,
+    store,
     uninstall,
     updates,
     watchdog,
@@ -123,7 +124,8 @@ class UniQR:
             self.check_updates_now if can_update else None,
             self.report_problem,
             self.send_feedback,
-            self.remove_uniqr,
+            # A Store app is removed in Settings > Apps, not by itself.
+            None if store.packaged() else self.remove_uniqr,
         )
 
     def report_problem(self) -> None:
