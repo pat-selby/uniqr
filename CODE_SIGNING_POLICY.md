@@ -2,7 +2,8 @@
 
 UniQR is a free, open-source program that reads QR codes on your screen. This
 page says how its Windows download, `UniQR.exe`, is built and signed, and who is
-responsible for it.
+responsible for it. The C++ preview, `uniqr-cpp.exe`, is built the same way and
+is not signed yet either.
 
 ## Status
 
@@ -54,9 +55,11 @@ are merged, and only the approver can approve signing.
 UniQR does not send information anywhere. It looks at your screen only when you
 press the hotkey, decodes any codes it finds on your own computer, and copies the
 result to your clipboard. By default it makes no network connections. There are
-two exceptions, and both are yours to choose:
+a few exceptions, and each is yours to choose:
 
 - If you click **Open** on a web link, your browser opens that link.
+- **Report a problem** and **Send feedback** in the tray menu open a page on
+  GitHub in your browser. Nothing is sent unless you submit it there yourself.
 - Update checks. If you say yes to "Check for new versions once a day?", or click
   **Check for updates now** in the tray menu, or run `--check-updates`, UniQR asks
   GitHub for the newest release of this project, over HTTPS. GitHub can see your
@@ -64,6 +67,9 @@ two exceptions, and both are yours to choose:
   about your screen, your scans or your computer. The reply is read only for a
   version number. UniQR never downloads or installs anything by itself. You can
   turn automatic checks off in the tray menu.
+
+The scam checks on scanned links (short links, a brand's name on someone else's
+site, and similar tricks) run on your own computer. Nothing is looked up online.
 
 UniQR writes a log file on your own computer, so you can see what it did:
 
@@ -75,11 +81,18 @@ The log records the text of codes it reads, such as links. It is never uploaded.
 
 ## What the program changes on your computer
 
-It writes the log file, and a small icon file under
-`%LOCALAPPDATA%\UniQR` on Windows. It does not install anything, change system
-settings, or start itself with Windows. If you choose to start it with Windows,
-that is a shortcut you add yourself, and you remove it by deleting the shortcut.
-To uninstall, delete `UniQR.exe`, and optionally the `UniQR` folder named above.
+It writes the log file named above and a small settings file (on Windows, both
+under `%LOCALAPPDATA%\UniQR`, with a tray icon file). It does not change system
+settings and needs no administrator rights.
+
+**Start at login is off until you say yes.** On its first run UniQR asks once,
+and the tray menu has a **Start at login** switch. On Windows, turning it on adds
+UniQR to your own user's startup list; on Linux it adds a file under
+`~/.config/autostart`. Turning the switch off removes it.
+
+**To remove UniQR**, right-click the tray icon and choose **Uninstall UniQR**, or
+run it once with `--uninstall`. That removes the start-at-login entry, the
+settings, the log and the program itself. It deletes only files UniQR wrote.
 
 ## Checking a signed file
 
@@ -105,5 +118,6 @@ with the file's SHA-256 fingerprint and where you downloaded it.
 
 ## Other systems
 
-SignPath signs the Windows file only. The Linux program has no signing step. A
-Mac version is not built yet.
+SignPath signs the Windows file only. The Mac app is signed "ad hoc", which
+proves it was not changed but names no publisher, and it is not notarized by
+Apple. The Linux program has no signing step.

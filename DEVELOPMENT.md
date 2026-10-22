@@ -112,6 +112,8 @@ What is already in the repo:
 - `.github/workflows/windows-build.yml`, which builds the exe on GitHub and
   checks that it starts and exits. Its signing job does nothing until the
   `SIGNPATH_ORGANIZATION_ID` variable exists.
+- A "Code signing policy" link on every download page. SignPath requires it on
+  the home page and each release page, so every release's notes end with one.
 - `signpath/artifact-configuration.xml`, which tells SignPath which file to sign.
   It names the product (`UniQR`) and the version. Change the version in it for
   each release.
