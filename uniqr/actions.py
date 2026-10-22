@@ -10,9 +10,8 @@ import webbrowser
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from uniqr import backends
-
-SAFE_SCHEMES = ("http://", "https://")
+from uniqr import backends, linkcheck
+from uniqr.address import is_bare, web_address
 
 
 @dataclass(frozen=True)
@@ -23,6 +22,7 @@ class LinkView:
     rest: str  # path, query and fragment: shown dimmed, since it's less telling
     full: str  # the whole link, for the hover pop-up
     warnings: tuple[str, ...]
+    notes: tuple[str, ...] = ()  # plain remarks, not warnings
 
 
 def describe_link(text: str) -> LinkView | None:
@@ -35,9 +35,9 @@ def describe_link(text: str) -> LinkView | None:
     returns is the real one. Returns None for anything that is not an openable
     web link.
     """
-    if not can_open(text):
+    full = web_address(text)
+    if full is None:
         return None
-    full = text.strip()
     try:
         parts = urlsplit(full)
         host = parts.hostname or ""
@@ -62,6 +62,8 @@ def describe_link(text: str) -> LinkView | None:
         warnings.append("Goes to a raw IP address, not a website name.")
     except ValueError:
         pass
+    # Short links, borrowed brand names, file-like endings. See uniqr/linkcheck.py.
+    warnings += linkcheck.check(host)
 
     rest = parts.path
     if parts.query:
@@ -69,7 +71,8 @@ def describe_link(text: str) -> LinkView | None:
     if parts.fragment:
         rest += "#" + parts.fragment
     shown_host = f"{host}:{port}" if port else host
-    return LinkView(host=shown_host, rest=rest, full=full, warnings=tuple(warnings))
+    notes = ("The code has no https://, so UniQR adds it.",) if is_bare(text) else ()
+    return LinkView(host=shown_host, rest=rest, full=full, warnings=tuple(warnings), notes=notes)
 
 
 def copy(text: str) -> None:
@@ -85,7 +88,7 @@ def opens_on_click(text: str) -> bool:
     card first, so the warning is seen before anything opens. Anything that is
     not a link is copied.
     """
-    view = describe_link(text) if can_open(text) else None
+    view = describe_link(text)
     return view is not None and not view.warnings
 
 
@@ -95,9 +98,10 @@ def can_open(text: str) -> bool:
     A QR code is untrusted input from the screen - it could hold a file:// or
     a custom app scheme aimed at something unpleasant. Handing an arbitrary
     string to ShellExecute is how you launch things you did not mean to, so
-    everything except plain http(s) is copy-only.
+    everything except plain http(s) is copy-only. A bare address such as
+    "example.org/apply" counts, and opens with https; see uniqr.address.
     """
-    return text.strip().lower().startswith(SAFE_SCHEMES)
+    return web_address(text) is not None
 
 
 # What a Linux desktop offers for "open this link in the user's browser", best
@@ -183,9 +187,9 @@ def _open_on_linux(url: str) -> bool:
 
 def open_url(text: str) -> bool:
     """Open a web link in the default browser. False if not allowed or not opened."""
-    if not can_open(text):
+    url = web_address(text)
+    if url is None:
         return False
-    url = text.strip()
     if _linux():
         opened = _open_on_linux(url)
         if not opened:

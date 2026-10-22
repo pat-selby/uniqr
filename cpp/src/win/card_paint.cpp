@@ -86,6 +86,7 @@ void CardPainter::layout() {
             if (link->rest != "" && link->rest != "/")
                 add(widen(summarize(link->rest, 54)), font(9, false, true), colour::card_muted, px(2, scale_), false);
             for (const auto& w : link->warnings) notes.emplace_back(w, true);
+            for (const auto& n : link->notes) notes.emplace_back(n, false);
         } else {
             add(widen(summarize(text_, 90)), font(10, false, false), colour::card_fg, 0, true);
             if (kind == "secret")

@@ -19,6 +19,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+from uniqr.address import web_address
+
 # The decoders log a warning per attempt on payloads using ECI encoding, even
 # when they go on to decode them fine. Several passes per scan turns that into
 # pages of noise, so keep OpenCV to real errors.
@@ -880,4 +882,6 @@ def payload_kind(text: str) -> str:
         return "secret"
     if "://" in lowered:
         return "uri"
+    if web_address(text):
+        return "url"
     return "text"
