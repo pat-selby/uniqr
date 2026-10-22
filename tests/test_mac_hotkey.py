@@ -18,7 +18,7 @@ def mac(monkeypatch):
 def test_the_first_choice_on_a_mac_is_command_shift_8(mac):
     combo, label = shell_portable.hotkey_choices()[0]
     assert combo == "<cmd>+<shift>+8"
-    assert label == "Command+Shift+8"
+    assert label == "⌘ Cmd+Shift+8"
 
 
 def test_the_old_default_is_no_longer_first(mac):

@@ -1,0 +1,171 @@
+"""Score the C++ scanner against the Python one, on the very same images.
+
+    python -m benchmarks.compare_cpp --exe cpp/build/uniqr-scan.exe
+    python -m benchmarks.compare_cpp --exe ... --per-cell 4 --seed 11
+
+The cases come from the lab (benchmarks/run.py), so they are the same codes,
+styles and damage. Each image is saved once as a PNG (lossless), then:
+
+  Python   uniqr.decode.Scanner().scan(image)
+  C++      uniqr-scan --serve, one process, fed the PNG paths on stdin
+
+Both run one case at a time, on one process each, so the times can be compared.
+Pick a seed the scanner was not tuned on (the lab report uses 7).
+"""
+
+import argparse
+import json
+import statistics
+import subprocess
+import sys
+import tempfile
+import time
+from collections import defaultdict
+from pathlib import Path
+
+import cv2
+
+from benchmarks import run
+
+HERE = Path(__file__).parent
+
+
+def scan_python(paths: list[Path]) -> list[dict]:
+    sys.path.insert(0, str(HERE.parent))
+    from uniqr.decode import Scanner
+
+    scanner = Scanner()
+    out = []
+    for p in paths:
+        img = cv2.imread(str(p))
+        t0 = time.perf_counter()
+        found = scanner.scan(img)
+        out.append({"texts": [d.text for d in found], "ms": (time.perf_counter() - t0) * 1000})
+    return out
+
+
+def scan_cpp(exe: str, paths: list[Path]) -> list[dict]:
+    proc = subprocess.Popen(
+        [str(Path(exe).resolve()), "--serve"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, encoding="utf-8"
+    )
+    out = []
+    for p in paths:
+        proc.stdin.write(f"{p}\n")
+        proc.stdin.flush()
+        row = json.loads(proc.stdout.readline())
+        if not row["loaded"]:
+            raise RuntimeError(f"uniqr-scan could not load {p}")
+        out.append({"texts": [c["text"] for c in row["codes"]], "ms": row["ms"]})
+    proc.stdin.close()
+    proc.wait()
+    return out
+
+
+def score(case, got: dict) -> str:
+    if case.payload in got["texts"]:
+        return "ok"
+    return "wrong" if got["texts"] else "missed"
+
+
+def side_by_side(title: str, groups: dict[str, list[tuple]]) -> list[str]:
+    lines = [
+        f"### {title}",
+        "",
+        "| | cases | Python decoded | C++ decoded | Python wrong | C++ wrong | Python median ms | C++ median ms |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    def pct(rows, engine, what):
+        return 100 * sum(1 for r in rows if r[engine] == what) / len(rows)
+
+    for name, rows in groups.items():
+        lines.append(
+            f"| {name} | {len(rows)} | {pct(rows, 'py', 'ok'):.1f}% | {pct(rows, 'cpp', 'ok'):.1f}% | "
+            f"{sum(1 for r in rows if r['py'] == 'wrong')} | {sum(1 for r in rows if r['cpp'] == 'wrong')} | "
+            f"{statistics.median(r['py_ms'] for r in rows):.0f} | {statistics.median(r['cpp_ms'] for r in rows):.0f} |"
+        )
+    return [*lines, ""]
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    p.add_argument("--exe", required=True, help="path to uniqr-scan(.exe)")
+    p.add_argument("--per-cell", type=int, default=2)
+    p.add_argument("--seed", type=int, default=11)
+    p.add_argument("--negatives", type=int, default=48)
+    p.add_argument("--out", help="also write the report to this file")
+    args = p.parse_args()
+
+    cases = run.build_cases(args.per_cell, args.seed, run.FORMATS, run.TAGS, run.QR_STYLES)
+    negs = run.negative_images(args.negatives, args.seed) if args.negatives else []
+    print(f"{len(cases)} codes, {len(negs)} no-code images")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        folder = Path(tmp)
+        paths = []
+        for c in cases:
+            path = folder / f"{c.id}.png"
+            cv2.imwrite(str(path), run.make_image(c))
+            paths.append(path)
+        neg_paths = []
+        for i, (_, img) in enumerate(negs):
+            path = folder / f"neg{i:03d}.png"
+            cv2.imwrite(str(path), img)
+            neg_paths.append(path)
+
+        t0 = time.perf_counter()
+        cpp = scan_cpp(args.exe, paths + neg_paths)
+        cpp_s = time.perf_counter() - t0
+        print(f"C++ done in {cpp_s:.0f} s", flush=True)
+        t0 = time.perf_counter()
+        py = scan_python(paths + neg_paths)
+        py_s = time.perf_counter() - t0
+        print(f"Python done in {py_s:.0f} s", flush=True)
+
+    rows = []
+    for c, a, b in zip(cases, py, cpp, strict=False):
+        rows.append({
+            "fmt": c.fmt, "style": c.style, "tag": c.tags[0],
+            "py": score(c, a), "cpp": score(c, b), "py_ms": a["ms"], "cpp_ms": b["ms"],
+        })
+    py_neg, cpp_neg = py[len(cases):], cpp[len(cases):]
+
+    def total(engine, what):
+        return sum(1 for r in rows if r[engine] == what)
+
+    def grouped(key):
+        g = defaultdict(list)
+        for r in rows:
+            g[key(r)].append(r)
+        return dict(sorted(g.items()))
+
+    lines = [
+        "# C++ vs Python",
+        "",
+        f"Generated by `python -m benchmarks.compare_cpp --per-cell {args.per_cell} --seed {args.seed}`.",
+        f"{len(rows)} generated codes and {len(negs)} images with no code, scanned one at a time by each.",
+        "",
+        "| | decoded | wrong | missed | false alarms | median ms | total seconds |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        f"| Python | {total('py', 'ok')} | {total('py', 'wrong')} | {total('py', 'missed')} | "
+        f"{sum(1 for n in py_neg if n['texts'])} | {statistics.median(r['py_ms'] for r in rows):.0f} | {py_s:.0f} |",
+        f"| C++ | {total('cpp', 'ok')} | {total('cpp', 'wrong')} | {total('cpp', 'missed')} | "
+        f"{sum(1 for n in cpp_neg if n['texts'])} | {statistics.median(r['cpp_ms'] for r in rows):.0f} | {cpp_s:.0f} |",
+        "",
+        f"Both decoded: {sum(1 for r in rows if r['py'] == 'ok' and r['cpp'] == 'ok')}. "
+        f"Only Python: {sum(1 for r in rows if r['py'] == 'ok' and r['cpp'] != 'ok')}. "
+        f"Only C++: {sum(1 for r in rows if r['cpp'] == 'ok' and r['py'] != 'ok')}.",
+        "",
+    ]
+    lines += side_by_side("By format", grouped(lambda r: r["fmt"]))
+    lines += side_by_side("QR codes, by condition", grouped(lambda r: r["tag"] if r["fmt"] == "qr" else "(not QR)"))
+    text = "\n".join(lines)
+    print()
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(f"wrote {args.out}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -10,7 +10,7 @@
     python app.py --check-updates                      # ask GitHub for a newer version, then exit
     python app.py --report-problem                     # open a pre-filled GitHub issue, then exit
 
-Runs in the system tray. Press the hotkey (Win+Shift+Q by default) and any QR
+Runs in the system tray. Press the hotkey (⊞+Shift+Q by default, ⊞ being the Windows logo key) and any QR
 code visible anywhere on screen gets decoded and copied to the clipboard.
 """
 
@@ -26,8 +26,10 @@ from uniqr import (
     backends,
     capture,
     logbook,
+    mac_permissions,
     overlay,
     report,
+    uninstall,
     updates,
     watchdog,
 )
@@ -48,6 +50,7 @@ def build_shell(
     on_update_toggle=None,
     on_update_check=None,
     on_report=None,
+    on_uninstall=None,
 ):
     """Pick the shell that matches the capture backend.
 
@@ -67,6 +70,7 @@ def build_shell(
             on_update_toggle=on_update_toggle,
             on_update_check=on_update_check,
             on_report=on_report,
+            on_uninstall=on_uninstall,
         )
 
     from uniqr.shell_portable import PortableShell
@@ -80,6 +84,7 @@ def build_shell(
         on_update_toggle=on_update_toggle,
         on_update_check=on_update_check,
         on_report=on_report,
+        on_uninstall=on_uninstall,
     )
 
 
@@ -102,6 +107,7 @@ class UniQR:
         # Set when the browser would not open the report page, so the next
         # heartbeat can put the address on the clipboard and say so.
         self._report_failed: str | None = None
+        self._uninstalled = False  # set by the tray's Uninstall; see run()
         can_toggle = autostart.supported()
         can_update = updates.supported()
         self.shell = build_shell(
@@ -113,6 +119,7 @@ class UniQR:
             self.toggle_updates if can_update else None,
             self.check_updates_now if can_update else None,
             self.report_problem,
+            self.remove_uniqr,
         )
 
     def report_problem(self) -> None:
@@ -127,6 +134,32 @@ class UniQR:
         if not actions.open_url(url):
             print("the browser would not open the report page")
             self._report_failed = url
+
+    def remove_uniqr(self) -> None:
+        """The tray menu's "Uninstall UniQR": ask once, then remove everything."""
+        screen = capture.monitor_at(0, 0)
+        if uninstall.program() is not None:
+            note = "This removes UniQR, its settings and its log from this computer."
+        else:
+            note = (
+                "This removes UniQR's settings, log and start-at-login entry. "
+                "You run it from source, so that folder stays."
+            )
+        answer = overlay.ask(
+            "Uninstall UniQR?",
+            note,
+            ("Uninstall", "Cancel"),
+            (screen.right - 400, screen.bottom - 175),
+            until=lambda: self.shell.stopping,
+        )
+        if not answer:
+            print("uninstall: cancelled")
+            return
+        problems = uninstall.remove()
+        print("uninstall: done" + (f", apart from {', '.join(problems)}" if problems else ""))
+        self._uninstalled = True
+        overlay.toast("", "UniQR is removed.", (screen.right - 360, screen.bottom - 130))
+        self.shell.stop()
 
     # -- update checks -----------------------------------------------------------
 
@@ -306,6 +339,8 @@ class UniQR:
         print(f"screen capture: {detail}")
         if not ok:
             print("Cannot read the screen, so scanning would find nothing.")
+            if sys.platform == "darwin":
+                self._help_mac_permission("screen")
             return 4
 
         # The portable shell needs its tray started explicitly, and may not get
@@ -326,7 +361,8 @@ class UniQR:
                 print("No tray icon on this platform - Ctrl+C here to exit.")
             if sys.platform == "darwin":
                 print(
-                    "macOS: if the hotkey does nothing, grant Input Monitoring in\n"
+                    "macOS: if the hotkey does nothing, switch on "
+                    f"{mac_permissions.who()} under Accessibility in\n"
                     "System Settings > Privacy & Security, then restart UniQR."
                 )
             # A started listener is not a working one. Where the OS can be
@@ -335,6 +371,8 @@ class UniQR:
             allowed, detail = capture.input_status()
             if allowed is False:
                 print(HOTKEY_BLOCKED + detail)
+                if sys.platform == "darwin":
+                    self._help_mac_permission("keys")
         self._greet(label)
 
         if self.shell.stopping:
@@ -353,6 +391,8 @@ class UniQR:
             raise
         finally:
             dog.stop(clean=clean)
+        if self._uninstalled:
+            uninstall.finish()  # last: on Windows it deletes this very program
         return 0
 
     def _greet(self, label: str | None) -> None:
@@ -443,6 +483,30 @@ class UniQR:
         else:
             print("update checks: could not be saved")
 
+    def _help_mac_permission(self, kind: str) -> None:
+        """A Mac permission is missing: say so on screen, not only in the log.
+
+        A downloaded UniQR.app has no Terminal to print to, so without this it
+        would quit, or sit deaf to the hotkey, with nothing visible at all.
+        """
+        mac_permissions.ask_macos(kind)
+        if self.quiet:
+            return
+        heading, note = mac_permissions.message(kind)
+        print(f"{heading}. {note}")
+        screen = capture.monitor_at(0, 0)
+        try:
+            answer = overlay.ask(
+                heading, note, ("Open Settings", "Not now"),
+                (screen.right - 420, screen.bottom - 200),
+                until=lambda: self.shell.stopping,
+            )
+        except Exception as exc:  # noqa: BLE001 - help must not stop start-up
+            print(f"could not show the permission card: {exc}")
+            return
+        if answer:
+            mac_permissions.open_settings(kind)
+
     @staticmethod
     def _corner(screen) -> tuple[int, int]:
         return (screen.right - 360, screen.bottom - 130)
@@ -470,6 +534,8 @@ def main() -> int:
     done = autostart.handle_command_line(sys.argv)
     if done is not None:
         return done
+    if "--uninstall" in sys.argv:
+        return uninstall.run_command_line()
     # Opens one link the way the Open button does, says whether it worked, and
     # exits. For finding out why Open does nothing on a given machine.
     if "--report-problem" in sys.argv:

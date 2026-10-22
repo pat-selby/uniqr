@@ -1,0 +1,58 @@
+name: Mac build
+
+# Builds UniQR.app in a .dmg for Apple Silicon and for Intel Macs, then opens it
+# and starts it. Runs when the files that decide its behavior change, and on request.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/build_exe.py"
+      - "tools/smoke_test_mac.py"
+      - ".github/workflows/mac-build.yml"
+      - "uniqr/backends/**"
+      - "uniqr/mac_permissions.py"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and smoke test (${{ matrix.chip }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            chip: arm64
+          - runner: macos-15-intel
+            chip: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pyinstaller
+          python tools/build_exe.py
+
+      - name: Smoke test
+        run: python tools/smoke_test_mac.py dist/UniQR.app dist/UniQR-macOS-${{ matrix.chip }}.dmg
+
+      - name: Fingerprint
+        run: |
+          cd dist
+          shasum -a 256 UniQR-macOS-${{ matrix.chip }}.dmg | tee UniQR-macOS-${{ matrix.chip }}.dmg.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UniQR-macOS-${{ matrix.chip }}
+          path: |
+            dist/UniQR-macOS-${{ matrix.chip }}.dmg
+            dist/UniQR-macOS-${{ matrix.chip }}.dmg.sha256
+          if-no-files-found: error

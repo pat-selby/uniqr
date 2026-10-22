@@ -1,159 +1,71 @@
 # Installing UniQR
 
-Press a hotkey, read any QR code on your screen.
+Pick your system. Each takes a couple of minutes.
 
-You need **Python 3.11 or newer**. Check with `python --version` on Windows, or
-`python3 --version` on macOS and Linux. If you don't have it, get it from
-[python.org](https://www.python.org/downloads/).
-
-Pick your system below. Each takes about two minutes.
+- [Windows](#windows)
+- [macOS](#macos)
+- [Linux](#linux)
+- [Updates, problems, removing it](#updates)
 
 ---
 
 ## Windows
 
-### Easiest: the .exe
+1. Download **UniQR.exe** from the [latest release](https://github.com/pat-selby/uniqr/releases/latest). Put it somewhere you'll keep it.
+2. Double-click it. If Windows says **"Windows protected your PC"**, click **More info**, then **Run anyway**. It warns because the file isn't code-signed.
+3. A card asks whether to start UniQR when you log in. Choose **Yes** or **Not now**.
+4. Press **<img src="docs/windows-key.svg" alt="Windows logo key" height="14"> + Shift + Q** on any QR code.
 
-Download **UniQR.exe** from the
-[latest release](https://github.com/pat-selby/uniqr/releases/latest). You don't
-need Python or anything else.
+UniQR sits in the tray next to the clock. Right-click its icon to quit, to turn start at login on or off, or to report a problem.
 
-1. Put it somewhere permanent, like `C:\Users\you\UniQR\`.
-2. Double-click it. The first start takes a few seconds, because the file
-   unpacks itself.
-3. A card says UniQR is running, and asks whether to start it when you log in.
-   Click **Yes, start at login** if you want that, or **Not now**. It sits in the
-   system tray, next to the clock. Press **Win+Shift+Q** on a QR code.
+**Check the file** (optional): run `certutil -hashfile UniQR.exe SHA256` in that folder and compare with the release page.
 
-The first time, Windows may say **"Windows protected your PC"** and name an
-unknown publisher. That is because the file isn't code-signed, which costs money
-every year. Click **More info**, then **Run anyway**. Only do that for a copy you
-got from this repo's release page or from the person who made it. The release
-page lists the file's SHA-256 fingerprint, and you can check yours against it:
-
-```
-certutil -hashfile UniQR.exe SHA256
-```
-
-To quit, right-click the tray icon and choose Exit.
-
-### Start it when you log in
-
-The first time you run the file, the card asks whether to start UniQR when you log
-in. It asks once, and it never turns anything on unless you click Yes. If you
-ignore the card three times it stops asking. You can change your mind at any time:
-right-click the tray icon and click **Start at login**. A tick next to it means
-it is on. This needs **version 0.1.6 or newer**.
-
-The same thing from a command line, which works on version 0.1.4 and newer: open
-PowerShell in the folder where you saved the file and run this once:
-
-```
-.\UniQR.exe --install-autostart
-```
-
-A small box tells you it worked. It takes a few seconds to appear, because the
-file unpacks itself first. UniQR will start at your next login. It adds an entry
-to Windows' list of programs that start at login, which needs no administrator
-rights, and which you can see, and switch off, under **Settings, Apps, Startup**.
-
-The entry records where the file is. If you move or rename it, run the command
-again. To remove the entry:
-
-```
-.\UniQR.exe --uninstall-autostart
-```
-
-An older file ignores options it does not know, so it would just start normally.
-The older way still works: press `Win+R`,
-type `shell:startup`, press Enter, and drop a shortcut to UniQR.exe in that folder.
-
-GitHub tests that the entry is written correctly, that the command stored in it
-starts UniQR, and that quitting while the question is on screen works. It cannot
-test a real login, so if UniQR does not start after you log in, tell me.
-
-### Choosing a different hotkey
-
-UniQR uses **Win+Shift+Q**. If another program already has it, UniQR tries
-Ctrl+Alt+Q, then Ctrl+Shift+9. To use your own, start it with `--hotkey`. In
-PowerShell, in the folder where you saved the file:
+**Another hotkey:** if another app has <img src="docs/windows-key.svg" alt="Windows logo key" height="14"> + Shift + Q, UniQR takes Ctrl + Alt + Q, then Ctrl + Shift + 9, and its start-up card says which. To pick your own, open PowerShell in the folder and run:
 
 ```
 .\UniQR.exe --hotkey ctrl+alt+k
 ```
 
-Write one or more of `ctrl`, `alt`, `shift` and `win`, then one letter, digit or
-F1 to F24, joined by plus signs. Capital letters don't matter. You need at least
-one of ctrl, alt, shift or win, so a plain letter can't be taken from every other
-program.
+Use `ctrl`, `alt`, `shift` or `win`, then one letter, digit or F1 to F24. To keep it at login, run `.\UniQR.exe --install-autostart --hotkey ctrl+alt+k` once.
 
-To keep it every time you log in, add the same option when you set up start at
-login:
+<details>
+<summary>Run it from the source instead</summary>
 
-```
-.\UniQR.exe --install-autostart --hotkey ctrl+alt+k
-```
-
-If your hotkey is already used by another program, or can't be read, UniQR says so
-in its log and uses one of the usual ones instead. The card on startup names the
-hotkey it took. Starting without `--hotkey` goes back to Win+Shift+Q. This needs
-**version 0.1.7 or newer**.
-
-### Or run it from the source
-
-**1. Get it.**
+You need Python 3.11 or newer.
 
 ```
 git clone https://github.com/pat-selby/uniqr.git
 cd uniqr
 pip install -e ".[windows]"
-```
-
-**2. Run it.**
-
-```
 uniqr
 ```
 
-A card appears saying UniQR is running and which hotkey it took. The app then
-sits in the system tray, next to the clock.
-
-**3. Use it.** Put a QR code on screen and press **Win+Shift+Q**.
-
-- One code: copied to your clipboard, with a card showing where the link goes
-- Several: the screen dims and each code is numbered, so you pick
-- Right-click the tray icon to quit
-
-If another app already owns Win+Shift+Q, UniQR takes Ctrl+Alt+Q instead, then
-Ctrl+Shift+9. The startup card tells you which one it got.
-
-### Start it with Windows
-
-If you installed from the source, run this once (from version 0.1.4 on). It points
-at `pythonw.exe` for you, so no console window opens:
-
-```
-python app.py --install-autostart
-```
-
-Or by hand: press `Win+R`, type `shell:startup`, press Enter. Put a shortcut in
-that folder pointing to:
-
-```
-pythonw.exe C:\path\to\uniqr\app.py
-```
-
-Use `pythonw.exe`, not `python.exe`, or you get a black console window that
-never goes away.
+To start it at login: `python app.py --install-autostart`.
+</details>
 
 ---
 
 ## macOS
 
-macOS is stricter, so there are two extra steps. Skip them and UniQR starts
-but sees nothing and hears nothing.
+You need macOS 14 or newer.
 
-**1. Get it.**
+1. Download the file for your Mac from the [latest release](https://github.com/pat-selby/uniqr/releases/latest):
+   **UniQR-macOS-arm64.dmg** for Apple Silicon (M1 and newer), or **UniQR-macOS-x86_64.dmg** for Intel. Not sure? Apple menu → **About This Mac**: "Chip: Apple" means Apple Silicon.
+2. Open the .dmg and drag **UniQR** onto **Applications**.
+3. Open UniQR from Applications. macOS will block it the first time, because it isn't signed by Apple. Go to **System Settings → Privacy & Security** and click **Open Anyway**.
+4. When UniQR asks, switch it on under **Screen Recording** and **Accessibility**. Then quit UniQR and open it again.
+5. Press **⌘ Cmd + Shift + 8** on any QR code.
+
+To quit, right-click UniQR in the Dock and choose **Quit**. To start it at login, add it under **System Settings → General → Login Items**.
+
+**Another hotkey:** set it when you run it from the source (below). Avoid ⌘ Cmd + Q, ⌘ Cmd + Shift + Q and ⌘ Cmd + Control + Q: they quit, log out and lock.
+
+**Known issue:** scanning inside a full-screen app takes you out of full screen to show the picker.
+
+<details>
+<summary>Run it from the source instead</summary>
+
+You need Python 3.11 or newer.
 
 ```
 git clone https://github.com/pat-selby/uniqr.git
@@ -161,298 +73,50 @@ cd uniqr
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
-```
-
-**2. Grant two permissions.** Open **System Settings → Privacy & Security** and
-turn on **Terminal** in both of these lists:
-
-- **Screen Recording**, or UniQR cannot see your screen
-- **Accessibility**, or the hotkey never reaches it
-
-If Terminal is not in a list, click **+** and add it from Applications →
-Utilities. If the hotkey still does nothing afterwards, add Terminal to
-**Input Monitoring** too.
-
-Grant these to **Terminal**, not to Python. macOS credits the app that
-launched the process.
-
-**Then quit Terminal fully with Cmd+Q and open it again.** Closing the window
-is not enough; the permission only applies on relaunch.
-
-**3. Run it.**
-
-```
-cd uniqr
-source .venv/bin/activate
 uniqr
 ```
 
-**4. Use it.** Put a QR code on screen and press **Command+Shift+8**. (Versions
-before 0.1.9 used **Control+Option+Q**, which is easy to mistake for Command+Q.)
-
-### Choosing a different hotkey
-
-macOS has claimed most shortcuts, and unlike Windows it cannot tell you a
-combination is already taken: both actions simply fire. Avoid **Cmd+Q** (quits
-the app you are in), **Cmd+Shift+Q** (logs you out) and **Cmd+Ctrl+Q** (locks
-the screen), and anything one slip away from them.
-
-To use your own:
-
-```
-UNIQR_HOTKEY='<cmd>+<shift>+8' uniqr
-```
-
-### Two things to expect on macOS
-
-- **No tray icon.** The library that draws it needs the main thread, and the
-  window toolkit already has it. The hotkey is the real interface. Press
-  `Ctrl+C` in the Terminal window to quit.
-- **It stops when you close that Terminal window.** See below to keep it
-  running.
-
-### Start it at login
-
-```
-python3 tools/install_mac_agent.py
-```
-
-Run it from the UniQR folder. It writes the startup file with this Mac's own
-paths, creates the log folder, and starts UniQR. If you chose a different
-hotkey above, add it: `python3 tools/install_mac_agent.py --hotkey '<cmd>+<shift>+8'`.
-
-Do not copy the plist file from `tools/` by hand. It holds example paths, and
-macOS cannot expand `~`, so a copy fails with status 78 and no explanation.
-
-One catch. macOS grants permission to the **program that runs**, and you gave
-it to Terminal. Started at login the program is the venv's Python instead,
-which counts as something different. The script opens a Finder window with that
-program selected. In **System Settings → Privacy & Security**, drag it into both
-**Screen Recording** and **Accessibility**, and switch each on. The folder is
-hidden, so in a file picker press **Cmd+Shift+.** to show it.
-
-Then restart UniQR so it sees the new permission:
-
-```
-launchctl unload ~/Library/LaunchAgents/com.patselby.uniqr.plist && launchctl load ~/Library/LaunchAgents/com.patselby.uniqr.plist
-```
-
-To check it: `launchctl list | grep uniqr`. A number in the first column means it
-is running. A dash and a number mean it started and stopped, and the reason is in
-`~/Library/Logs/UniQR/uniqr.log`.
+Switch on **Terminal** (not UniQR) under **Screen Recording** and **Accessibility**, then quit Terminal with **⌘ Cmd + Q** and open it again. Quit UniQR with **Control + C**. For another hotkey: `UNIQR_HOTKEY='<cmd>+<shift>+9' uniqr`. To start it at login: `python3 tools/install_mac_agent.py`.
+</details>
 
 ---
 
 ## Linux
 
-UniQR works under **X11**. Many Linux desktops, Ubuntu among them, use Wayland
-by default, and Wayland blocks screen capture and global hotkeys by design, so
-UniQR cannot work there yet. Check which one you have:
+UniQR needs an **X11** session. Run `echo $XDG_SESSION_TYPE`. If it says `wayland`, log out and choose the Xorg or X11 option on the login screen (on Ubuntu, "Ubuntu on Xorg").
 
-```
-echo $XDG_SESSION_TYPE
-```
+1. Download **UniQR-linux-x86_64** from the [latest release](https://github.com/pat-selby/uniqr/releases/latest).
+2. In a terminal, in that folder:
 
-If it says `wayland`, log out and choose the Xorg or X11 option on the login
-screen (on Ubuntu, "Ubuntu on Xorg"), then come back here. When UniQR cannot
-read the screen it says so in its log (see "When something is wrong" below).
+   ```
+   chmod +x UniQR-linux-x86_64
+   ./UniQR-linux-x86_64
+   ```
 
-### Easiest: download the program
+3. A card asks whether to start UniQR when you log in. Press **Y** or **N**.
+4. Press **Ctrl + Alt + Q** on any QR code.
 
-Download **UniQR-linux-x86_64** from the
-[latest release](https://github.com/pat-selby/uniqr/releases/latest). You don't
-need Python. In a terminal, in the folder where you saved it:
+To quit, press **Ctrl + C** in that terminal, or run `pkill UniQR-linux`.
 
-```
-chmod +x UniQR-linux-x86_64
-./UniQR-linux-x86_64
-```
+**Check the file** (optional): put `UniQR-linux-x86_64.sha256` in the same folder and run `sha256sum -c UniQR-linux-x86_64.sha256`.
 
-The first time, a card asks whether to start UniQR when you log in. Click **Yes,
-start at login** or press **Y**, or click **Not now** or press **N**.
+**Another hotkey:** `./UniQR-linux-x86_64 --hotkey '<ctrl>+<alt>+<shift>+q'`. To keep it at login: `./UniQR-linux-x86_64 --install-autostart --hotkey '<ctrl>+<alt>+<shift>+q'`.
 
-Press **Ctrl+Alt+Q** on a QR code. A card appears under it and the link is
-copied. To quit, press Ctrl+C in that terminal, or run `pkill UniQR-linux`.
-Closing the terminal usually stops it too. Some desktops show no tray icon, and the
-hotkey still works.
-
-To check you have the exact file published, download `UniQR-linux-x86_64.sha256`
-into the same folder and run:
-
-```
-sha256sum -c UniQR-linux-x86_64.sha256
-```
-
-It should say `OK`.
-
-This file is built for 64-bit Intel and AMD computers on Ubuntu 22.04, and
-should run on systems that have a C library as new as Ubuntu 22.04's or newer.
-It was tested by GitHub on a fake screen, not on every kind of Linux desktop. On
-an ARM computer or an older system, use the source instead.
-
-### Or run it from the source
-
-This works on any Linux that has Python 3.11 or newer.
-
-```
-git clone https://github.com/pat-selby/uniqr.git
-cd uniqr
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-uniqr
-```
-
-The hotkey is **Ctrl+Alt+Q**.
-
-### Choosing a different hotkey
-
-If **Ctrl+Alt+Q** is already used by something else on your desktop, pick another
-combination. On Linux UniQR listens to the keyboard but cannot reserve a key, so
-it cannot tell that another program has the combination. Both react when you
-press it.
-
-Set `UNIQR_HOTKEY` when you start UniQR, and put the whole combination in quotes
-so the terminal leaves the angle brackets alone:
-
-```
-UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q' ./UniQR-linux-x86_64
-```
-
-You can also write it as an option, which does the same thing:
-
-```
-./UniQR-linux-x86_64 --hotkey '<ctrl>+<alt>+<shift>+q'
-```
-
-If you installed from the source, it is the same, with `uniqr` instead of
-`./UniQR-linux-x86_64`.
-
-The `--hotkey` option and the start-at-login commands below need **version 0.1.3
-or newer**. `UNIQR_HOTKEY` works in every version. An older file ignores options it does not
-know, so it would just start normally.
-
-How to write one:
-
-- Modifier keys go in angle brackets: `<ctrl>`, `<alt>`, `<shift>`, `<super>` (the
-  Windows key). Join keys with `+`.
-- Letters and digits go bare, in lowercase.
-- Two to try: `<ctrl>+<shift>+9` and `<ctrl>+<alt>+<shift>+q`. Avoid
-  **Ctrl+Shift+U**, which many Linux desktops use for typing special characters.
-
-To keep it, add this line to `~/.bashrc` and open a new terminal:
-
-```
-export UNIQR_HOTKEY='<ctrl>+<alt>+<shift>+q'
-```
-
-The log shows which hotkey UniQR took, on the line that says it is running (see
-"When something is wrong" below). `UNIQR_HOTKEY` and `--hotkey` work on Linux, on a
-Mac and on Windows. On Windows they are written differently: see "Choosing a
-different hotkey" in the Windows section.
-
-### Start it at login
-
-The first time you run the downloaded file, the card asks whether to start UniQR
-when you log in. It asks once, and it never turns anything on unless you say yes.
-If you ignore it three times it stops asking. If your desktop shows a tray icon,
-right-click it and click **Start at login** to change your mind later. This needs
-**version 0.1.6 or newer**, and only the downloaded file asks: a copy run from
-the source does not.
-
-The same thing from a terminal, which works on version 0.1.3 and newer. Run this
-once, from the same folder as the file:
-
-```
-./UniQR-linux-x86_64 --install-autostart
-```
-
-From the source, with the virtual environment switched on, it is
-`uniqr --install-autostart`.
-
-If you use a different hotkey, say so here, because the line in `~/.bashrc` is not
-read when the desktop starts a program at login:
-
-```
-./UniQR-linux-x86_64 --install-autostart --hotkey '<ctrl>+<alt>+<shift>+q'
-```
-
-That writes `~/.config/autostart/uniqr.desktop`, the standard place most Linux
-desktops look for programs to start at login. It takes effect the next time you
-log in. The command prints how to start UniQR right now without logging out.
-
-The file records where the program is, so if you move or rename it, run the
-command again. To undo it:
-
-```
-./UniQR-linux-x86_64 --uninstall-autostart
-```
-
-GitHub tests that the file is written correctly and that the command in it starts
-UniQR with your hotkey. It cannot test a real login on a real desktop, so if it
-does not start after you log in, tell me which desktop you use.
+The file is built for 64-bit Intel and AMD computers, on Ubuntu 22.04 or newer. On anything else, run it from the source: `git clone https://github.com/pat-selby/uniqr.git`, `cd uniqr`, `python3 -m venv .venv`, `source .venv/bin/activate`, `pip install -e .`, then `uniqr`.
 
 ---
 
 ## Updates
 
-UniQR can tell you when a newer version is out. It only tells you: it never
-downloads or installs anything by itself.
-
-This is the one thing UniQR does over the internet, so it is off until you say
-yes. On a start after the one that asks about starting at login, the card asks
-"Check for new versions once a day?" Click **Yes, check daily** or **No thanks**.
-It asks once. You can change your mind at any time from the tray menu: tick or
-untick **Check for updates automatically**, or click **Check for updates now**
-to look right away. This needs **version 0.1.8 or newer**, and only the
-downloaded Windows and Linux programs ask.
-
-When a newer version exists, a card says so, with **Open download page** and
-**Later**. It says so once per version.
-
-What is sent: one HTTPS request to GitHub asking for the newest release of this
-project. GitHub can see your address and the name `UniQR/` plus your version.
-Nothing about your screen, your scans or your computer is sent. The reply is read
-only for a version number, and the page the card opens is built by UniQR, not
-taken from the reply.
-
-To try it from a terminal, run `UniQR.exe --check-updates` (Windows) or
-`./UniQR-linux-x86_64 --check-updates` (Linux). It prints whether you are up to
-date and exits.
+UniQR can tell you when a new version is out. It asks once, and it's off unless you say yes. Change it from the tray menu: **Check for updates automatically**. It never downloads or installs anything. It only asks GitHub for the newest version number.
 
 ## Reporting a problem
 
-If something doesn't work, or does something odd, please tell me. Right-click the
-tray icon and click **Report a problem**. It opens a GitHub page in your own
-browser, with a short form already started. You read it, change it and press
-**Submit** yourself, so nothing is sent until you do. GitHub asks you to sign in
-first, and a free account is enough.
-
-What is filled in for you is only the version of UniQR, whether it is the
-downloaded file or run from the source, and the name of your operating system.
-It does not include your log, because the log can contain links you scanned. The
-form only says where the log is and asks you to look through it and paste what you
-are happy to share.
-
-The tray item needs **version 0.2.0 or newer**. With no tray icon, run
-`UniQR.exe --report-problem` (Windows) or `./UniQR-linux-x86_64 --report-problem`
-(Linux), which does the same. On an older version, or any time, you can
-[open a new issue](https://github.com/pat-selby/uniqr/issues/new?template=bug_report.md)
-yourself.
+Right-click the tray icon and choose **Report a problem**. It opens a pre-filled GitHub page. Nothing is sent until you press **Submit**. Without a tray icon, run UniQR with `--report-problem`, or [open an issue](https://github.com/pat-selby/uniqr/issues/new?template=bug_report.md).
 
 ## When something is wrong
 
-**Run the check.** It tests everything in order and says what failed and why:
-
-```
-python tools/diagnose.py
-```
-
-It ends by asking you to press the hotkey, so it can confirm the keypress
-actually arrives.
-
-**Read the log.** UniQR writes everything it does to a file, which matters
-because a background app has nowhere to print:
+**Read the log:**
 
 | | |
 |---|---|
@@ -460,55 +124,15 @@ because a background app has nowhere to print:
 | macOS | `~/Library/Logs/UniQR/uniqr.log` |
 | Linux | `~/.local/state/uniqr/uniqr.log` |
 
-### Common ones
-
-**"No QR code found" but I can see a code.** It is almost certainly drawn too
-small. Below roughly 1.3 pixels per module the black and white squares have
-blurred into grey and the information is gone, for any reader including your
-phone. Zoom the page in with `Ctrl +` or `Cmd +` and scan again. Zooming makes
-the browser redraw the code larger, which is not the same as enlarging a
-picture of it.
-
-**Nothing happens at all when I press the hotkey.** Another app may have the
-same combination (on Linux or a Mac, pick another with `UNIQR_HOTKEY`: see
-"Choosing a different hotkey" in that section), or on macOS the Accessibility
-permission is missing. Press
-the hotkey with no QR code on screen: if you get a short "No QR code found"
-card, UniQR heard you fine and the problem is the code, not the key.
-
-**It was working, now it is not.** Check the app is still running. On Windows
-look for the tray icon; on macOS check the Terminal window is still open.
-
-UniQR watches itself. If it stops answering for 10 seconds, it writes where it
-got stuck to the log. After 45 seconds it starts a fresh copy of itself. If it
-freezes again right away, three times in a row, it stops trying and stays
-closed. Look in the log for lines like these:
-
-- `UniQR has not answered for N seconds` followed by a list of code locations.
-  Send that list to whoever maintains UniQR; it names the exact cause.
-- `UniQR restarted itself` means a freeze happened and it recovered.
-- `The last run did not exit cleanly` at startup means the last copy was closed
-  by something other than Exit. A shutdown, a crash and a freeze all look the
-  same here, and the line gives the last time it was seen alive.
-
----
+- **"No QR code found", but I can see one:** it's drawn too small. Zoom the page in (**Ctrl + +** or **⌘ Cmd + +**) and scan again.
+- **Nothing happens when I press the hotkey:** press it with no code on screen. If a "No QR code found" card appears, the hotkey works. If not, another app may have the same keys (pick another, above), or on a Mac a permission is missing.
+- **It stopped working:** check it's still running (the tray icon on Windows, the Terminal window on a Mac). UniQR restarts itself if it freezes, and the log says so.
+- **Running from the source:** `python tools/diagnose.py` checks everything in order and says what failed.
 
 ## Removing it
 
-**If you downloaded the Windows or Linux file,** quit UniQR and delete the file
-(`UniQR.exe` or `UniQR-linux-x86_64`). On Windows, also delete the shortcut from
-`shell:startup` if you added one. If you set it to start at login with
-`--install-autostart`, run `.\UniQR.exe --uninstall-autostart` (Windows) or
-`./UniQR-linux-x86_64 --uninstall-autostart` (Linux) first, then delete the file.
+Right-click the tray icon and choose **Uninstall UniQR**. It removes UniQR, its start-at-login entry, its settings and its log. On a Mac the app goes to the Trash.
 
-**If you installed it from the source,** run this, then delete the folder:
+No tray icon? Run it once with `--uninstall` instead.
 
-```
-pip uninstall uniqr
-```
-
-On a Mac, also run `python3 tools/install_mac_agent.py --uninstall` if you set it
-to start at login, then remove the entries you added under Privacy & Security.
-
-Nothing else is written anywhere except the log file listed under "When something
-is wrong". Delete its folder too if you want no trace.
+If you ran it from the source, `--uninstall` removes the settings, log and start-at-login entry. Delete the `uniqr` folder yourself.

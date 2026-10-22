@@ -21,6 +21,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+from uniqr.address import web_address
+
 # The decoders log a warning per attempt on payloads using ECI encoding, even
 # when they go on to decode them fine. Several passes per scan turns that into
 # pages of noise, so keep OpenCV to real errors.
@@ -115,6 +117,14 @@ RECTIFY_PAD = 0.20
 
 # Extra patch sizes retried when the native one will not decode.
 PATCH_SIZES = (384, 512)
+
+# How long one located code may be retried before it is given up on. Measured
+# on 532 lab codes and the real photos, every patch that read did so within
+# 79 ms. One that never reads tries every size and treatment, about 3 seconds
+# on a busy 1080p screen, and a screen with several codes often has a few of
+# those: shapes stitched from corners of different codes, or something that
+# only looks like a code. That was most of a slow scan with many codes.
+RECTIFY_BUDGET_S = 0.4
 
 # Frames larger than this skip the upscale retry - see the note in scan().
 UPSCALE_MAX_DIM = 1200
@@ -265,8 +275,8 @@ def _resize_max(image: np.ndarray, target: int) -> np.ndarray:
     return cv2.resize(image, None, fx=scale, fy=scale, interpolation=interp)
 
 
-def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
-    """The upright rectangle around a quad, with a small quiet-zone margin."""
+def _bbox_bounds(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
+    """(x0, y0, x1, y1) of the upright rectangle around a quad, plus a margin."""
     pad = max(8, int(_quad_span(quad) * margin))
     h, w = image.shape[:2]
     x0 = max(0, int(quad[:, 0].min()) - pad)
@@ -275,7 +285,36 @@ def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
     y1 = min(h, int(quad[:, 1].max()) + pad)
     if x1 <= x0 or y1 <= y0:
         return None
+    return x0, y0, x1, y1
+
+
+def _bbox_crop(image: np.ndarray, quad: np.ndarray, margin: float = 0.06):
+    """The upright rectangle around a quad, with a small quiet-zone margin."""
+    bounds = _bbox_bounds(image, quad, margin)
+    if bounds is None:
+        return None
+    x0, y0, x1, y1 = bounds
     return image[y0:y1, x0:x1]
+
+
+def _true_outline(image: np.ndarray, quad: np.ndarray, text: str) -> np.ndarray:
+    """Where the code reading `text` really is, near a rough outline.
+
+    The locators' outline can be a shape stitched from several codes' corners,
+    or reach well past the code. zxing reports the corners of what it reads, so
+    the area around the rough outline is read again and, if the same text is
+    there, its corners are used. Otherwise the rough outline stays.
+    """
+    bounds = _bbox_bounds(image, quad, margin=0.25)
+    if bounds is None:
+        return quad
+    x0, y0, x1, y1 = bounds
+    rough = quad.mean(axis=0)
+    same = [d for d in _zxing_detect(image[y0:y1, x0:x1]) if d.text == text]
+    if not same:
+        return quad
+    best = min(same, key=lambda d: float(np.linalg.norm(d.quad.mean(axis=0) + (x0, y0) - rough)))
+    return best.quad + np.array([x0, y0], dtype=np.float32)
 
 
 def _zxing_detect(
@@ -423,16 +462,33 @@ def _run(detector, image: np.ndarray) -> list[Detection]:
     return out
 
 
+def _inside(point, quad: np.ndarray) -> bool:
+    return cv2.pointPolygonTest(
+        quad.reshape(-1, 1, 2).astype(np.float32), (float(point[0]), float(point[1])), False
+    ) >= 0
+
+
 def _merge(groups: list[list[Detection]]) -> list[Detection]:
-    """Combine detector results, dropping the same code found twice."""
+    """Combine detector results, dropping the same code found twice.
+
+    The same text counts as the same code when the centres are close, or when
+    one outline contains the other's centre. The second case is a code found
+    again inside a larger shape the locators stitched from several codes' corners:
+    on a tester's busy screen it drew a long, skewed outline over other codes.
+    Two copies of one code side by side stay separate. The first found is kept,
+    and the whole-frame reads, which place codes best, come first.
+    """
     merged: list[Detection] = []
     for group in groups:
         for det in group:
             cx, cy = det.center
             duplicate = any(
                 other.text == det.text
-                and abs(other.center[0] - cx) < 40
-                and abs(other.center[1] - cy) < 40
+                and (
+                    (abs(other.center[0] - cx) < 40 and abs(other.center[1] - cy) < 40)
+                    or _inside(other.center, det.quad)
+                    or _inside(det.center, other.quad)
+                )
                 for other in merged
             )
             if not duplicate:
@@ -670,17 +726,19 @@ class Scanner:
         )
         canvas[margin:-margin, margin:-margin] = patch
 
-        text = self._read_patch(canvas)
-        if text:
-            return Detection(text, quad)
+        # Both reads below share one time limit. See RECTIFY_BUDGET_S.
+        deadline = time.perf_counter() + RECTIFY_BUDGET_S
+        text = self._read_patch(canvas, deadline)
+        if not text:
+            # Warping is the right move for a tilted code, but on a big flat one
+            # the padding drags in surrounding scenery and skews the threshold
+            # against the code itself. A straight rectangular cut avoids that.
+            text = self._read_patch(_bbox_crop(image, quad), deadline)
+        if not text:
+            return None
+        return Detection(text, _true_outline(image, quad, text))
 
-        # Warping is the right move for a tilted code, but on a big flat one
-        # the padding drags in surrounding scenery and skews the threshold
-        # against the code itself. A straight rectangular cut avoids that.
-        text = self._read_patch(_bbox_crop(image, quad))
-        return Detection(text, quad) if text else None
-
-    def _read_patch(self, patch: np.ndarray | None) -> str:
+    def _read_patch(self, patch: np.ndarray | None, deadline: float = float("inf")) -> str:
         """Try a patch at several sizes under several contrast treatments.
 
         Heavily stylised codes decode unpredictably: shifting a crop by a few
@@ -688,7 +746,8 @@ class Scanner:
         a code that read cleanly stops reading. Measured on real signage, the
         same code decoded at 16, 24 and 30 pixels of margin but not at 33 or
         40. Rather than chase one lucky framing, try a handful and take the
-        first that lands - each attempt is cheap on a patch this size.
+        first that lands - each attempt is cheap on a patch this size. Past
+        `deadline` (a time.perf_counter() value) it gives up.
         """
         if patch is None or patch.size == 0:
             return ""
@@ -699,6 +758,8 @@ class Scanner:
             detectors = (self._classic, self._aruco) if self._aruco_ok(sized) else (self._classic,)
             for variant in _contrast_variants(sized):
                 for polarity in (variant, cv2.bitwise_not(variant)):
+                    if time.perf_counter() > deadline:
+                        return ""
                     text = _zxing_text(polarity)
                     if text:
                         return text
@@ -821,7 +882,7 @@ class Scanner:
         # Deliberately NOT short-circuiting on a non-empty result: finding one
         # code says nothing about whether others are present, and stopping
         # early here is exactly what made multi-code frames report just one.
-        found = _merge([whole, self._rectify_pass(image)])
+        found = _merge([whole, self._rectify_pass(image, skip=whole)])
         if found:
             return found
 
@@ -964,9 +1025,26 @@ class Scanner:
         big = cv2.resize(soft, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
         return self._robust_read(big, 2.0)
 
-    def _rectify_pass(self, image: np.ndarray) -> list[Detection]:
+    def _rectify_pass(
+        self, image: np.ndarray, skip: list[Detection] | None = None
+    ) -> list[Detection]:
+        """Straighten and read each located code, except those in `skip`.
+
+        A code that was already read is located again here, and reading it
+        again only repeats work. So a located code whose centre is within 40
+        pixels of one already read is left alone, the same rule _merge uses.
+        """
+        done = [d.center for d in skip or []]
+        located = [
+            q
+            for q in self._locate(image)
+            if not any(
+                abs(q.mean(axis=0)[0] - cx) < 40 and abs(q.mean(axis=0)[1] - cy) < 40
+                for cx, cy in done
+            )
+        ]
         found = []
-        for quad in self._locate(image):
+        for quad in located:
             # Each located quad can take a while to give up on, and a noisy
             # frame can locate hundreds. Stop reading them when time is up.
             if self._out_of_time():
@@ -1022,4 +1100,6 @@ def payload_kind(text: str) -> str:
         return "secret"
     if "://" in lowered:
         return "uri"
+    if web_address(text):
+        return "url"
     return "text"

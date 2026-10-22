@@ -54,6 +54,16 @@ To test the macOS and Linux code path without a Mac, force the backend:
 UNIQR_BACKEND=portable python tests/test_real_photos.py
 ```
 
+### The C++ version
+
+`cpp/` holds a C++20 port of the scanner and the Windows app. Its own README
+covers building it. If you change the ladder in `uniqr/decode.py`, make the
+same change in `cpp/src/core/scanner.cpp`, then check both still agree:
+
+```bash
+python -m benchmarks.compare_cpp --exe cpp/build/uniqr-scan.exe
+```
+
 ## Building UniQR.exe
 
 ```powershell
@@ -84,7 +94,7 @@ Things that are not obvious:
   4.13 the benchmark first ran on. The tests pass on both.
 
 To check a build the way it was checked here: start it, put a QR code on screen,
-press Win+Shift+Q, and look for the link on the clipboard and a line in
+press <img src="docs/windows-key.svg" alt="Windows logo key" height="14"> + Shift + Q, and look for the link on the clipboard and a line in
 `%LOCALAPPDATA%\UniQR\uniqr.log`. Then choose Exit from the tray and confirm no
 `_MEI...` folder is left in your temp folder.
 
@@ -294,7 +304,12 @@ median scan went from 208 ms to 220 and 232 ms in two runs, which is the cost of
 
 A decoded payload is untrusted input read off the screen.
 
-Only `http://` and `https://` get an Open action. See `actions.can_open`. Never
+Only `http://` and `https://` get an Open action. See `actions.can_open`. A bare
+address like `example.org/apply` counts too, but only when it ends in a real
+top-level domain, and it opens as `https://`. Endings that are also file types
+(`setup.py`, `notes.md`) need a path or `www.` first. See `uniqr/address.py`.
+Before each release, run `python tools/update_tlds.py` to refresh the list of
+real domains from IANA, for both the Python and the C++ version. Never
 pass an arbitrary payload to anything that runs it. `file://` and app links like
 `ms-settings:` stay copy only. Do not widen this to make a demo look better.
 
