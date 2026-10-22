@@ -78,7 +78,7 @@ jobs:
           while ((Get-Date) -lt $deadline -and -not ((Test-Path $log) -and (Select-String -Path $log -Pattern "UniQR is running" -Quiet))) {
             Start-Sleep -Seconds 2
           }
-          if (-not (Test-Path $log)) { throw "no log at $log: the app did not start, or its files are not kept in the package folder" }
+          if (-not (Test-Path $log)) { throw "no log at ${log}. The app did not start, or its files are not kept in the package folder" }
           Get-Content $log
           if (-not (Select-String -Path $log -Pattern "UniQR is running" -Quiet)) { throw "UniQR did not report that it is running" }
           if (Select-String -Path $log -Pattern "asking whether to start at login" -Quiet) { throw "a Store app must not ask to add itself to the registry start-up list" }
