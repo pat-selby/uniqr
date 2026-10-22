@@ -45,6 +45,7 @@ private:
     void take(const Detection& det, bool open);
     void toggle_autostart();
     void report_problem();
+    void uninstall();
 
     HINSTANCE instance_;
     AppOptions options_;
@@ -62,6 +63,7 @@ private:
     std::vector<Detection> found_;
     double scan_ms_ = 0;
     bool picker_open_ = false;
+    bool uninstalling_ = false;  // set by the tray's Uninstall
 };
 
 }  // namespace uniqr::win

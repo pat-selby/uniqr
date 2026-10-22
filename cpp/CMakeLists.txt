@@ -68,6 +68,7 @@ add_library(uniqr_core STATIC
   src/core/link.cpp
   src/core/hotkeys.cpp
   src/core/report.cpp
+  src/core/removal.cpp
 )
 target_include_directories(uniqr_core PUBLIC src/core ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_include_directories(uniqr_core SYSTEM PRIVATE ${stb_SOURCE_DIR})

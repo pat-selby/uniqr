@@ -131,6 +131,8 @@ Right-click the tray icon and choose **Report a problem**. It opens a pre-filled
 
 ## Removing it
 
-1. If it starts at login, run it once with `--uninstall-autostart` (on a Mac: `python3 tools/install_mac_agent.py --uninstall`).
-2. Delete the file, or the `uniqr` folder if you ran it from the source.
-3. To leave no trace, also delete its settings and log folders: `%LOCALAPPDATA%\UniQR` on Windows; `~/.config/uniqr` and `~/Library/Logs/UniQR` on a Mac; `~/.config/uniqr` and `~/.local/state/uniqr` on Linux.
+Right-click the tray icon and choose **Uninstall UniQR**. It removes UniQR, its start-at-login entry, its settings and its log. On a Mac the app goes to the Trash.
+
+No tray icon? Run it once with `--uninstall` instead.
+
+If you ran it from the source, `--uninstall` removes the settings, log and start-at-login entry. Delete the `uniqr` folder yourself.
