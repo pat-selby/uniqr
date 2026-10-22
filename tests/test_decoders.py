@@ -1,5 +1,7 @@
 """Unit tests for the decoder layer and Detection geometry."""
 
+import time
+
 import cv2
 import numpy as np
 import pytest
@@ -86,6 +88,26 @@ def test_fast_scan_skips_the_expensive_ladder(scanner, qr_image):
 def test_empty_frame_yields_no_detections(scanner):
     blank = np.full((300, 300, 3), 255, dtype=np.uint8)
     assert scanner.scan(blank) == []
+
+
+def test_an_unreadable_located_shape_is_given_up_on_quickly(scanner):
+    """A screen with several codes often has shapes that look like a code and
+    never read. Each one used to be tried every way, about 3.5 s on this noise,
+    which is what made a scan with many codes slow."""
+    noise = np.random.default_rng(3).integers(0, 256, (600, 600, 3), dtype=np.uint8)
+    t0 = time.perf_counter()
+    assert scanner._rectify_and_decode(noise, quad(150, 150, 300)) is None
+    assert time.perf_counter() - t0 < 1.5
+
+
+def test_codes_already_read_are_not_read_again(scanner, qr_image, monkeypatch):
+    calls = []
+    real = scanner._rectify_and_decode
+    monkeypatch.setattr(scanner, "_rectify_and_decode", lambda img, q: calls.append(q) or real(img, q))
+    whole = scanner._detect_both_polarities(qr_image)
+    assert any(d.text == TEXT for d in whole)
+    assert scanner._rectify_pass(qr_image, skip=whole) == []
+    assert calls == []
 
 
 # -- Detection geometry ----------------------------------------------------

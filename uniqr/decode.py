@@ -12,6 +12,7 @@ runs against an inverted copy. Upscaling for very small codes costs more, so
 it only runs when the cheap passes come back empty.
 """
 
+import time
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -114,6 +115,14 @@ RECTIFY_PAD = 0.20
 
 # Extra patch sizes retried when the native one will not decode.
 PATCH_SIZES = (384, 512)
+
+# How long one located code may be retried before it is given up on. Measured
+# on 532 lab codes and the real photos, every patch that read did so within
+# 79 ms. One that never reads tries every size and treatment, about 3 seconds
+# on a busy 1080p screen, and a screen with several codes often has a few of
+# those: shapes stitched from corners of different codes, or something that
+# only looks like a code. That was most of a slow scan with many codes.
+RECTIFY_BUDGET_S = 0.4
 
 # Frames larger than this skip the upscale retry - see the note in scan().
 UPSCALE_MAX_DIM = 1200
@@ -542,17 +551,19 @@ class Scanner:
         )
         canvas[margin:-margin, margin:-margin] = patch
 
-        text = self._read_patch(canvas)
+        # Both reads below share one time limit. See RECTIFY_BUDGET_S.
+        deadline = time.perf_counter() + RECTIFY_BUDGET_S
+        text = self._read_patch(canvas, deadline)
         if not text:
             # Warping is the right move for a tilted code, but on a big flat one
             # the padding drags in surrounding scenery and skews the threshold
             # against the code itself. A straight rectangular cut avoids that.
-            text = self._read_patch(_bbox_crop(image, quad))
+            text = self._read_patch(_bbox_crop(image, quad), deadline)
         if not text:
             return None
         return Detection(text, _true_outline(image, quad, text))
 
-    def _read_patch(self, patch: np.ndarray | None) -> str:
+    def _read_patch(self, patch: np.ndarray | None, deadline: float = float("inf")) -> str:
         """Try a patch at several sizes under several contrast treatments.
 
         Heavily stylised codes decode unpredictably: shifting a crop by a few
@@ -560,7 +571,8 @@ class Scanner:
         a code that read cleanly stops reading. Measured on real signage, the
         same code decoded at 16, 24 and 30 pixels of margin but not at 33 or
         40. Rather than chase one lucky framing, try a handful and take the
-        first that lands - each attempt is cheap on a patch this size.
+        first that lands - each attempt is cheap on a patch this size. Past
+        `deadline` (a time.perf_counter() value) it gives up.
         """
         if patch is None or patch.size == 0:
             return ""
@@ -568,6 +580,8 @@ class Scanner:
             sized = patch if target is None else _resize_max(patch, target)
             for variant in _contrast_variants(sized):
                 for polarity in (variant, cv2.bitwise_not(variant)):
+                    if time.perf_counter() > deadline:
+                        return ""
                     text = _zxing_text(polarity)
                     if text:
                         return text
@@ -670,7 +684,7 @@ class Scanner:
         # Deliberately NOT short-circuiting on a non-empty result: finding one
         # code says nothing about whether others are present, and stopping
         # early here is exactly what made multi-code frames report just one.
-        found = _merge([whole, self._rectify_pass(image)])
+        found = _merge([whole, self._rectify_pass(image, skip=whole)])
         if found:
             return found
 
@@ -798,10 +812,27 @@ class Scanner:
         big = cv2.resize(soft, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
         return self._robust_read(big, 2.0)
 
-    def _rectify_pass(self, image: np.ndarray) -> list[Detection]:
+    def _rectify_pass(
+        self, image: np.ndarray, skip: list[Detection] | None = None
+    ) -> list[Detection]:
+        """Straighten and read each located code, except those in `skip`.
+
+        A code that was already read is located again here, and reading it
+        again only repeats work. So a located code whose centre is within 40
+        pixels of one already read is left alone, the same rule _merge uses.
+        """
+        done = [d.center for d in skip or []]
+        located = [
+            q
+            for q in self._locate(image)
+            if not any(
+                abs(q.mean(axis=0)[0] - cx) < 40 and abs(q.mean(axis=0)[1] - cy) < 40
+                for cx, cy in done
+            )
+        ]
         return [
             det
-            for det in (self._rectify_and_decode(image, q) for q in self._locate(image))
+            for det in (self._rectify_and_decode(image, q) for q in located)
             if det is not None
         ]
 
