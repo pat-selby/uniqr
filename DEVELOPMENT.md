@@ -200,7 +200,9 @@ pixels and any miss can be reproduced from its metadata.
   off in turn, and were removed. Check by turning a change off and replaying.
 - **Cost matters.** The scan runs on a hotkey press. `uniqr/decode.py` keeps
   the extra formats to one pass per scan, and the expensive recoveries to
-  frames small enough to afford them. The one thing a screen-sized frame does get
+  frames small enough to afford them. Every scan also has a time budget
+  (`SCAN_BUDGET_S`). Before adding a step, check it on a checkerboard, on
+  noise and on a 4K frame, not only on a screen with a code on it. The one thing a screen-sized frame does get
   is a 2x enlargement read by zxing alone (`BIG_FRAME_FACTORS`), which costs about
   0.2 s on a 1080p screen with no code. A 3x step on top read one more code of 24
   and cost another 0.4 s, so it was left out.
@@ -272,6 +274,33 @@ treatments instead of one recipe.
 
 **Colour codes can hide in grayscale.** Navy on crimson measures 33 out of 255
 once converted to grey, yet separates cleanly in the red channel alone.
+
+**One frame can make OpenCV take minutes.** On a 1920x1080 checkerboard of 10
+pixel squares, one call to the Aruco detector took 18 to 26 seconds. A scan
+makes a dozen calls, so a miss took 88 to 100 seconds, the heartbeat stopped,
+and the watchdog restarted the app. The cost comes from how many same-sized
+squares are in the frame, not from the frame being big. Aruco ignores squares
+smaller than about 2% of the long side (9 pixels on 1080p are fast, 10 pixels
+are not), and it is fast on text, noise, photos and real codes. The classic
+detector read the same checkerboard in under 0.1 seconds. So a scan counts the
+biggest family of same-sized boxy blobs once (`_repeat_count`), and if it is
+over `ARUCO_MAX_REPEAT` it leaves Aruco out for that whole scan. Judge the
+frame once. The eroded copies that the stylised pass makes no longer count as
+a pattern, and Aruco still took 5 to 6 seconds on them.
+
+**Some blow-ups cannot be predicted.** The classic detector took 5 to 8 seconds
+per call on 1080p of inverted small text, and the counter says nothing about
+that. An OpenCV call cannot be stopped, but it lets go of the GIL, so each call
+runs on its own thread and the scan stops waiting when the budget is gone
+(`Scanner._guarded`). The call keeps running until OpenCV finishes it, so the
+detectors are replaced and at most three given-up calls are allowed at once. A
+scan that ran out of time sets `Scanner.timed_out`. The app does not use it
+yet, so it still says "No QR code found" after a timeout.
+
+How it was checked, on seed 21 (not used to find any of this): 1064 codes,
+48 images with no code, the unchanged scanner and the new one run back to back.
+All 1064 outcomes were the same in both, 0 wrong answers, all 48 empty. The
+median scan went from 208 ms to 220 and 232 ms in two runs, which is the cost of the count.
 
 ## Safety rules, not up for negotiation
 

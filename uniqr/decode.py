@@ -12,7 +12,9 @@ runs against an inverted copy. Upscaling for very small codes costs more, so
 it only runs when the cheap passes come back empty.
 """
 
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -164,6 +166,88 @@ BIG_FRAME_OVERLAP = 400
 # The softening pass: a blur of about a quarter of a module on a typical
 # on-screen code, a few pixels at most. See Scanner._softened_pass.
 SOFTEN_SIGMA = 1.2
+
+# OpenCV's Aruco-based detector grows faster than linearly with the number of
+# square blobs it has to pair up. A 1080p checkerboard of 10 pixel squares takes
+# it 18 to 26 seconds per call, and one scan makes a dozen calls, so a single
+# miss on such a frame took 88 to 100 seconds and the watchdog restarted the
+# app. The classic detector reads the same frame in under 0.1 s, and zxing in
+# about 0.05 s, so only Aruco is left out.
+#
+# The test is the size of the biggest family of same-sized, boxy blobs in the
+# frame (see _repeat_count). Measured on 1080p frames, the biggest family is:
+#   1,152 or more in every checkerboard and grid where Aruco takes 0.7 s to
+#   more than 25 s per call (a spreadsheet at 64x20 cells has 810: 0.5 s);
+#   458 or less in dense text, noise, photos and a version 35 QR code at 6 px
+#   per module, where it takes 0.2 s or less.
+# The line sits between the two. It is not the only thing that can go wrong,
+# which is what SCAN_BUDGET_S is for.
+ARUCO_MAX_REPEAT = 1000
+# Which blobs count. Aruco ignores a blob whose outline is shorter than a
+# fraction of the frame's long side, so counting smaller ones would gate frames
+# it shrugs off: 9 px squares on a 1080p frame take it 0.05 s and 10 px squares
+# 18 s. The fraction is 0.0188 to 0.0208 at 1920 wide and 0.0167 to 0.0198 at
+# 3840 (19 px squares are slow, 16 px are not), so this is just under both.
+REPEAT_MIN_OUTLINE = 0.019
+# Hairlines are rules and strokes, not modules, and very long thin blobs are
+# bars: 50x4 cells cost Aruco 0.1 s where 30x5 cells cost it 9 s.
+REPEAT_MIN_SIDE = 3
+REPEAT_MAX_ASPECT = 8.0
+# A blob this big is a panel, not a module.
+REPEAT_MAX_SIDE = 150
+
+# Wall-clock budget for one scan, in seconds. The app has no heartbeat while a
+# scan runs, and the watchdog dumps every stack at 10 seconds of silence and
+# restarts the app at 45, so a scan has to be over well before either.
+#
+# OpenCV's detectors can run for minutes on frames that are not checkerboards
+# (the classic one took 5 to 8 s per call on 1080p of inverted small text, and
+# the Aruco one 50 s on a fine grid), and a call cannot be interrupted. So each
+# one runs on its own thread, and when the budget is gone the scan stops
+# waiting for it. See Scanner._guarded.
+#
+# 10 is out of reach of every code the benchmark reads: the slowest of those
+# took 5 s with eleven scans running at once. Only scans that were going to
+# find nothing, the unreadable MaxiCode images at 10 to 12 s, are cut short.
+SCAN_BUDGET_S = 10.0
+# Calls given up on keep running until OpenCV lets go of them. A hotkey pressed
+# again and again on the same screen would pile them up, one busy core each.
+MAX_ABANDONED_CALLS = 3
+
+
+def _repeat_count(image: np.ndarray) -> int:
+    """The size of the biggest family of same-sized square blobs in a frame.
+
+    A cheap stand-in for "will Aruco take forever on this?" - see
+    ARUCO_MAX_REPEAT. Blobs are the connected runs of dark and of light pixels
+    after a local threshold, which is how the detector sees the frame too, and
+    a family is every blob within a pixel or two of the same width and height.
+    A checkerboard, a ruled grid or a tiled floor is one huge family. Text,
+    photos, noise and real QR codes are many small ones. About 25 ms on 1080p.
+    """
+    grey = image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    binary = cv2.adaptiveThreshold(
+        grey, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 23, 7
+    )
+    min_outline = REPEAT_MIN_OUTLINE * max(image.shape[:2])
+    biggest = 0
+    # Light blobs are the gaps between dark ones, so one polarity is not enough:
+    # a grid of thin lines is a single dark blob and thousands of light squares.
+    for plane in (binary, cv2.bitwise_not(binary)):
+        _, _, stats, _ = cv2.connectedComponentsWithStats(plane, connectivity=4)
+        w, h, area = stats[1:, 2], stats[1:, 3], stats[1:, 4]
+        short, long = np.minimum(w, h), np.maximum(w, h)
+        boxy = (
+            (short >= REPEAT_MIN_SIDE)
+            & (long <= REPEAT_MAX_SIDE)
+            & (long <= REPEAT_MAX_ASPECT * short)
+            & (2 * (w + h) >= min_outline)
+            & (area >= 0.85 * w * h)
+        )
+        if boxy.any():
+            family = (w[boxy] >> 1) * 4096 + (h[boxy] >> 1)
+            biggest = max(biggest, int(np.bincount(family).max()))
+    return biggest
 
 
 def _spans(length: int, limit: int, overlap: int) -> list[tuple[int, int]]:
@@ -418,9 +502,92 @@ class Scanner:
     def __init__(self) -> None:
         self._aruco = cv2.QRCodeDetectorAruco()
         self._classic = cv2.QRCodeDetector()
+        # Set for the length of one scan. A Scanner is for one thread at a time.
+        self._deadline: float | None = None
+        self._aruco_allowed: bool | None = None
+        self._repeat_checked: tuple[np.ndarray, bool] | None = None
+        self._abandoned: list[threading.Thread] = []
+        # Whether the last scan stopped early on its budget. A scan that did
+        # found nothing in the time it had, which is not the same as nothing.
+        self.timed_out = False
 
-    def _detect(self, image: np.ndarray, scale: float = 1.0) -> list[Detection]:
-        found = _merge([_run(self._aruco, image), _run(self._classic, image)])
+    def _out_of_time(self) -> bool:
+        """True once this scan has used its budget. See SCAN_BUDGET_S."""
+        if self._deadline is None or time.monotonic() < self._deadline:
+            return False
+        self.timed_out = True
+        return True
+
+    def _guarded(self, call: Callable[[], Any], default: Any) -> Any:
+        """Run `call()`, or give up on it when the scan's budget runs out.
+
+        OpenCV releases the GIL while it detects, so the call runs on a thread
+        of its own and this one waits for it, but only as long as there is
+        budget. A call that is still going then is left to finish on its own,
+        its result unread, and `default` comes back instead. It cannot be
+        stopped, only ignored, so the detectors it was using are replaced: one
+        detector object must not be used by two threads at once.
+        """
+        if self._deadline is None:
+            return call()
+        remaining = self._deadline - time.monotonic()
+        self._abandoned = [t for t in self._abandoned if t.is_alive()]
+        if remaining <= 0 or len(self._abandoned) >= MAX_ABANDONED_CALLS:
+            self.timed_out = True
+            return default
+
+        outcome: list[tuple[bool, Any]] = []
+
+        def work() -> None:
+            try:
+                outcome.append((True, call()))
+            except BaseException as err:  # noqa: BLE001 - handed to the caller below
+                outcome.append((False, err))
+
+        thread = threading.Thread(target=work, name="uniqr-opencv", daemon=True)
+        thread.start()
+        thread.join(remaining)
+        if thread.is_alive():
+            self.timed_out = True
+            self._abandoned.append(thread)
+            self._aruco = cv2.QRCodeDetectorAruco()
+            self._classic = cv2.QRCodeDetector()
+            return default
+        ok, value = outcome[0]
+        if not ok:
+            raise value
+        return value
+
+    def _aruco_ok(self, image: np.ndarray) -> bool:
+        """Whether Aruco can be run on this frame without taking forever.
+
+        See ARUCO_MAX_REPEAT. A scan decides once, on the frame it was given,
+        and everything made from it inherits the answer: the grown and shrunk
+        copies of a checkerboard are still checkerboards to Aruco even when
+        they no longer look like one to the count, and a patch cut from one is
+        most likely a false alarm. Outside a scan (the tiles of
+        scan_exhaustive) each image is asked about, once for the image and its
+        inverse.
+        """
+        if self._aruco_allowed is not None:
+            return self._aruco_allowed
+        cached = self._repeat_checked
+        if cached is not None and cached[0] is image:
+            return cached[1]
+        ok = _repeat_count(image) <= ARUCO_MAX_REPEAT
+        self._repeat_checked = (image, ok)
+        return ok
+
+    def _detect(
+        self, image: np.ndarray, scale: float = 1.0, aruco: bool | None = None
+    ) -> list[Detection]:
+        if aruco is None:
+            aruco = self._aruco_ok(image)
+        groups = []
+        if aruco:
+            groups.append(self._guarded(lambda: _run(self._aruco, image), []))
+        groups.append(self._guarded(lambda: _run(self._classic, image), []))
+        found = _merge(groups)
         if scale == 1.0:
             return found
         return [replace(d, quad=d.quad / scale) for d in found]
@@ -433,6 +600,8 @@ class Scanner:
                 return dets
             return [replace(d, quad=d.quad / scale) for d in dets]
 
+        # Asked once: the frame and its inverse have the same blobs.
+        aruco = self._aruco_ok(image)
         return _merge(
             [
                 # zxing first: it is the strongest single reader here. It
@@ -440,8 +609,8 @@ class Scanner:
                 # OpenCV detectors it only needs one call, not one per
                 # polarity - passing it a flipped copy as well was pure waste.
                 rescale(_zxing_detect(image)),
-                self._detect(image, scale),
-                self._detect(cv2.bitwise_not(image), scale),
+                self._detect(image, scale, aruco),
+                self._detect(cv2.bitwise_not(image), scale, aruco),
             ]
         )
 
@@ -519,10 +688,16 @@ class Scanner:
         blurry, unevenly lit - so this finds codes a straight decode misses.
         """
         quads: list[np.ndarray] = []
+        names = ("_aruco", "_classic") if self._aruco_ok(image) else ("_classic",)
         for variant in (image, cv2.bitwise_not(image)):
-            for det in (self._aruco, self._classic):
+            for name in names:
+                # By name, so a detector replaced after a call was given up on
+                # is the one that gets used.
+                def locate(n: str = name, v: np.ndarray = variant) -> Any:
+                    return getattr(self, n).detectMulti(v)
+
                 try:
-                    ok, points = det.detectMulti(variant)
+                    ok, points = self._guarded(locate, (False, None))
                 except cv2.error:
                     continue
                 if not ok or points is None:
@@ -592,7 +767,10 @@ class Scanner:
         if patch is None or patch.size == 0:
             return ""
         for target in (None, *PATCH_SIZES):
+            if self._out_of_time():
+                return ""
             sized = patch if target is None else _resize_max(patch, target)
+            detectors = (self._classic, self._aruco) if self._aruco_ok(sized) else (self._classic,)
             for variant in _contrast_variants(sized):
                 for polarity in (variant, cv2.bitwise_not(variant)):
                     if time.perf_counter() > deadline:
@@ -600,7 +778,7 @@ class Scanner:
                     text = _zxing_text(polarity)
                     if text:
                         return text
-                    for det in (self._classic, self._aruco):
+                    for det in detectors:
                         try:
                             text, _, _ = det.detectAndDecode(polarity)
                         except cv2.error:
@@ -609,13 +787,33 @@ class Scanner:
                             return text
         return ""
 
-    def scan(self, image: np.ndarray, thorough: bool = True) -> list[Detection]:
+    def scan(
+        self,
+        image: np.ndarray,
+        thorough: bool = True,
+        budget: float | None = SCAN_BUDGET_S,
+    ) -> list[Detection]:
         """Find every decodable code in a BGR image, and check the unusual ones.
 
         Anything other than a plain QR code must be read a second way before it
         is believed. See _confirm.
+
+        `budget` is the most seconds the recovery steps may start in; None means
+        no limit. The first read of the whole frame always runs, and a step that
+        has begun is allowed to finish, so a scan can overrun by one detector
+        call. If the budget ran out, `timed_out` says so. Codes already found
+        are returned either way: the budget only stops the hunt for more.
         """
-        return self._validated(image, self._scan_raw(image, thorough))
+        self.timed_out = False
+        self._deadline = None if budget is None else time.monotonic() + budget
+        self._aruco_allowed = _repeat_count(image) <= ARUCO_MAX_REPEAT
+        try:
+            found = self._scan_raw(image, thorough)
+        finally:
+            self._deadline = None
+            self._aruco_allowed = None
+            self._repeat_checked = None  # it holds a whole frame
+        return self._validated(image, found)
 
     def _validated(self, image: np.ndarray, found: list[Detection]) -> list[Detection]:
         return [d for d in found if d.symbology == "QR Code" or self._confirm(image, d)]
@@ -705,11 +903,16 @@ class Scanner:
         if found:
             return found
 
+        # Each step below only runs if there is time left. See SCAN_BUDGET_S.
         # Nothing found by any conventional route: the code may be stylised.
+        if self._out_of_time():
+            return []
         found = self._destylized_pass(image)
         if found:
             return found
 
+        if self._out_of_time():
+            return []
         found = self._softened_pass(image)
         if found:
             return found
@@ -718,10 +921,14 @@ class Scanner:
         # Enlarging helps, but only where it is affordable - blowing a full
         # 1920x1080 screen up to 4x costs seconds, and "no code on screen" is
         # the common case, so a whole-screen miss must stay cheap.
+        if self._out_of_time():
+            return []
         if max(image.shape[:2]) > UPSCALE_MAX_DIM:
             return self._enlarged_big_frame(image)
 
         for factor in UPSCALE_FACTORS:
+            if self._out_of_time():
+                return []
             big = cv2.resize(
                 image, None, fx=factor, fy=factor, interpolation=cv2.INTER_LANCZOS4
             )
@@ -741,6 +948,8 @@ class Scanner:
                 return hits
 
         for factor in ZXING_ONLY_FACTORS:
+            if self._out_of_time():
+                return []
             big = cv2.resize(
                 image, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC
             )
@@ -761,6 +970,8 @@ class Scanner:
             hits: list[Detection] = []
             for y0, y1 in _spans(height, limit, BIG_FRAME_OVERLAP):
                 for x0, x1 in _spans(width, limit, BIG_FRAME_OVERLAP):
+                    if self._out_of_time():
+                        return _merge([hits])
                     piece = image[y0:y1, x0:x1]
                     big = cv2.resize(
                         piece, None, fx=factor, fy=factor, interpolation=cv2.INTER_LANCZOS4
@@ -790,6 +1001,8 @@ class Scanner:
             # Erode grows the dark modules; dilate does the same for a code
             # printed light-on-dark.
             for op in (cv2.erode, cv2.dilate):
+                if self._out_of_time():
+                    return []
                 fixed = cv2.cvtColor(op(binary, kernel), cv2.COLOR_GRAY2BGR)
                 # Plain detection is enough here: once the grid is restored
                 # the locator finds the code unaided, and adding the rectify
@@ -847,11 +1060,16 @@ class Scanner:
                 for cx, cy in done
             )
         ]
-        return [
-            det
-            for det in (self._rectify_and_decode(image, q) for q in located)
-            if det is not None
-        ]
+        found = []
+        for quad in located:
+            # Each located quad can take a while to give up on, and a noisy
+            # frame can locate hundreds. Stop reading them when time is up.
+            if self._out_of_time():
+                break
+            det = self._rectify_and_decode(image, quad)
+            if det is not None:
+                found.append(det)
+        return found
 
     def scan_exhaustive(self, image: np.ndarray) -> list[Detection]:
         """Everything above, plus overlapping upscaled tiles.
