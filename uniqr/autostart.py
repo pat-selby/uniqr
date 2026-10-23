@@ -289,8 +289,14 @@ MAX_IGNORED = 3
 
 
 def supported() -> bool:
-    """Whether UniQR can set up start-at-login by itself here (not on a Mac)."""
-    return sys.platform == "win32" or _on_linux()
+    """Whether UniQR can set up start-at-login by itself here.
+
+    Not on a Mac, and not as a Store app, where it is a switch in Settings >
+    Apps > Startup instead (see uniqr/store.py).
+    """
+    from uniqr import store
+
+    return (sys.platform == "win32" and not store.packaged()) or _on_linux()
 
 
 def is_enabled(store: _Registry | None = None, config: Path | None = None) -> bool:

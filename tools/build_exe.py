@@ -2,6 +2,7 @@
 
     pip install -e ".[windows]" pyinstaller     # on Linux or a Mac: pip install -e . pyinstaller
     python tools/build_exe.py
+    python tools/build_exe.py --store      # Windows: a folder for the Store package
 
 On Windows the result is dist/UniQR.exe. On Linux it is dist/UniQR-linux-<chip>,
 a single executable with no extension (Linux has no ".exe"). On a Mac it is
@@ -28,6 +29,11 @@ Build Linux on the oldest system you want it to run on. A Linux program needs
 at least the C library (glibc) version it was built against, so a build made on
 a new system will not start on an older one. GitHub's ubuntu-22.04 is used for
 that reason.
+
+--store builds the Windows program as a folder, dist/store/UniQR, for
+tools/build_msix.py to pack for the Microsoft Store. A folder, not one file:
+the Store installs it once, so there is nothing to gain from unpacking it to a
+temporary folder on every start, and starting is faster without that.
 
 Not used on purpose: UPX compression. It shrinks the file and makes antivirus
 programs much likelier to flag it.
@@ -65,11 +71,14 @@ WINDOWS = sys.platform == "win32"
 LINUX = sys.platform.startswith("linux")
 MAC = sys.platform == "darwin"
 CHIP = platform.machine()  # x86_64, or arm64 on Apple Silicon
+STORE = WINDOWS and "--store" in sys.argv
+if STORE:
+    DIST = DIST / "store"
 # "UniQR.exe" is the name people know. On Linux the chip is part of the name,
 # because a program built for one will not run on the other. On a Mac the app is
 # UniQR.app, and the chip goes in the name of the .dmg it is shipped in.
 NAME = "UniQR" if (WINDOWS or MAC) else f"UniQR-linux-{CHIP}"
-OUTPUT = f"{NAME}.exe" if WINDOWS else f"{NAME}.app" if MAC else NAME
+OUTPUT = f"{NAME}/{NAME}.exe" if STORE else f"{NAME}.exe" if WINDOWS else f"{NAME}.app" if MAC else NAME
 DMG = f"UniQR-macOS-{CHIP}.dmg"
 BUNDLE_ID = "com.patselby.uniqr"
 
@@ -246,7 +255,7 @@ def main() -> int:
         [
             str(ROOT / "app.py"),
             "--name", NAME,
-            "--onedir" if MAC else "--onefile",
+            "--onedir" if (MAC or STORE) else "--onefile",
             "--noconfirm",
             "--clean",
             *windows_only,

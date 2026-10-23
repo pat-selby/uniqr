@@ -133,7 +133,10 @@ def check(current: str, fetch: Callable[[str], Release] = fetch_latest) -> Outco
 
 
 def supported() -> bool:
-    return sys.platform == "win32" or sys.platform.startswith("linux")
+    """Not for a Store app: the Store delivers its updates."""
+    from uniqr import store
+
+    return (sys.platform == "win32" and not store.packaged()) or sys.platform.startswith("linux")
 
 
 def enabled() -> bool:
