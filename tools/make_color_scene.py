@@ -24,12 +24,12 @@ LABEL = (225, 225, 230)
 
 # (label, payload, dark BGR, light BGR, dotted)
 TILES = [
-    ("black on white", "https://uniqr.dev/plain", (20, 20, 20), (255, 255, 255), False),
-    ("white on black", "https://uniqr.dev/inverted", (245, 245, 245), (18, 18, 18), False),
-    ("navy on crimson", "https://uniqr.dev/crimson", (60, 25, 20), (60, 20, 140), False),
-    ("green on cream", "https://uniqr.dev/green", (40, 90, 20), (205, 245, 255), False),
-    ("purple on pink", "https://uniqr.dev/purple", (110, 20, 70), (235, 220, 255), False),
-    ("teal, dotted", "https://uniqr.dev/dotted", (110, 95, 15), (250, 250, 245), True),
+    ("black on white", "https://example.com/plain", (20, 20, 20), (255, 255, 255), False),
+    ("white on black", "https://example.com/inverted", (245, 245, 245), (18, 18, 18), False),
+    ("navy on crimson", "https://example.com/crimson", (60, 25, 20), (60, 20, 140), False),
+    ("green on cream", "https://example.com/green", (40, 90, 20), (205, 245, 255), False),
+    ("purple on pink", "https://example.com/purple", (110, 20, 70), (235, 220, 255), False),
+    ("teal, dotted", "https://example.com/dotted", (110, 95, 15), (250, 250, 245), True),
 ]
 
 
