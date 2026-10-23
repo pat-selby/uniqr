@@ -100,6 +100,17 @@ TEST_CASE("a tiny code on a full-size screen is found by enlarging the screen") 
     CHECK(c.x < 1000);
 }
 
+TEST_CASE("a tiny code beside a big one on a full-size screen is still found") {
+    // Finding the big code first used to end the scan, so the tiny one was
+    // never enlarged and never read.
+    Image page = too_small_for_first_read("https://example.com/tiny-beside", 1920, 1080, 1400, 700);
+    REQUIRE(!page.empty());
+    paste(page, to_bgr(test::draw_code("https://example.com/big-beside", "QRCode", 8)), 200, 200);
+    const auto all = texts(scanner.scan(page));
+    CHECK(all.count("https://example.com/big-beside") == 1);
+    CHECK(all.count("https://example.com/tiny-beside") == 1);
+}
+
 TEST_CASE("the fast setting does only the cheap read") {
     const Image page = too_small_for_first_read("https://example.com/fast", 300, 200, 50, 40);
     REQUIRE(!page.empty());

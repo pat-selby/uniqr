@@ -88,20 +88,46 @@ was tuned on), plus 48 images with no code in them:
 
 | | decoded | wrong | false alarms | median ms per image | total seconds |
 |---|---:|---:|---:|---:|---:|
-| Python | 1,027 | 0 | 0 | 115 | 344 |
-| C++ | 1,026 | 0 | 0 | 5 | 94 |
+| Python | 1,027 | 0 | 0 | 70 | 214 |
+| C++ | 1,026 | 0 | 0 | 4 | 83 |
 
 Both read the same 1,026 codes. The one only Python read is a tilted,
 inverted QR code that zxing-cpp cannot read and OpenCV's QR detector can.
-That is the cost of leaving OpenCV out. The biggest gap is plain QR codes,
-at a median of 111 ms against 3 ms. MaxiCode is slow in both (406 ms against
-371 ms). Both make the same zxing-cpp reads there, so there is little for
-C++ to save.
+That is the cost of leaving OpenCV out. MaxiCode is slow in both, because
+both make the same zxing-cpp reads there, so there is little for C++ to save.
+
+Each lab image holds one code, and most are small images. On a screen-sized
+page, C++ takes about 180 ms, against about 400 to 470 ms for Python. That is
+because C++ always enlarges a screen to look for small codes, even after it
+has found some (see below).
 
 "Not decoded" here includes codes damaged past reading, which the main lab
 report counts separately. Both scanners saw the same images, one at a time,
-on one process each, on one Windows laptop. To run it yourself:
+on one process each, on one Windows laptop, so the times shift with whatever
+else the laptop is doing. To run it yourself:
 
 ```bash
 python -m benchmarks.compare_cpp --exe cpp/build/uniqr-scan.exe --per-cell 4 --seed 11
+```
+
+### Several codes on one screen
+
+`benchmarks/many_codes.py` builds 1920x1080 pages holding 2 to 12 QR codes in
+the lab's styles, none overlapping. `--hard` makes them smaller (1.8 to 3.2
+pixels per module) and damages each one: tilt, glare, blur, low contrast,
+noise or JPEG. Seed 33, 30 pages and 198 codes in each mode, which neither
+scanner was tuned on:
+
+| | clean: found | clean: median ms | hard: found | hard: median ms | wrong |
+|---|---:|---:|---:|---:|---:|
+| Python | 198 of 198 | 729 | 180 of 198 | 544 | 0 |
+| C++ | 198 of 198 | 198 | 195 of 198 | 191 | 0 |
+
+Before this change C++ read 170 of 198 hard codes on seed 21. Once it found
+one code it stopped looking, so small codes next to big ones were never
+enlarged. It now enlarges the screen every time, which costs about 150 ms on
+1080p and puts a 4K screen at about 0.7 s.
+
+```bash
+python -m benchmarks.many_codes --exe cpp/build/uniqr-scan.exe --hard --seed 33
 ```

@@ -273,7 +273,17 @@ std::vector<Detection> Scanner::scan_raw(const Image& image, const ScanOptions& 
     };
 
     std::vector<Detection> found = merge({whole_frame(image), other_formats(image)});
-    if (!options.thorough || !found.empty()) return found;
+    if (!options.thorough) return found;
+    if (!found.empty()) {
+        // Finding some codes says nothing about the small ones beside them. A
+        // screen can hold a big code and a code about two pixels per module,
+        // and only the enlarged read sees the second. On pages of 2 to 12
+        // small, damaged codes (benchmarks/many_codes.py --hard) this took the
+        // codes read from 170 to 198 of 198, for about 150 ms more on 1080p.
+        if (std::max(image.width, image.height) > kUpscaleMaxDim && !out_of_time())
+            return merge({found, enlarged_big_frame(image)});
+        return found;
+    }
 
     // Nothing by the usual route: the code may be stylised, then too small.
     if (out_of_time()) return {};
