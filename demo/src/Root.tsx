@@ -2,6 +2,7 @@ import React from "react";
 import { Composition } from "remotion";
 import { SQUARE, Square } from "./Square";
 import { FPS, HEIGHT, WIDTH } from "./theme";
+import { Cover, STORY, STORY_FRAMES, Story } from "./Story";
 import { VERTICAL_FRAMES, VERTICAL_H, VERTICAL_W, Vertical } from "./Vertical";
 import { Video, plan } from "./Video";
 
@@ -13,6 +14,9 @@ export const Root: React.FC = () => (
     <Composition id="UniQRDemoLinux" component={Video} defaultProps={{ platform: "linux" as const }} durationInFrames={plan("linux").total} fps={FPS} width={WIDTH} height={HEIGHT} />
     {/* A vertical clip for phone feeds, about the scam check. */}
     <Composition id="UniQRScamCheckVertical" component={Vertical} durationInFrames={VERTICAL_FRAMES} fps={FPS} width={VERTICAL_W} height={VERTICAL_H} />
+    {/* The first LinkedIn post: a square story, and its cover image. */}
+    <Composition id="UniQRLinkedInStory" component={Story} durationInFrames={STORY_FRAMES} fps={FPS} width={STORY} height={STORY} />
+    <Composition id="UniQRLinkedInCover" component={Cover} durationInFrames={1} fps={FPS} width={STORY} height={STORY} />
     <Composition id="UniQRDemoSquare" component={Square} durationInFrames={plan("windows").total} fps={FPS} width={SQUARE} height={SQUARE} />
   </>
 );

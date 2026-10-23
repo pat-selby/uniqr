@@ -39,6 +39,8 @@ npm run render:square   # writes out/uniqr-demo-square.mp4 (1080x1080)
 npx remotion render UniQRDemoMac out/uniqr-demo-mac.mp4      # the Mac cut
 npx remotion render UniQRDemoLinux out/uniqr-demo-linux.mp4  # the Linux cut
 npx remotion render UniQRScamCheckVertical out/uniqr-scam-check-vertical.mp4
+npx remotion render UniQRLinkedInStory out/uniqr-linkedin-story.mp4
+npx remotion still UniQRLinkedInCover out/uniqr-linkedin-cover.png
 ```
 
 The square cut is for the LinkedIn feed. It is the same video, seen through a
@@ -49,6 +51,11 @@ use case and the link.
 The vertical clip (`src/Vertical.tsx`, 1080x1920, 20 seconds) is for phone
 feeds like Instagram. It shows the scam check from v0.2.7 with captions instead
 of a voice, so it works muted.
+
+The LinkedIn story (`src/Story.tsx`, 1080x1080, 34 seconds) and its cover tell
+the problem and the fix with captions: a phone held up to a laptop, one
+shortcut, a link checked before it opens, every system, and the site. Every
+scene is drawn, so each carries an "Illustration" tag, and it names no brands.
 
 Rendered videos go in `out/`, which git ignores. Share them as uploads or
 release files, not commits.
