@@ -445,6 +445,21 @@ class Scanner:
             ]
         )
 
+    def _red_channel(self, image: np.ndarray) -> list[Detection]:
+        """zxing on the red channel alone, over the whole frame.
+
+        Navy on crimson is two dark colours, so in grey they nearly match, but
+        in red alone they are far apart. _contrast_variants already tries red,
+        but only on spots the locator marked, and the later fallbacks only run
+        when nothing at all was found. On the README's six-colour picture,
+        zoomed as a browser shows it, the other five codes were found, the
+        locator missed this one, and nothing else looked. One zxing read of a
+        single channel costs about as much as the grey one already made.
+        """
+        if image.ndim != 3:
+            return []
+        return _zxing_detect(np.ascontiguousarray(image[..., 2]))
+
     def _other_formats(self, image: np.ndarray, scale: float = 1.0) -> list[Detection]:
         """Data Matrix, Aztec, PDF417 and MaxiCode. One zxing call, no ladder.
 
@@ -677,7 +692,9 @@ class Scanner:
         locate-then-rectify pass, which is what recovers the second and third
         code when several small or tilted ones share a frame.
         """
-        whole = _merge([self._detect_both_polarities(image), self._other_formats(image)])
+        whole = _merge(
+            [self._detect_both_polarities(image), self._red_channel(image), self._other_formats(image)]
+        )
         if not thorough:
             return whole
 
