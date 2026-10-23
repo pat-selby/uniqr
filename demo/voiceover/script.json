@@ -1,0 +1,112 @@
+{
+  "voices": {
+    "A": {
+      "voice": "en-US-JennyNeural",
+      "rate": "-6%",
+      "pitch": "+0Hz"
+    },
+    "B": {
+      "voice": "en-US-AndrewMultilingualNeural",
+      "rate": "-8%",
+      "pitch": "-2Hz"
+    }
+  },
+  "_note": "Two people. A lives the moments, B shows the way. Both voices are dry (no room echo) and a little slower than normal. `say` is how the voice reads a line; `pause` is extra frames of silence after it. A line's `os` gives what it says in the Mac or Linux cut instead.",
+  "scenes": {
+    "hook": [
+      {
+        "who": "B",
+        "text": "How many times a day do you grab your phone, just to scan something that's already on your laptop?",
+        "pause": 8
+      }
+    ],
+    "reveal": [
+      {
+        "who": "A",
+        "text": "Too many.",
+        "pause": 8
+      },
+      {
+        "who": "B",
+        "text": "Keep the phone down. There's a faster way.",
+        "pause": 12
+      }
+    ],
+    "platforms": [
+      {
+        "who": "B",
+        "text": "Windows, Mac, or Linux. And the hotkey is yours to change.",
+        "pause": 10
+      }
+    ],
+    "class": [
+      {
+        "who": "A",
+        "text": "Attendance code on the slide?"
+      },
+      {
+        "who": "B",
+        "text": "Windows key, Shift, Q. It's copied.",
+        "pause": 10,
+        "os": {
+          "mac": "Command, Shift, 8. It's copied.",
+          "linux": "Control, Alt, Q. It's copied."
+        }
+      }
+    ],
+    "call": [
+      {
+        "who": "A",
+        "text": "Three codes on one slide?"
+      },
+      {
+        "who": "B",
+        "text": "Each one gets a number. Pick one.",
+        "pause": 8
+      }
+    ],
+    "monitors": [
+      {
+        "who": "A",
+        "text": "Two monitors?"
+      },
+      {
+        "who": "B",
+        "text": "It scans every screen at once.",
+        "pause": 8
+      }
+    ],
+    "scam": [
+      {
+        "who": "A",
+        "text": "My package is on hold? Scan to pay?"
+      },
+      {
+        "who": "B",
+        "text": "Look at the card. That link really goes somewhere else.",
+        "pause": 10
+      }
+    ],
+    "real": [
+      {
+        "who": "A",
+        "text": "Is this real?"
+      },
+      {
+        "who": "B",
+        "text": "That's the actual app, recorded on Windows."
+      }
+    ],
+    "outro": [
+      {
+        "who": "A",
+        "text": "Where do I get it?"
+      },
+      {
+        "who": "B",
+        "text": "It's free and open source. Try it out.",
+        "pause": 12
+      }
+    ]
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "voices": {
+    "A": {
+      "voice": "en-US-JennyNeural",
+      "rate": "-6%",
+      "pitch": "+0Hz"
+    },
+    "B": {
+      "voice": "en-US-AndrewMultilingualNeural",
+      "rate": "-8%",
+      "pitch": "-2Hz"
+    }
+  },
+  "scenes": {
+    "hook": [
+      {
+        "who": "B",
+        "text": "How many times a day do you grab your phone, just to scan something that's already on your laptop?",
+        "file": "hook-1.mp3",
+        "seconds": 5.378,
+        "pause": 8
+      }
+    ],
+    "reveal": [
+      {
+        "who": "A",
+        "text": "Too many.",
+        "file": "reveal-1.mp3",
+        "seconds": 0.968,
+        "pause": 8
+      },
+      {
+        "who": "B",
+        "text": "Keep the phone down. There's a faster way.",
+        "file": "reveal-2.mp3",
+        "seconds": 2.647,
+        "pause": 12
+      }
+    ],
+    "platforms": [
+      {
+        "who": "B",
+        "text": "Windows, Mac, or Linux. And the hotkey is yours to change.",
+        "file": "platforms-1.mp3",
+        "seconds": 5.392,
+        "pause": 10
+      }
+    ],
+    "class": [
+      {
+        "who": "A",
+        "text": "Attendance code on the slide?",
+        "file": "class-1.mp3",
+        "seconds": 1.832,
+        "pause": 0
+      },
+      {
+        "who": "B",
+        "text": "Windows key, Shift, Q. It's copied.",
+        "file": "class-2.mp3",
+        "seconds": 2.729,
+        "pause": 10,
+        "os": {
+          "mac": {
+            "text": "Command, Shift, 8. It's copied.",
+            "file": "class-2-mac.mp3",
+            "seconds": 2.375
+          },
+          "linux": {
+            "text": "Control, Alt, Q. It's copied.",
+            "file": "class-2-linux.mp3",
+            "seconds": 3.517
+          }
+        }
+      }
+    ],
+    "call": [
+      {
+        "who": "A",
+        "text": "Three codes on one slide?",
+        "file": "call-1.mp3",
+        "seconds": 1.713,
+        "pause": 0
+      },
+      {
+        "who": "B",
+        "text": "Each one gets a number. Pick one.",
+        "file": "call-2.mp3",
+        "seconds": 2.104,
+        "pause": 8
+      }
+    ],
+    "monitors": [
+      {
+        "who": "A",
+        "text": "Two monitors?",
+        "file": "monitors-1.mp3",
+        "seconds": 1.167,
+        "pause": 0
+      },
+      {
+        "who": "B",
+        "text": "It scans every screen at once.",
+        "file": "monitors-2.mp3",
+        "seconds": 2.362,
+        "pause": 8
+      }
+    ],
+    "scam": [
+      {
+        "who": "A",
+        "text": "My package is on hold? Scan to pay?",
+        "file": "scam-1.mp3",
+        "seconds": 3.391,
+        "pause": 0
+      },
+      {
+        "who": "B",
+        "text": "Look at the card. That link really goes somewhere else.",
+        "file": "scam-2.mp3",
+        "seconds": 3.0,
+        "pause": 10
+      }
+    ],
+    "real": [
+      {
+        "who": "A",
+        "text": "Is this real?",
+        "file": "real-1.mp3",
+        "seconds": 1.088,
+        "pause": 0
+      },
+      {
+        "who": "B",
+        "text": "That's the actual app, recorded on Windows.",
+        "file": "real-2.mp3",
+        "seconds": 2.919,
+        "pause": 0
+      }
+    ],
+    "outro": [
+      {
+        "who": "A",
+        "text": "Where do I get it?",
+        "file": "outro-1.mp3",
+        "seconds": 1.234,
+        "pause": 0
+      },
+      {
+        "who": "B",
+        "text": "It's free and open source. Try it out.",
+        "file": "outro-2.mp3",
+        "seconds": 3.055,
+        "pause": 12
+      }
+    ]
+  }
+}
