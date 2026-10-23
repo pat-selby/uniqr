@@ -1,6 +1,6 @@
 """Every top-level domain, from https://data.iana.org/TLD/tlds-alpha-by-domain.txt
 
-Version 2026102100, Last Updated Wed Oct 21 07:07:01 2026 UTC.
+Version 2026102200, Last Updated Thu Oct 22 07:07:01 2026 UTC.
 Made by tools/update_tlds.py: do not edit by hand.
 """
 
