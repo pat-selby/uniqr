@@ -7,6 +7,7 @@ shows one. This module creates that window and routes what arrives at it.
 
 import ctypes
 import os
+import traceback
 from ctypes import wintypes
 from typing import Callable
 
@@ -94,13 +95,23 @@ class Shell:
         wc = win32gui.WNDCLASS()
         wc.hInstance = win32api.GetModuleHandle(None)
         wc.lpszClassName = "UniQRHiddenWindow"
-        wc.lpfnWndProc = {
+        handlers = {
             WM_TRAYICON: self._on_tray_message,
             win32con.WM_HOTKEY: self._on_hotkey_message,
             win32con.WM_COMMAND: self._on_command,
             win32con.WM_TIMER: self._on_timer,
             win32con.WM_DESTROY: self._on_destroy,
         }
+        # Explorer sends this to every top-level window when the taskbar starts
+        # again, after a crash or a restart. Every tray icon it showed before is
+        # gone by then, and only the program that owned one can put it back.
+        taskbar_created = win32gui.RegisterWindowMessage("TaskbarCreated")
+        if taskbar_created:
+            handlers[taskbar_created] = self._on_taskbar_created
+        # pywin32 carries on after a handler raises, but first hands the error
+        # to sys.excepthook, and UniQR's hook logs that UniQR stopped. It had
+        # not. Each handler logs its own error instead, and says so.
+        wc.lpfnWndProc = {msg: self._guard(handler) for msg, handler in handlers.items()}
         class_atom = win32gui.RegisterClass(wc)
         return win32gui.CreateWindow(
             class_atom,
@@ -125,17 +136,33 @@ class Shell:
             0,
             win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE,
         )
-        win32gui.Shell_NotifyIcon(
-            win32gui.NIM_ADD,
-            (
-                self.hwnd,
-                0,
-                win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
-                WM_TRAYICON,
-                self._hicon,
-                self.tooltip,
-            ),
-        )
+        # Not fatal. At login the taskbar may not be ready yet, and the hotkey
+        # works without an icon. The next change to the icon, or the taskbar
+        # announcing itself, adds it.
+        if not self._add_icon():
+            print("Windows would not add the tray icon yet. UniQR will try again.")
+
+    def _add_icon(self) -> bool:
+        """Ask for the tray icon to be added. False if Windows said no.
+
+        Windows also says no when the icon is already there, so a False here
+        does not always mean there is no icon.
+        """
+        try:
+            win32gui.Shell_NotifyIcon(
+                win32gui.NIM_ADD,
+                (
+                    self.hwnd,
+                    0,
+                    win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
+                    WM_TRAYICON,
+                    self._hicon,
+                    self.tooltip[:127],
+                ),
+            )
+        except win32gui.error:
+            return False
+        return True
 
     def register_hotkey(self) -> str | None:
         """Claim the first hotkey combination Windows will give us.
@@ -196,15 +223,16 @@ class Shell:
     # -- output --------------------------------------------------------------
 
     def set_tooltip(self, text: str) -> None:
-        win32gui.Shell_NotifyIcon(
-            win32gui.NIM_MODIFY,
-            (self.hwnd, 0, win32gui.NIF_TIP, 0, 0, text[:127]),
+        # Kept, so an icon added again later carries the latest text.
+        self.tooltip = text[:127]
+        self._modify_icon(
+            (self.hwnd, 0, win32gui.NIF_TIP, 0, 0, self.tooltip),
+            "the tray icon's tooltip",
         )
 
     def notify(self, title: str, message: str) -> None:
         """Show a balloon / toast from the tray icon."""
-        win32gui.Shell_NotifyIcon(
-            win32gui.NIM_MODIFY,
+        self._modify_icon(
             (
                 self.hwnd,
                 0,
@@ -217,9 +245,55 @@ class Shell:
                 title[:63],
                 win32gui.NIIF_INFO,
             ),
+            "a tray notification",
         )
 
+    def _modify_icon(self, data: tuple, what: str) -> None:
+        """Change the tray icon. A failure is logged once, never raised.
+
+        Windows refuses a change to an icon it is not showing, and the icon
+        goes missing when Explorer restarts. A tooltip change that raised here
+        came straight after a scan had already copied the code, so the scan
+        looked like a crash. So: try to put the icon back once, then give up
+        quietly. The scan worked either way.
+        """
+        try:
+            win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, data)
+            return
+        except win32gui.error as exc:
+            reason = exc.strerror
+        if self._add_icon():
+            try:
+                win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, data)
+            except win32gui.error:
+                pass  # the icon is back with the latest tooltip, which is enough
+            print("The tray icon was missing, so UniQR added it again.")
+            return
+        print(f"Windows would not update {what} ({reason}). UniQR is still running.")
+
     # -- message handlers ----------------------------------------------------
+
+    def _guard(self, handler):
+        """Wrap a message handler so an error in it is logged, not passed on."""
+
+        def guarded(hwnd, msg, wparam, lparam):
+            try:
+                return handler(hwnd, msg, wparam, lparam)
+            except Exception:  # noqa: BLE001 - one bad message must not look fatal
+                print(
+                    "Something went wrong, but UniQR is still running:\n"
+                    + traceback.format_exc()
+                )
+                return 0
+
+        return guarded
+
+    def _on_taskbar_created(self, hwnd, msg, wparam, lparam):
+        # Windows sends this on some display changes too, with the icon still
+        # there. Adding it then fails, and there is nothing to say.
+        if self._add_icon():
+            print("The taskbar started again, so UniQR added its tray icon back.")
+        return 0
 
     def _on_timer(self, hwnd, msg, wparam, lparam):
         if wparam == HEARTBEAT_ID and self._heartbeat is not None:
@@ -299,7 +373,12 @@ class Shell:
 
     def _on_destroy(self, hwnd, msg, wparam, lparam):
         ctypes.windll.user32.KillTimer(self.hwnd, HEARTBEAT_ID)
-        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+        try:
+            win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+        except win32gui.error:
+            # No icon to remove. Raising here would skip the flag below, and
+            # the app would never leave run().
+            pass
         # Deliberately no PostQuitMessage. A card that is open runs its own
         # message loop, and if that loop receives the quit message it can stop
         # processing timers altogether, so the card never closes and the

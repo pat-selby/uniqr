@@ -86,6 +86,11 @@ def start(argv: list[str] | None = None) -> Path:
     sys.stdout = _Tee(handle, console_out)
     sys.stderr = _Tee(handle, console_err)
 
+    # Python calls this for an error nothing caught, and the app ends after it.
+    # pywin32 calls it too, for an error in a window's message handler, and
+    # there the app carries on. So the Windows shell catches its handlers'
+    # errors itself and logs that UniQR is still running, and "stopped" here
+    # stays true.
     def on_crash(kind, value, tb) -> None:
         if issubclass(kind, KeyboardInterrupt):
             sys.__excepthook__(kind, value, tb)
