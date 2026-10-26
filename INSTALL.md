@@ -83,7 +83,7 @@ Switch on **Terminal** (not UniQR) under **Screen Recording** and **Accessibilit
 
 ## Linux
 
-UniQR needs an **X11** session. Run `echo $XDG_SESSION_TYPE`. If it says `wayland`, log out and choose the Xorg or X11 option on the login screen (on Ubuntu, "Ubuntu on Xorg").
+UniQR works on X11 and on Wayland. To check which you have, run `echo $XDG_SESSION_TYPE`.
 
 1. Download **UniQR-linux-x86_64** from the [latest release](https://github.com/pat-selby/uniqr/releases/latest).
 2. In a terminal, in that folder:
@@ -94,7 +94,15 @@ UniQR needs an **X11** session. Run `echo $XDG_SESSION_TYPE`. If it says `waylan
    ```
 
 3. A card asks whether to start UniQR when you log in. Press **Y** or **N**.
-4. Press **Ctrl + Alt + Q** on any QR code.
+4. Press **Ctrl + Alt + Q** on any QR code. On Wayland, set up a shortcut first (below).
+
+**On Wayland** (the default on Ubuntu, Fedora and most new desktops), apps can't hear global hotkeys, so you make the shortcut in your desktop's settings:
+
+1. Open the keyboard shortcut settings. On GNOME: **Settings → Keyboard → View and Customize Shortcuts → Custom Shortcuts**. On KDE: **System Settings → Shortcuts → Add New → Command or Script**.
+2. Add a shortcut whose command is the full path to UniQR plus `--scan`, for example `/home/you/Downloads/UniQR-linux-x86_64 --scan`.
+3. Pick the keys, for example **Ctrl + Alt + Q**.
+
+The first scan asks whether UniQR may take screenshots. Choose **Allow**. If UniQR isn't running, the shortcut starts it.
 
 To quit, press **Ctrl + C** in that terminal, or run `pkill UniQR-linux`.
 

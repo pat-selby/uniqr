@@ -35,6 +35,8 @@ dependencies = [
     "pynput>=1.7",
     "pystray>=0.19",
     "pyperclip>=1.8",
+    # Talks to the desktop's screenshot portal on Wayland. Pure Python.
+    "jeepney>=0.8; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]

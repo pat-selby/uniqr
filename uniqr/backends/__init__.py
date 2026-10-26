@@ -39,6 +39,11 @@ def probe() -> tuple[bool, str]:
     return backend.probe()
 
 
+def on_wayland() -> bool:
+    """A Linux Wayland session: no global hotkeys, and capture via the portal."""
+    return getattr(backend, "on_wayland", lambda: False)()
+
+
 def input_status() -> tuple[bool | None, str]:
     """Whether the OS will deliver global key events, and why not if it will
     not. None means the OS has no such gate, which is not a failure."""

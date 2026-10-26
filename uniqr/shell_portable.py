@@ -128,6 +128,10 @@ class PortableShell:
 
     # -- setup ---------------------------------------------------------------
 
+    def request_scan(self) -> None:
+        """Scan as if the hotkey were pressed. Safe from any thread."""
+        self._queue.put("scan")
+
     def register_hotkey(self) -> str | None:
         """Start listening for the first combination pynput will take.
 

@@ -5,7 +5,9 @@ code on macOS, X11 and Wayland-with-XWayland. Both platforms gate this behind
 a permission the user has to grant by hand:
 
   macOS  System Settings > Privacy & Security > Screen Recording
-  Linux  works on X11; on pure Wayland a portal-based grab is needed instead
+  Linux  works on X11. On Wayland, which lets no app read another's pixels,
+         the grab goes through the desktop's screenshot portal instead (see
+         uniqr/portal.py), and the person allows it once when the desktop asks.
 
 A denied permission does not raise - it hands back a frame anyway - so
 `probe()` exists to tell a working capture from a blocked one. On macOS it
@@ -97,6 +99,12 @@ def input_status() -> tuple[bool | None, str]:
     the listener still hear nothing. Both are reported because being told to
     grant the permission you already granted is worse than no advice.
     """
+    if _on_wayland():
+        return False, (
+            "Wayland does not pass global hotkeys to apps. Instead, in your desktop's "
+            "keyboard settings, add a custom shortcut that runs this command: "
+            + scan_command()
+        )
     trusted = _ask_bool("ApplicationServices", "AXIsProcessTrusted")
     if trusted is None:
         return None, "this OS has no permission gate on keyboard input"
@@ -176,6 +184,8 @@ def round_corners(handle: int) -> None:
 def grab(rect: Rect | None = None) -> np.ndarray:
     if rect is None:
         rect = virtual_screen()
+    if _on_wayland():
+        return _grab_through_portal(rect)
     raw = _sct().grab(
         {
             "left": rect.left,
@@ -186,6 +196,30 @@ def grab(rect: Rect | None = None) -> np.ndarray:
     )
     # mss hands back BGRA; drop alpha to match the Windows backend.
     return np.ascontiguousarray(np.asarray(raw, dtype=np.uint8)[:, :, :3])
+
+
+def _grab_through_portal(rect: Rect) -> np.ndarray:
+    """The portal photographs the whole desktop; cut out the part asked for.
+
+    Its picture is in real pixels, which on a scaled display is more than the
+    screen size Tk and mss report, so the ratio is the scale factor, and it is
+    kept for the picker.
+    """
+    global _scale
+    from uniqr import portal
+
+    full = portal.screenshot()
+    screen = virtual_screen()
+    ratio = full.shape[1] / screen.width if screen.width else 1.0
+    if 0.1 <= ratio <= 8.0:
+        _scale = ratio
+    else:
+        ratio = 1.0
+    x0 = max(0, round((rect.left - screen.left) * ratio))
+    y0 = max(0, round((rect.top - screen.top) * ratio))
+    x1 = min(full.shape[1], x0 + round(rect.width * ratio))
+    y1 = min(full.shape[0], y0 + round(rect.height * ratio))
+    return np.ascontiguousarray(full[y0:y1, x0:x1])
 
 
 def scale_factor() -> float:
@@ -203,6 +237,10 @@ def scale_factor() -> float:
     global _scale
     if _scale is not None:
         return _scale
+    if _on_wayland():
+        # Measuring would mean a screenshot through the portal outside a scan.
+        # The first real grab sets it.
+        return 1.0
 
     screen = virtual_screen()
     probe_rect = Rect(
@@ -252,10 +290,25 @@ def copy_text(text: str) -> None:
 
 
 WAYLAND = (
-    "this is a Wayland session, which does not let apps read the screen or hear "
-    "global hotkeys. Log out, and on the login screen choose the Xorg or X11 "
-    "session (on Ubuntu: 'Ubuntu on Xorg'), then start UniQR again"
+    "this is a Wayland session, and this desktop offers no screenshot portal "
+    "(org.freedesktop.portal.Screenshot), so UniQR cannot read the screen. "
+    "Install xdg-desktop-portal and the portal for your desktop, or log out and "
+    "choose the Xorg or X11 session on the login screen (on Ubuntu: 'Ubuntu on "
+    "Xorg'), then start UniQR again"
 )
+
+
+def scan_command() -> str:
+    """The command a keyboard shortcut should run to scan: this program plus --scan."""
+    import shlex
+
+    from uniqr import autostart
+
+    return shlex.join([*autostart.program_command(), "--scan"])
+
+
+def on_wayland() -> bool:
+    return _on_wayland()
 
 
 def _on_wayland() -> bool:
@@ -288,6 +341,18 @@ def probe() -> tuple[bool, str]:
     if allowed is False:
         return False, f"Screen Recording permission denied - {DENIED}"
 
+    if _on_wayland():
+        # Asking the portal for a picture here would take a screenshot at
+        # start-up, before anyone asked for a scan. Checking it exists is enough.
+        from uniqr import portal
+
+        if portal.available():
+            return True, (
+                "Wayland: screens are read through the desktop's screenshot portal. "
+                "The first scan asks whether UniQR may take screenshots"
+            )
+        return False, WAYLAND
+
     try:
         shot = grab()
     except Exception as exc:  # noqa: BLE001 - report whatever the OS raised
@@ -311,11 +376,6 @@ def probe() -> tuple[bool, str]:
         )
 
     detail = f"captured {shot.shape[1]}x{shot.shape[0]}"
-    if _on_wayland():
-        detail += (
-            ". Warning: this is a Wayland session, so only some windows may be "
-            "visible and hotkeys may not arrive. Use an Xorg session if scans find nothing"
-        )
     if allowed:
         detail += ", Screen Recording granted"
     return True, detail

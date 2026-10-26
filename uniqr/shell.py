@@ -240,6 +240,10 @@ class Shell:
             self._show_menu()
         return 0
 
+    def request_scan(self) -> None:
+        """Scan as if the tray's Scan now were chosen, once the message loop runs."""
+        win32gui.PostMessage(self.hwnd, win32con.WM_COMMAND, IDM_SCAN, 0)
+
     def _show_menu(self) -> None:
         menu = win32gui.CreatePopupMenu()
         label = f"Scan now ({self.hotkey_label})" if self.hotkey_label else "Scan now"

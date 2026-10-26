@@ -13,6 +13,7 @@ from uniqr.backends import (  # noqa: F401
     grab,
     input_status,
     monitor_at,
+    on_wayland,
     probe,
     scale_factor,
     set_dpi_aware,

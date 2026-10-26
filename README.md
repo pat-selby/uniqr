@@ -14,7 +14,7 @@ Read any QR code on your screen with one keypress. No phone needed.
 2. Double-click it. If Windows says "Windows protected your PC", click **More info**, then **Run anyway**.
 3. Press **<img src="docs/windows-key.svg" alt="Windows logo key" height="14"> + Shift + Q** on any QR code.
 
-**Linux** (X11): download `UniQR-linux-x86_64`, run `chmod +x UniQR-linux-x86_64`, then `./UniQR-linux-x86_64`. Press **Ctrl + Alt + Q**.
+**Linux**: download `UniQR-linux-x86_64`, run `chmod +x UniQR-linux-x86_64`, then `./UniQR-linux-x86_64`. Press **Ctrl + Alt + Q**. On Wayland, add a keyboard shortcut that runs `UniQR-linux-x86_64 --scan` ([how](INSTALL.md#linux)).
 
 **Mac** (macOS 14+): download `UniQR-macOS-arm64.dmg` (Apple Silicon) or `UniQR-macOS-x86_64.dmg` (Intel), drag UniQR to Applications, then open it. The first time, click **Open Anyway** in System Settings → Privacy & Security. Press **⌘ Cmd + Shift + 8**. See [INSTALL.md](INSTALL.md#macos).
 
