@@ -54,6 +54,8 @@ def request_scan(path: Path | None = None) -> bool:
 
 
 def _request_scan_windows() -> bool:
+    if sys.platform != "win32":  # also tells the type checker windll exists below
+        return False
     import ctypes
 
     user32 = ctypes.windll.user32
