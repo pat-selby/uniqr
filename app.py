@@ -28,6 +28,7 @@ from uniqr import (
     logbook,
     mac_permissions,
     overlay,
+    remote,
     report,
     uninstall,
     updates,
@@ -92,8 +93,10 @@ def build_shell(
 
 
 class UniQR:
-    def __init__(self, quiet: bool = False, restarted: bool = False) -> None:
+    def __init__(self, quiet: bool = False, restarted: bool = False, scan_at_start: bool = False) -> None:
         self.quiet = quiet
+        # Started by --scan with no UniQR running: scan once it is up.
+        self.scan_at_start = scan_at_start
         self.restarted = restarted
         capture.set_dpi_aware()
         self.scanner = Scanner()
@@ -396,6 +399,14 @@ class UniQR:
             # start-up with "Invalid window handle".
             return 0
 
+        # --scan from another process. On Windows it reaches the hidden window
+        # directly; elsewhere it comes over a private socket. See uniqr/remote.py.
+        listener = remote.Server(self.shell.request_scan) if backends.NAME != "windows" else None
+        if listener is not None and not listener.start():
+            listener = None
+        if self.scan_at_start:
+            self.shell.request_scan()
+
         dog = watchdog.start(self.shell, self._on_tick)
         clean = False
         try:
@@ -406,6 +417,8 @@ class UniQR:
             raise
         finally:
             dog.stop(clean=clean)
+            if listener is not None:
+                listener.stop()
         if self._uninstalled:
             uninstall.finish()  # last: on Windows it deletes this very program
         return 0
@@ -420,11 +433,15 @@ class UniQR:
         """
         if self.quiet:
             return
-        message = (
-            f"UniQR is running. Press {label} to scan."
-            if label
-            else "UniQR is running, but no hotkey was free. Use the tray icon."
-        )
+        if capture.on_wayland():
+            message = (
+                "UniQR is running. On Wayland, add a keyboard shortcut in your "
+                "desktop's settings that runs UniQR --scan."
+            )
+        elif label:
+            message = f"UniQR is running. Press {label} to scan."
+        else:
+            message = "UniQR is running, but no hotkey was free. Use the tray icon."
         screen = capture.monitor_at(0, 0)  # the monitor holding the origin
         try:
             if autostart.should_ask(self.quiet, self.restarted):
@@ -551,6 +568,11 @@ def main() -> int:
         return done
     if "--uninstall" in sys.argv:
         return uninstall.run_command_line()
+    # A keyboard shortcut runs this. With UniQR running, hand it the scan and
+    # leave; without one, carry on and become it, scanning once it is up.
+    scan_at_start = "--scan" in sys.argv
+    if scan_at_start and remote.request_scan():
+        return 0
     # Opens one link the way the Open button does, says whether it worked, and
     # exits. For finding out why Open does nothing on a given machine.
     if "--report-problem" in sys.argv:
@@ -599,7 +621,7 @@ def main() -> int:
         print("UniQR is already running - check the system tray.")
         return 1
     try:
-        return UniQR(quiet=quiet, restarted=restarted).run()
+        return UniQR(quiet=quiet, restarted=restarted, scan_at_start=scan_at_start).run()
     except KeyboardInterrupt:
         print("\nstopped")
         return 0

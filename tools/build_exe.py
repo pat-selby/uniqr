@@ -84,9 +84,11 @@ BUNDLE_ID = "com.patselby.uniqr"
 #                         never touches it, so a start-up test passed.
 #   pynput.keyboard._xorg the Linux keyboard listener, chosen at run time.
 #   pynput.keyboard._darwin  the same, on a Mac.
+#   jeepney.io.blocking   Wayland's screenshot portal, imported only when a
+#                         scan runs on Wayland (uniqr/portal.py).
 REQUIRED_MODULES = {
     "win32": ["PIL._tkinter_finder"],
-    "linux": ["PIL._tkinter_finder", "pynput.keyboard._xorg"],
+    "linux": ["PIL._tkinter_finder", "pynput.keyboard._xorg", "jeepney.io.blocking"],
     "darwin": ["PIL._tkinter_finder", "pynput.keyboard._darwin"],
 }
 
