@@ -369,6 +369,19 @@ def main() -> int:
             return 1
         print("ok: the link is on the clipboard")
 
+        # --scan, which a Wayland desktop's own keyboard shortcut runs: a second
+        # copy of the program hands the scan to this one and leaves at once.
+        before = len(read_log())
+        asked = subprocess.run([str(program), "--scan"], capture_output=True, text=True, timeout=30)
+        if asked.returncode != 0:
+            print(f"FAIL: --scan exited {asked.returncode} with UniQR running: {asked.stdout}{asked.stderr}")
+            return 1
+        if not wait_for(PAYLOAD, 20, start=before):
+            print("FAIL: --scan was handed over, and the link never reached the log. Its log:")
+            print(read_log()[before:])
+            return 1
+        print("ok: --scan from a second copy made the running one scan")
+
         # Now two codes on screen, so the picker has to open and draw them.
         qr_window.terminate()
         qr_window = subprocess.Popen([sys.executable, "-c", SHOW_QR, "two"])
