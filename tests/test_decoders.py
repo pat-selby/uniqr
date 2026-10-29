@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import pytest
 from tests.helpers.qr_synth import make_qr
-from uniqr.decode import Detection, _zxing_detect, _zxing_text, zxing_available
+from uniqr.decode import Detection, _merge, _zxing_detect, _zxing_text, zxing_available
 
 TEXT = "https://example.com/uniqr-decoder-test"
 
@@ -140,3 +140,65 @@ def test_offset_accepts_negative_origins():
     """Multi-monitor setups put the virtual desktop origin below zero."""
     moved = Detection("t", quad(10, 20, 30)).offset(-100, -50)
     assert moved.bbox == (-90, -30, 30, 30)
+
+
+# -- merging repeat reads --------------------------------------------------
+
+# The case that broke: on a page of seven codes the locator joined corner
+# squares from three of them into one big square. Reading it found the real QR
+# code inside, so the text was right, but the box was 477x473 around a 200x200
+# code, and the picker showed two badges for one code.
+TIGHT = Detection("https://example.com/qr", quad(396, 95, 200))
+STITCHED = Detection(
+    "https://example.com/qr",
+    np.array([[396, 95], [791, 110], [791, 568], [314, 568]], dtype=np.float32),
+)
+
+
+def test_merge_drops_a_stitched_box_around_a_code_already_read():
+    merged = _merge([[TIGHT], [STITCHED]])
+    assert len(merged) == 1
+    assert merged[0].bbox == TIGHT.bbox
+
+
+def test_merge_keeps_the_tight_box_whichever_read_came_first():
+    merged = _merge([[STITCHED], [TIGHT]])
+    assert len(merged) == 1
+    assert merged[0].bbox == TIGHT.bbox
+
+
+def test_merge_keeps_the_first_of_two_close_reads():
+    """Two good reads a few pixels apart: no reason to swap the first one out."""
+    first = Detection("t", quad(100, 100, 200))
+    second = Detection("t", quad(104, 102, 196))
+    assert _merge([[first], [second]])[0] is first
+
+
+def test_merge_keeps_two_identical_codes_side_by_side():
+    """The same link printed twice is two codes, and the picker shows both."""
+    left = Detection("t", quad(0, 0, 200))
+    right = Detection("t", quad(300, 0, 200))
+    assert len(_merge([[left, right]])) == 2
+
+
+def test_merge_keeps_different_codes_that_overlap():
+    big = Detection("a", quad(0, 0, 400))
+    small = Detection("b", quad(100, 100, 100))
+    assert len(_merge([[big], [small]])) == 2
+
+
+def test_scan_reports_one_box_when_the_locator_stitches_codes(scanner, qr_image, monkeypatch):
+    """End to end: a locator that returns a far too big square, as it did on
+    the real page, still leaves one detection with a tight box."""
+    h, w = qr_image.shape[:2]
+    page = np.full((100 + 2 * h, 100 + 2 * w, 3), 255, dtype=np.uint8)
+    page[100 : 100 + h, 100 : 100 + w] = qr_image
+    # Twice the code's size, so its centre is far from the real one.
+    far = 100 + 2 * w - 10
+    stitched = np.array([[100, 100], [far, 110], [far, far], [60, far]], dtype=np.float32)
+    monkeypatch.setattr(scanner, "_locate", lambda _image: [stitched])
+
+    found = [d for d in scanner.scan(page) if d.text == TEXT]
+    assert len(found) == 1
+    _, _, width, height = found[0].bbox
+    assert width < 1.5 * w and height < 1.5 * h

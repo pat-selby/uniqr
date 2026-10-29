@@ -384,31 +384,45 @@ def _inside(point, quad: np.ndarray) -> bool:
     ) >= 0
 
 
+def _same_code(a: Detection, b: Detection) -> bool:
+    """Two reads of one code: same text, and in the same place.
+
+    "Same place" can't just mean nearby centres. The locator sometimes joins
+    the corner squares of two or three different codes into one big shape,
+    and reading that shape finds the real code inside it - so the text is
+    right but the outline is far too big, and its centre lands well away from
+    the real one. Either centre inside the other's outline catches that. Two
+    copies of one code side by side still count twice: neither outline holds
+    the other's centre.
+    """
+    if a.text != b.text:
+        return False
+    near = abs(a.center[0] - b.center[0]) < 40 and abs(a.center[1] - b.center[1]) < 40
+    return near or _inside(a.center, b.quad) or _inside(b.center, a.quad)
+
+
+def _area(det: Detection) -> int:
+    _, _, w, h = det.bbox
+    return w * h
+
+
 def _merge(groups: list[list[Detection]]) -> list[Detection]:
     """Combine detector results, dropping the same code found twice.
 
-    The same text counts as the same code when the centres are close, or when
-    one outline contains the other's centre. The second case is a code found
-    again inside a larger shape the locators stitched from several codes' corners:
-    on a tester's busy screen it drew a long, skewed outline over other codes.
-    Two copies of one code side by side stay separate. The first found is kept,
-    and the whole-frame reads, which place codes best, come first.
+    The first read of a code is kept, and the whole-frame reads, which place
+    codes best, come first. A later read replaces it only when its box is
+    less than half the size: a real read hugs the code, and the stitched
+    shape described in _same_code is always much bigger. The picker draws its
+    outline and badge from this box, so the tight one matters.
     """
     merged: list[Detection] = []
     for group in groups:
         for det in group:
-            cx, cy = det.center
-            duplicate = any(
-                other.text == det.text
-                and (
-                    (abs(other.center[0] - cx) < 40 and abs(other.center[1] - cy) < 40)
-                    or _inside(other.center, det.quad)
-                    or _inside(det.center, other.quad)
-                )
-                for other in merged
-            )
-            if not duplicate:
+            match = next((i for i, other in enumerate(merged) if _same_code(other, det)), None)
+            if match is None:
                 merged.append(det)
+            elif 2 * _area(det) < _area(merged[match]):
+                merged[match] = det
     return merged
 
 
