@@ -427,9 +427,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <p class="lede">Free and open source, MIT licensed. Every release is at <a href="https://github.com/pat-selby/uniqr/releases/latest">github.com/pat-selby/uniqr/releases/latest</a>.</p>
     </div>
     <div class="get">
-      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> and double-click it. No Python needed. Windows may warn the first time, since it isn't code-signed yet.</p><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest">Latest release</a></div>
-      <div class="os"><h3>Mac</h3><p>Download the <code>.dmg</code> and drag UniQR to Applications. Open it, then click Open Anyway in System Settings &gt; Privacy &amp; Security. Switch UniQR on under Screen Recording and Accessibility. Needs macOS 14 or newer.</p><div class="pair"><a class="btn primary" href="https://github.com/pat-selby/uniqr/releases/latest/download/UniQR-macOS-arm64.dmg">Apple Silicon</a><a class="btn ghost" href="https://github.com/pat-selby/uniqr/releases/latest/download/UniQR-macOS-x86_64.dmg">Intel</a></div></div>
-      <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code>. It needs an X11 session, since Wayland blocks screen capture.</p><a class="btn ghost" href="https://github.com/pat-selby/uniqr/blob/main/INSTALL.md">Install guide</a></div>
+      <div class="os"><h3>Windows</h3><p>Download <code>UniQR.exe</code> and double-click it. No Python needed. Windows may warn the first time, since it isn't code-signed yet.</p><a class="btn primary" href="download/windows/">Download for Windows</a></div>
+      <div class="os"><h3>Mac</h3><p>Download the <code>.dmg</code> and drag UniQR to Applications. Open it, then click Open Anyway in System Settings &gt; Privacy &amp; Security. Switch UniQR on under Screen Recording and Accessibility. Needs macOS 14 or newer.</p><div class="pair"><a class="btn primary" href="download/mac/?chip=apple">Apple Silicon</a><a class="btn ghost" href="download/mac/?chip=intel">Intel</a></div></div>
+      <div class="os"><h3>Linux</h3><p>Download <code>UniQR-linux-x86_64</code>. It needs an X11 session, since Wayland blocks screen capture.</p><a class="btn primary" href="download/linux/">Download for Linux</a></div>
     </div>
     <p class="policy">Why does Windows warn? It isn't code-signed yet. Read the <a href="https://github.com/pat-selby/uniqr/blob/main/CODE_SIGNING_POLICY.md">Code signing policy</a>. Questions or ideas? <a href="https://github.com/pat-selby/uniqr/discussions">Ask in Discussions</a>.</p>
   </div>
@@ -443,18 +443,17 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 </footer>
 
 <script>
-// The hero button matches the visitor's system and downloads the file from the
-// latest release, and the demo video shows that system and its hotkey. A browser can't reliably tell an Apple Silicon Mac from an
-// Intel one, so Macs get the Apple Silicon file plus a link to the Intel one.
-// Anything else (a phone, say) gets the releases page, since UniQR is a
-// desktop app.
+// The hero button matches the visitor's system and leads to its download page
+// (download/<system>/), which starts the file and shows the setup steps. The
+// demo video shows that system and its hotkey too. A browser can't reliably
+// tell an Apple Silicon Mac from an Intel one, so Macs get the Apple Silicon
+// page plus a link to the Intel one. Anything else (a phone, say) gets the
+// releases page, since UniQR is a desktop app.
 (function () {
-  var REPO = "https://github.com/pat-selby/uniqr";
-  var LATEST = REPO + "/releases/latest/download/";
   var SYSTEMS = {
-    windows: { label: "Download for Windows", href: LATEST + "UniQR.exe", name: "Windows" },
-    mac: { label: "Download for Mac", href: LATEST + "UniQR-macOS-arm64.dmg", name: "Mac" },
-    linux: { label: "Download for Linux", href: LATEST + "UniQR-linux-x86_64", name: "Linux (X11)" },
+    windows: { label: "Download for Windows", href: "download/windows/", name: "Windows" },
+    mac: { label: "Download for Mac", href: "download/mac/?chip=apple", name: "Mac" },
+    linux: { label: "Download for Linux", href: "download/linux/", name: "Linux (X11)" },
   };
 
   function system() {
@@ -481,7 +480,7 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   also.textContent = "";
   if (mine === "mac") {
     var intel = document.createElement("a");
-    intel.href = LATEST + "UniQR-macOS-x86_64.dmg";
+    intel.href = "download/mac/?chip=intel";
     intel.textContent = "Intel Mac version";
     also.appendChild(document.createTextNode("For Apple Silicon. "));
     also.appendChild(intel);
@@ -492,8 +491,8 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
   var others = Object.keys(SYSTEMS).filter(function (k) { return k !== mine; });
   others.forEach(function (k, i) {
     var link = document.createElement("a");
-    // Mac has two files, so other visitors go to the Mac card, which lists both.
-    link.href = k === "mac" ? "#get" : SYSTEMS[k].href;
+    // Mac has two files, so other visitors go to the Mac page, which asks which Mac.
+    link.href = k === "mac" ? "download/mac/" : SYSTEMS[k].href;
     link.textContent = SYSTEMS[k].name;
     also.appendChild(link);
     also.appendChild(document.createTextNode(i === others.length - 1 ? "." : " and "));
