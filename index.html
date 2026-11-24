@@ -156,6 +156,11 @@ nav .wrap { display: flex; align-items: center; justify-content: space-between; 
 .film .sound { position: absolute; right: 14px; bottom: 58px; }
 .film-note { margin-top: 12px; font-size: 15px; color: var(--muted); }
 
+/* Patrick's narrated launch cut accompanies the platform-specific tutorial. */
+.launch { margin-top: 20px; scroll-margin-top: 96px; border-top: 1px solid var(--line); padding-top: 16px; }
+.launch summary { font-weight: 700; cursor: pointer; }
+.launch video { display: block; width: min(100%, 560px); height: auto; border-radius: 16px; margin-top: 16px; }
+
 /* use cases */
 .cases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .case { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 8px; align-content: start; }
@@ -295,6 +300,9 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
       <button class="btn primary sound" id="sound" type="button">Play with sound</button>
     </div>
     <p class="film-note">Every screen in the video is drawn in code with made-up content. The codes in it are real ones.</p>
+    <details id="launch" class="launch"><summary>Watch my original 28-second launch video</summary>
+      <video id="launch-video" width="1080" height="1080" controls playsinline preload="none" poster="my-launch.jpg" aria-label="My UniQR launch video"><source src="my-launch.mp4" type="video/mp4"><track src="my-launch.vtt" kind="captions" srclang="en" label="English"></video>
+    </details>
   </div>
 </section>
 
@@ -443,6 +451,20 @@ footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; g
 </footer>
 
 <script>
+(function () {
+  var launch = document.getElementById("launch");
+  var clip = document.getElementById("launch-video");
+  var demo = document.getElementById("demo");
+  function showLinkedClip() {
+    if (location.hash === "#launch") { launch.open = true; demo.pause(); }
+  }
+  showLinkedClip();
+  window.addEventListener("hashchange", showLinkedClip);
+  clip.addEventListener("play", function () { demo.pause(); });
+  demo.addEventListener("play", function () { clip.pause(); });
+  launch.addEventListener("toggle", function () { if (!launch.open) clip.pause(); });
+})();
+
 // The hero button matches the visitor's system and leads to its download page
 // (download/<system>/), which starts the file and shows the setup steps. The
 // demo video shows that system and its hotkey too. A browser can't reliably
